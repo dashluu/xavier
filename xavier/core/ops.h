@@ -10,6 +10,7 @@ namespace xv::core
         RANDN,
         ARANGE,
         CONSTANT,
+        BUFF,
         ADD,
         SUB,
         MUL,
@@ -41,6 +42,7 @@ namespace xv::core
         {OpName::RANDN, "randn"},
         {OpName::ARANGE, "arange"},
         {OpName::CONSTANT, "constant"},
+        {OpName::BUFF, "buff"},
         {OpName::ADD, "add"},
         {OpName::SUB, "sub"},
         {OpName::MUL, "mul"},
@@ -90,15 +92,22 @@ namespace xv::core
     {
     private:
         std::vector<uint64_t> view;
-        double c;
+        float c;
         Dtype dtype;
 
     public:
-        ConstOp(const std::vector<uint64_t> &view, double c, const Dtype &dtype) : Op(OpName::CONSTANT, OpType::INITIALIZER), view(view), c(c), dtype(dtype) {}
+        ConstOp(const std::vector<uint64_t> &view, float c, const Dtype &dtype) : Op(OpName::CONSTANT, OpType::INITIALIZER), view(view), c(c), dtype(dtype) {}
         const std::vector<uint64_t> &get_view() { return view; }
-        double get_const() const { return c; }
+        float get_const() const { return c; }
         const Dtype &get_dtype() { return dtype; }
         const std::string str() const override { return opnames.at(name) + "((" + numstr(view) + "), " + std::to_string(c) + ")"; }
+    };
+
+    struct BuffOp : public Op
+    {
+    public:
+        BuffOp() : Op(OpName::BUFF, OpType::INITIALIZER) {}
+        const std::string str() const override { return opnames.at(name); }
     };
 
     struct UnaryOp : public Op
@@ -181,10 +190,12 @@ namespace xv::core
     {
     private:
         std::vector<uint64_t> view;
+        bool copy;
 
     public:
-        ReshapeOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view) : TransformOp(OpName::RESHAPE, operand), view(view) {}
+        ReshapeOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view, bool copy) : TransformOp(OpName::RESHAPE, operand), view(view), copy(copy) {}
         const std::vector<uint64_t> &get_view() { return view; }
+        bool get_copy() { return copy; }
         const std::string str() const override { return opnames.at(name) + "(" + numstr(view) + ")"; }
     };
 

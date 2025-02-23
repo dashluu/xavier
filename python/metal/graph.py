@@ -1,5 +1,19 @@
-from python.xavier import Array, Graph, Op, OpName, OpType, UnaryOp, BinaryOp, ConstOp, ArangeOp, BinaryOp, opnames
-from python.metal.kernels import constant, arange, ss_op
+from python.xavier import (
+    Array,
+    Graph,
+    Op,
+    OpName,
+    OpType,
+    UnaryOp,
+    BinaryOp,
+    ConstOp,
+    ArangeOp,
+    BinaryOp,
+    TransformOp,
+    ReshapeOp,
+    opnames,
+)
+from python.metal.kernels import constant, arange, ss_op, sparse_copy
 from python.metal.context import MTLContext
 from python.config import config
 
@@ -63,10 +77,20 @@ class MTLGraph(Graph):
         arr.alloc()
         ss_op(name, [lhs, rhs], arr, config.ctx)
 
+    def _transform(self, arr: Array):
+        arr.alloc()
+        op: Op = arr.op()
+        match op.name():
+            case OpName.RESHAPE:
+                reshape_op: ReshapeOp = op
+                operand = reshape_op.operand()
+                if reshape_op.copy():
+                    sparse_copy(f"sparse_copy", operand, arr, config.ctx)
+
     def _recur_forw(self, arr: Array, visited: set):
         if arr.id() in visited:
             return
-        kernel = f"kernel{arr.id()}"
+        kernel = f"kernel{arr.id()}_{arr.dtype()}"
         ctx: MTLContext = config.ctx
         if kernel in ctx.kernels:
             # If the current operation is in the kernels, we can directly call it.
@@ -78,9 +102,11 @@ class MTLGraph(Graph):
                 case OpType.INITIALIZER:
                     self._initializer(arr)
                 case OpType.UNARY:
-                    self._unary(f"{opnames[op.name()]}_{arr.dtype()}", arr, visited)
+                    self._unary(opnames[op.name()], arr, visited)
                 case OpType.BINARY:
-                    self._binary(f"{opnames[op.name()]}_{arr.dtype()}", arr, visited)
+                    self._binary(opnames[op.name()], arr, visited)
+                case OpType.TRANSFORM:
+                    self._transform(arr)
 
     def compile(self):
         config.compiler.compile(self.root())

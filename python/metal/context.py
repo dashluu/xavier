@@ -32,28 +32,30 @@ class MTLContext(Context):
     _initializer_ops = ["constant_c", "arange"]
     _unary_ops = ["exp", "log", "neg", "recip"]
     _binary_ops = ["add", "sub", "mul", "div", "eq", "neq", "lt", "gt", "leq", "geq"]
+    _util_ops = ["copy"]
+
+    def _init_kernel(self, ops, sparse=True):
+        for op in ops:
+            for k in xv.num_dtypes:
+                name = f"{op}_{k.name()}"
+                f = self._lib.newFunctionWithName_(name)
+                self._kernels[name] = MTLKernel(self._device.newComputePipelineStateWithFunction_error_(f, None)[0], k)
+                if sparse:
+                    name = f"sparse_{op}_{k.name()}"
+                    f = self._lib.newFunctionWithName_(name)
+                    self._kernels[name] = MTLKernel(
+                        self._device.newComputePipelineStateWithFunction_error_(f, None)[0], k
+                    )
 
     def __init__(self, metallib: str):
         self._device = Metal.MTLCreateSystemDefaultDevice()
         self._lib, _ = self._device.newLibraryWithURL_error_(metallib, None)
         self._cmd_queue = self._device.newCommandQueue()
         self._kernels: dict[str, MTLKernel] = {}
-        init_pipeline_state = self._device.newComputePipelineStateWithFunction_error_
-        for op in MTLContext._initializer_ops:
-            for k in xv.num_dtypes:
-                name = f"{op}_{k.name()}"
-                f = self._lib.newFunctionWithName_(name)
-                self._kernels[name] = MTLKernel(init_pipeline_state(f, None)[0], k)
-        for op in MTLContext._unary_ops:
-            for k in xv.num_dtypes:
-                name = f"{op}_{k.name()}"
-                f = self._lib.newFunctionWithName_(name)
-                self._kernels[name] = MTLKernel(init_pipeline_state(f, None)[0], k)
-        for op in MTLContext._binary_ops:
-            for k in xv.num_dtypes:
-                name = f"{op}_{k.name()}"
-                f = self._lib.newFunctionWithName_(name)
-                self._kernels[name] = MTLKernel(init_pipeline_state(f, None)[0], k)
+        self._init_kernel(MTLContext._initializer_ops, sparse=False)
+        self._init_kernel(MTLContext._unary_ops)
+        self._init_kernel(MTLContext._binary_ops)
+        self._init_kernel(MTLContext._util_ops)
 
     @property
     def device(self):

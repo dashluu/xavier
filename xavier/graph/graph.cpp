@@ -1,6 +1,6 @@
 #include "graph.h"
 
-namespace xv::core
+namespace xv::graph
 {
     const std::string Graph::recur_str(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited) const
     {

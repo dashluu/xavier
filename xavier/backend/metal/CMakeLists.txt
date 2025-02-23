@@ -13,7 +13,7 @@ function(build_kernel KERNEL)
                     -c ${SRCFILE}
                     -I ${PROJECT_SOURCE_DIR}
                     -o ${TARGET}.air
-        DEPENDS ${SRCFILE}
+        DEPENDS ${SRCFILE} "${ARGN}"
         OUTPUT ${TARGET}.air
         COMMENT "Building ${TARGET}.air"
         VERBATIM
@@ -22,9 +22,11 @@ function(build_kernel KERNEL)
     set(KERNEL_AIR ${TARGET}.air ${KERNEL_AIR} PARENT_SCOPE)
 endfunction(build_kernel)
 
-build_kernel(binary)
+build_kernel(utils utils.h)
+build_kernel(binary utils.h)
 build_kernel(initializers)
 build_kernel(unary)
+build_kernel(copy utils.h)
 
 message(STATUS "Kernel AIR Files: ${KERNEL_AIR}")
 

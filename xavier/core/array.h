@@ -92,18 +92,20 @@ namespace xv::core
 
         uint64_t get_numel() const { return shape.get_numel(); }
 
-        uint64_t get_nbytes() const { return shape.get_numel() * dtype.get_size(); }
+        uint64_t get_ndim() const { return shape.get_ndim(); }
+
+        uint64_t get_itemsize() const { return dtype.get_size(); }
+
+        uint64_t get_nbytes() const { return get_numel() * get_itemsize(); }
 
         bool is_contiguous() const { return shape.is_contiguous(); }
+
+        uint8_t *access_(uint64_t k) const;
 
         // TODO: implement this
         Array &operator=(const Array &arr) = delete;
 
         const std::string str() const override;
-
-        void copy_to(std::shared_ptr<const Array> dest) const;
-
-        std::shared_ptr<Array> interpret_(const Dtype &dtype);
 
         std::shared_ptr<Array> slice(const std::vector<Range> &ranges);
 
@@ -115,10 +117,18 @@ namespace xv::core
             return arr;
         }
 
-        static std::shared_ptr<Array> constant(const std::vector<uint64_t> &view, double c, const Dtype &dtype = f32, const Device &device = device0)
+        static std::shared_ptr<Array> constant(const std::vector<uint64_t> &view, float c, const Dtype &dtype = f32, const Device &device = device0)
         {
             auto op = std::make_shared<ConstOp>(view, c, dtype);
             auto arr = std::make_shared<Array>(Shape(view), dtype, device);
+            arr->op = op;
+            return arr;
+        }
+
+        static std::shared_ptr<Array> from_buff(uint8_t *ptr, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0)
+        {
+            auto op = std::make_shared<BuffOp>();
+            auto arr = std::make_shared<Array>(ptr, shape, dtype, device);
             arr->op = op;
             return arr;
         }
@@ -134,7 +144,7 @@ namespace xv::core
 
         std::shared_ptr<Array> div(std::shared_ptr<Array> rhs);
 
-        std::shared_ptr<Array> reshape_(const std::vector<uint64_t> &view);
+        std::shared_ptr<Array> reshape(const std::vector<uint64_t> &view);
     };
 
     inline IdGenerator Array::id_gen = IdGenerator();

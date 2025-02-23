@@ -1,4 +1,4 @@
-#include <metal_stdlib>
+#include "utils.h"
 
 struct Add
 {
@@ -71,13 +71,34 @@ template <class Op, class T, class R>
     output[id] = Op()(input1[id], input2[id]);
 }
 
+template <class Op, class T, class R>
+[[kernel]] void sparse_binary_ss(
+    constant const uint *ndim [[buffer(0)]],
+    constant const uint *shape1 [[buffer(1)]],
+    constant const uint *stride1 [[buffer(2)]],
+    constant const uint *shape2 [[buffer(3)]],
+    constant const uint *stride2 [[buffer(4)]],
+    device T *input1 [[buffer(5)]],
+    device T *input2 [[buffer(6)]],
+    device R *output [[buffer(7)]],
+    uint id [[thread_position_in_grid]])
+{
+    uint idx1 = access(id, ndim, shape1, stride1);
+    uint idx2 = access(id, ndim, shape2, stride2);
+    output[id] = Op()(input1[idx1], input2[idx2]);
+}
+
 #define binary_all(opname, op) \
-template [[host_name(#opname "_f32")]] [[kernel]] decltype(binary_ss<op, float, float>) binary_ss<op, float, float>; \
-template [[host_name(#opname "_i32")]] [[kernel]] decltype(binary_ss<op, int, int>) binary_ss<op, int, int>;
+template [[host_name(#opname "_f32")]] [[kernel]] decltype(binary_ss<op, float, float>) binary_ss<op, float, float>;                        \
+template [[host_name(#opname "_i32")]] [[kernel]] decltype(binary_ss<op, int, int>) binary_ss<op, int, int>;                                \
+template [[host_name("sparse_" #opname "_f32")]] [[kernel]] decltype(sparse_binary_ss<op, float, float>) sparse_binary_ss<op, float, float>;\
+template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_binary_ss<op, int, int>) sparse_binary_ss<op, int, int>;
 
 #define cmp_all(opname, op) \
-template [[host_name(#opname "_f32")]] [[kernel]] decltype(binary_ss<op, float, bool>) binary_ss<op, float, bool>; \
-template [[host_name(#opname "_i32")]] [[kernel]] decltype(binary_ss<op, int, bool>) binary_ss<op, int, bool>;
+template [[host_name(#opname "_f32")]] [[kernel]] decltype(binary_ss<op, float, bool>) binary_ss<op, float, bool>;                          \
+template [[host_name(#opname "_i32")]] [[kernel]] decltype(binary_ss<op, int, bool>) binary_ss<op, int, bool>;                              \
+template [[host_name("sparse_" #opname "_f32")]] [[kernel]] decltype(sparse_binary_ss<op, float, bool>) sparse_binary_ss<op, float, bool>;  \
+template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_binary_ss<op, int, bool>) sparse_binary_ss<op, int, bool>;
 
 binary_all(add, Add)
 binary_all(sub, Sub)

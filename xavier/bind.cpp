@@ -66,17 +66,18 @@ void init_xv_module(py::module_ &m)
         .def("device", &Array::get_device)
         .def("op", &Array::get_op)
         .def("grad", &Array::get_grad)
-        .def("ptr", &Array::get_ptr)
+        .def("ptr_", &Array::get_ptr)
+        .def("access_", &Array::access_, "Accesses the kth element in the array.", "k"_a)
         .def("is_contiguous", &Array::is_contiguous)
         .def("numel", &Array::get_numel)
+        .def("ndim", &Array::get_ndim)
+        .def("itemsize", &Array::get_itemsize)
         .def("nbytes", &Array::get_nbytes)
         .def("alloc", &Array::alloc)
         .def("__str__", &Array::str)
         .def("__len__", [](const Array &arr)
              { return arr.get_shape()[0]; })
-        .def("copy_to", &Array::copy_to, "Copies the array to the destination array.", "dest"_a)
-        .def("interpret_", &Array::interpret_, "Interprets the array as a different dtype in-place.", "dtype"_a)
-        .def("reshape_", &Array::reshape_, "Reshapes the array to the given view in-place.", "view"_a)
+        .def("reshape", &Array::reshape, "Reshapes the array to the given view in-place.", "view"_a)
         .def("__getitem__", [](Array &arr, const py::object &obj)
              { return arr.slice(get_arr_ranges(arr, obj)); }, "obj"_a)
         .def_static("arange", &Array::arange, "Creates a new array containing an algebraic sequence of integers.", "view"_a, "start"_a, "step"_a, "dtype"_a = f32, "device"_a = device0)
@@ -87,12 +88,12 @@ void init_xv_module(py::module_ &m)
         .def("__truediv__", &Array::div, "rhs"_a)
         .def_static("from_buffer", &array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = device0);
 
-    py::class_<Graph, std::unique_ptr<Graph, py::nodelete>>(m, "Graph")
-        .def(py::init<std::shared_ptr<Array>>(), "root"_a)
-        .def("root", &Graph::get_root)
-        .def("__str__", &Graph::str)
-        .def("forward", &Graph::forward)
-        .def("backward", &Graph::backward);
+    // py::class_<Graph, std::unique_ptr<Graph, py::nodelete>>(m, "Graph")
+    //     .def(py::init<std::shared_ptr<Array>>(), "root"_a)
+    //     .def("root", &Graph::get_root)
+    //     .def("__str__", &Graph::str)
+    //     .def("forward", &Graph::forward)
+    //     .def("backward", &Graph::backward);
 
     py::enum_<OpType>(m, "OpType")
         .value("INITIALIZER", OpType::INITIALIZER)
@@ -103,6 +104,7 @@ void init_xv_module(py::module_ &m)
     py::enum_<OpName>(m, "OpName")
         .value("CONSTANT", OpName::CONSTANT)
         .value("ARANGE", OpName::ARANGE)
+        .value("BUFF", OpName::BUFF)
         .value("ADD", OpName::ADD)
         .value("SUB", OpName::SUB)
         .value("MUL", OpName::MUL)
@@ -131,6 +133,8 @@ void init_xv_module(py::module_ &m)
         .def("const", &ConstOp::get_const)
         .def("dtype", &ConstOp::get_dtype);
 
+    py::class_<BuffOp, Op, std::shared_ptr<BuffOp>>(m, "BuffOp");
+
     py::class_<UnaryOp, Op, std::shared_ptr<UnaryOp>>(m, "UnaryOp")
         .def("operand", &UnaryOp::get_operand);
 
@@ -156,7 +160,8 @@ void init_xv_module(py::module_ &m)
         .def("view", &BroadcastOp::get_view);
 
     py::class_<ReshapeOp, TransformOp, std::shared_ptr<ReshapeOp>>(m, "ReshapeOp")
-        .def("view", &ReshapeOp::get_view);
+        .def("view", &ReshapeOp::get_view)
+        .def("copy", &ReshapeOp::get_copy);
 }
 
 bool is_buff_contiguous(py::buffer_info &buff_info)
@@ -182,7 +187,7 @@ std::shared_ptr<Array> array_from_buffer(py::buffer &buff, const Device &device)
     uint64_t numel = buff_info.size;
     Shape shape(0, {numel}, {1});
     uint8_t *ptr = static_cast<uint8_t *>(buff_info.ptr);
-    return std::make_shared<Array>(ptr, shape, descriptors_to_dtypes.at(buff_info.format), device);
+    return Array::from_buff(ptr, shape, descriptors_to_dtypes.at(buff_info.format), device);
 }
 
 py::buffer_info array_to_buffer(Array &arr)
@@ -193,11 +198,11 @@ py::buffer_info array_to_buffer(Array &arr)
     }
     return py::buffer_info(
         arr.get_ptr(),
-        arr.get_dtype().get_size(),
+        arr.get_itemsize(),
         dtypes_to_descriptors[arr.get_dtype()],
         1,
-        {arr.get_shape().get_numel()},
-        {arr.get_dtype().get_size()});
+        {arr.get_numel()},
+        {arr.get_itemsize()});
 }
 
 template <class T>

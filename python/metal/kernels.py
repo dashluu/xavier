@@ -5,33 +5,130 @@ import Metal
 import numpy as np
 
 
-def _alloc(arr: Array, size: int, ctx: MTLContext):
-    if arr.is_contiguous():
-        buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
-            arr, size, Metal.MTLResourceStorageModeShared, None
-        )
-    else:
-        buff = ctx.device.newBufferWithLength_options_(size, Metal.MTLResourceStorageModeShared)
-        tmp = Array.from_buffer(buff.contents().as_buffer(size)).interpret_(arr.dtype())
-        arr.copy_to(tmp)
-    return buff
-
-
 def ss_op(name: str, input: list[Array], output: Array, ctx: MTLContext) -> Array:
-    cmd_buff, encoder, kernel = ctx.get_resources(name)
-    inbuffs = []
-    numel = input[0].shape().numel()
-    insize = input[0].nbytes()
+    cmd_buff, encoder, kernel = ctx.get_resources(f"{name}_{output.dtype()}")
+    buff_idx = 0
     for i in range(len(input)):
-        inbuff = _alloc(input[i], insize, ctx)
-        inbuffs.append(inbuff)
+        inbuff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+            input[i], input[i].nbytes(), Metal.MTLResourceStorageModeShared, None
+        )
+        encoder.setBuffer_offset_atIndex_(inbuff, 0, buff_idx)
+        buff_idx += 1
     outbuff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
         output, output.nbytes(), Metal.MTLResourceStorageModeShared, None
     )
-    for i, inbuff in enumerate(inbuffs):
-        encoder.setBuffer_offset_atIndex_(inbuff, 0, i)
-    encoder.setBuffer_offset_atIndex_(outbuff, 0, len(inbuffs))
-    grid_size = Metal.MTLSizeMake(numel, 1, 1)
+    encoder.setBuffer_offset_atIndex_(outbuff, 0, buff_idx)
+    grid_size = Metal.MTLSizeMake(output.numel(), 1, 1)
+    thread_group_size = Metal.MTLSizeMake(kernel.pipeline_state.maxTotalThreadsPerThreadgroup(), 1, 1)
+    encoder.dispatchThreads_threadsPerThreadgroup_(grid_size, thread_group_size)
+    encoder.endEncoding()
+    cmd_buff.commit()
+    cmd_buff.waitUntilCompleted()
+
+
+def sparse_ss_op(name: str, input: list[Array], output: Array, ctx: MTLContext) -> Array:
+    cmd_buff, encoder, kernel = ctx.get_resources(f"sparse_{name}_{output.dtype()}")
+    buff_idx = 0
+    # Input # dimensions
+    np_ndim = np.array([output.ndim()], dtype=np.uint32)
+    ndim_buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+        np_ndim, np_ndim.nbytes, Metal.MTLResourceStorageModeShared, None
+    )
+    encoder.setBuffer_offset_atIndex_(ndim_buff, 0, buff_idx)
+    buff_idx += 1
+    # Input's shape, stride
+    for i in range(len(input)):
+        shape = input[i].shape()
+        np_shape = np.array(shape.view(), dtype=np.uint32)
+        shape_buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+            np_shape, np_shape.nbytes, Metal.MTLResourceStorageModeShared, None
+        )
+        encoder.setBuffer_offset_atIndex_(shape_buff, 0, buff_idx)
+        buff_idx += 1
+        np_stride = np.array(shape.stride(), dtype=np.uint32)
+        stride_buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+            np_stride, np_stride.nbytes, Metal.MTLResourceStorageModeShared, None
+        )
+        encoder.setBuffer_offset_atIndex_(stride_buff, 0, buff_idx)
+        buff_idx += 1
+    # Set up input buffer
+    for i in range(len(input)):
+        input_buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+            input[i], input[i].nbytes(), Metal.MTLResourceStorageModeShared, None
+        )
+        encoder.setBuffer_offset_atIndex_(input_buff, 0, buff_idx)
+        buff_idx += 1
+    # Set up output buffer
+    output_buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+        output, output.nbytes(), Metal.MTLResourceStorageModeShared, None
+    )
+    encoder.setBuffer_offset_atIndex_(output_buff, 0, buff_idx)
+    buff_idx += 1
+    grid_size = Metal.MTLSizeMake(shape.numel(), 1, 1)
+    thread_group_size = Metal.MTLSizeMake(kernel.pipeline_state.maxTotalThreadsPerThreadgroup(), 1, 1)
+    encoder.dispatchThreads_threadsPerThreadgroup_(grid_size, thread_group_size)
+    encoder.endEncoding()
+    cmd_buff.commit()
+    cmd_buff.waitUntilCompleted()
+
+
+def copy(input: Array, output: Array, ctx: MTLContext) -> Array:
+    cmd_buff, encoder, kernel = ctx.get_resources(f"copy_{input.dtype()}")
+    buff_idx = 0
+    inbuff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+        input, input.nbytes(), Metal.MTLResourceStorageModeShared, None
+    )
+    encoder.setBuffer_offset_atIndex_(inbuff, 0, buff_idx)
+    buff_idx += 1
+    outbuff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+        output, output.nbytes(), Metal.MTLResourceStorageModeShared, None
+    )
+    encoder.setBuffer_offset_atIndex_(outbuff, 0, buff_idx)
+    grid_size = Metal.MTLSizeMake(output.numel(), 1, 1)
+    thread_group_size = Metal.MTLSizeMake(kernel.pipeline_state.maxTotalThreadsPerThreadgroup(), 1, 1)
+    encoder.dispatchThreads_threadsPerThreadgroup_(grid_size, thread_group_size)
+    encoder.endEncoding()
+    cmd_buff.commit()
+    cmd_buff.waitUntilCompleted()
+
+
+def sparse_copy(input: Array, output: Array, ctx: MTLContext) -> Array:
+    cmd_buff, encoder, kernel = ctx.get_resources(f"sparse_copy_{input.dtype()}")
+    buff_idx = 0
+    shape = input.shape()
+    # Input # dimensions
+    np_ndim = np.array([shape.ndim()], dtype=np.uint32)
+    ndim_buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+        np_ndim, np_ndim.nbytes, Metal.MTLResourceStorageModeShared, None
+    )
+    encoder.setBuffer_offset_atIndex_(ndim_buff, 0, buff_idx)
+    buff_idx += 1
+    # Input's shape, stride
+    np_shape = np.array(shape.view(), dtype=np.uint32)
+    shape_buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+        np_shape, np_shape.nbytes, Metal.MTLResourceStorageModeShared, None
+    )
+    encoder.setBuffer_offset_atIndex_(shape_buff, 0, buff_idx)
+    buff_idx += 1
+    np_stride = np.array(shape.stride(), dtype=np.uint32)
+    stride_buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+        np_stride, np_stride.nbytes, Metal.MTLResourceStorageModeShared, None
+    )
+    encoder.setBuffer_offset_atIndex_(stride_buff, 0, buff_idx)
+    buff_idx += 1
+    # Set up input buffer
+    input_buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+        input, input.nbytes(), Metal.MTLResourceStorageModeShared, None
+    )
+    encoder.setBuffer_offset_atIndex_(input_buff, 0, buff_idx)
+    buff_idx += 1
+    # Set up output buffer
+    output_buff = ctx.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+        output, output.nbytes(), Metal.MTLResourceStorageModeShared, None
+    )
+    encoder.setBuffer_offset_atIndex_(output_buff, 0, buff_idx)
+    buff_idx += 1
+    grid_size = Metal.MTLSizeMake(shape.numel(), 1, 1)
     thread_group_size = Metal.MTLSizeMake(kernel.pipeline_state.maxTotalThreadsPerThreadgroup(), 1, 1)
     encoder.dispatchThreads_threadsPerThreadgroup_(grid_size, thread_group_size)
     encoder.endEncoding()

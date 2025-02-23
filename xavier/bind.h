@@ -4,7 +4,9 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 #include "core/iter.h"
-#include "core/graph.h"
+#ifdef __APPLE__
+#include "graph/mtl_graph.h"
+#endif
 
 namespace py = pybind11;
 using namespace pybind11::literals;

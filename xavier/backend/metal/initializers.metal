@@ -6,7 +6,7 @@ template <class T>
     device T *output [[buffer(1)]],
     uint id [[thread_position_in_grid]])
 {
-    output[id] = c[0];
+    output[id] = *c;
 }
 
 template <class T>
@@ -16,7 +16,7 @@ template <class T>
     device T *output [[buffer(2)]],
     uint id [[thread_position_in_grid]])
 {
-    output[id] = start[0] + id * step[0];
+    output[id] = *start + id * *step;
 }
 
 #define initializer_all(tyname, ty) \

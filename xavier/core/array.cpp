@@ -72,6 +72,30 @@ namespace xv::core
         }
     }
 
+    uint8_t *Array::access_(uint64_t k) const
+    {
+        if (is_contiguous())
+        {
+            return get_ptr() + k * get_itemsize();
+        }
+        std::vector<uint64_t> idx(shape.get_ndim());
+        uint carry = k;
+        uint tmp;
+        for (int i = shape.get_ndim() - 1; i >= 0; i--)
+        {
+            tmp = carry;
+            idx[i] = tmp % shape[i];
+            carry = tmp / shape[i];
+        }
+        auto stride = shape.get_stride();
+        auto ptr = get_ptr();
+        for (size_t i = 0; i < idx.size(); i++)
+        {
+            ptr += idx[i] * stride[i] * get_itemsize();
+        }
+        return ptr;
+    }
+
     const std::string Array::str() const
     {
         auto iter = std::make_unique<ArrayIter>(shared_from_this());
@@ -95,7 +119,8 @@ namespace xv::core
         while (flag)
         {
             close = 0;
-            auto ptr = iter->curr();
+            auto ptr = iter->next();
+            // std::cout << std::hex << static_cast<void *>(ptr) << std::endl;
             s += fmt(ptr, dtype);
             for (int i = elms_per_dim.size() - 1; i >= 0; i--)
             {
@@ -105,7 +130,6 @@ namespace xv::core
                     close += 1;
                 }
             }
-            iter->next();
             flag = iter->has_next();
             if (flag)
             {
@@ -124,49 +148,6 @@ namespace xv::core
             }
         }
         return s;
-    }
-
-    void Array::copy_to(std::shared_ptr<const Array> dest) const
-    {
-        auto nbytes1 = get_nbytes();
-        auto nbytes2 = dest->get_nbytes();
-        if (nbytes1 != nbytes2)
-        {
-            throw std::invalid_argument("Cannot copy arrays of different sizes: " +
-                                        std::to_string(nbytes1) + " and " + std::to_string(nbytes2) + ".");
-        }
-        if (is_contiguous() && dest->is_contiguous())
-        {
-            std::copy_n(get_ptr(), get_nbytes(), dest->get_ptr());
-        }
-        else
-        {
-            auto iter1 = std::make_unique<ArrayIter>(shared_from_this());
-            auto iter2 = std::make_unique<ArrayIter>(dest);
-            auto itemsize = dtype.get_size();
-            for (iter1->start(), iter2->start(); iter1->has_next(); iter1->next(), iter2->next())
-            {
-                std::memcpy(iter2->curr(), iter1->curr(), itemsize);
-            }
-        }
-    }
-
-    std::shared_ptr<Array> Array::interpret_(const Dtype &dtype)
-    {
-        if (!is_contiguous())
-        {
-            throw std::runtime_error("Cannot interpret non-contiguous array.");
-        }
-        if (shape.get_ndim() != 1)
-        {
-            throw std::runtime_error("Only arrays with one dimension can be interpreted, but got one with " +
-                                     std::to_string(shape.get_ndim()) + " dimensions.");
-        }
-        double u = static_cast<double>(this->dtype.get_size()) / dtype.get_size();
-        double v = static_cast<double>(shape.get_numel()) * u;
-        uint64_t numel = static_cast<uint64_t>(v);
-        auto arr = std::make_shared<Array>(get_ptr(), Shape(shape.get_offset(), {numel}, {1}), dtype, device);
-        return arr;
     }
 
     std::shared_ptr<Array> Array::slice(const std::vector<Range> &ranges)
@@ -246,7 +227,7 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::div(std::shared_ptr<Array> rhs) { return binary<DivOp>(rhs, binary_dtypes); }
 
-    std::shared_ptr<Array> Array::reshape_(const std::vector<uint64_t> &view)
+    std::shared_ptr<Array> Array::reshape(const std::vector<uint64_t> &view)
     {
         Shape::check_view(view);
         uint64_t numel = std::accumulate(view.begin(), view.end(), 1, std::multiplies<uint64_t>());
@@ -256,12 +237,20 @@ namespace xv::core
                                         " to " + std::to_string(numel) + " elements.");
         }
         auto s = Shape(shape.get_offset(), view);
+        std::shared_ptr<Array> arr;
         if (is_contiguous())
         {
-            return std::make_shared<Array>(get_ptr(), s, dtype, device);
+            arr = std::make_shared<Array>(get_ptr(), s, dtype, device);
+            auto op = std::make_shared<ReshapeOp>(shared_from_this(), view, false);
+            arr->op = op;
         }
-        auto arr = std::make_shared<Array>(s, dtype, device);
-        copy_to(arr);
+        else
+        {
+            // Copy is done on the GPU
+            arr = std::make_shared<Array>(s, dtype, device);
+            auto op = std::make_shared<ReshapeOp>(shared_from_this(), view, true);
+            arr->op = op;
+        }
         return arr;
     }
 }
