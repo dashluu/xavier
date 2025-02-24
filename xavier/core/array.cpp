@@ -51,23 +51,23 @@ namespace xv::core
             auto &range = ranges[i];
             if (range.start >= shape[i])
             {
-                throw std::runtime_error("Invalid starting point for range: " + std::to_string(range.start));
+                throw std::invalid_argument("Invalid starting point for range: " + std::to_string(range.start));
             }
             if (range.stop > shape[i])
             {
-                throw std::runtime_error("Invalid stopping point for range: " + std::to_string(range.stop));
+                throw std::invalid_argument("Invalid stopping point for range: " + std::to_string(range.stop));
             }
             if (range.step == 0)
             {
-                throw std::runtime_error("Step cannot be zero.");
+                throw std::invalid_argument("Step cannot be zero.");
             }
             if (range.start < range.stop && range.step < 0)
             {
-                throw std::runtime_error("Step must be positive if start < stop: " + std::to_string(range.start) + " < " + std::to_string(range.stop));
+                throw std::invalid_argument("Step must be positive if start < stop: " + std::to_string(range.start) + " < " + std::to_string(range.stop));
             }
             if (range.start > range.stop && range.step > 0)
             {
-                throw std::runtime_error("Step must be negative if start > stop: " + std::to_string(range.start) + " > " + std::to_string(range.stop));
+                throw std::invalid_argument("Step must be negative if start > stop: " + std::to_string(range.start) + " > " + std::to_string(range.stop));
             }
         }
     }
@@ -219,6 +219,19 @@ namespace xv::core
         return result;
     }
 
+    template <class O>
+    std::shared_ptr<Array> Array::unary(std::shared_ptr<Array> operand, const std::unordered_map<Dtype, Dtype> &dtype_map)
+    {
+        auto dummy_op = std::make_shared<O>(nullptr);
+        if (dtype_map.find(dtype) == dtype_map.end())
+        {
+            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible data type " + dtype.str() + ".");
+        }
+        auto result = std::make_shared<Array>(Shape(shape.get_view()), dtype, device);
+        result->op = std::make_shared<O>(shared_from_this());
+        return result;
+    }
+
     std::shared_ptr<Array> Array::add(std::shared_ptr<Array> rhs) { return binary<AddOp>(rhs, binary_dtypes); }
 
     std::shared_ptr<Array> Array::sub(std::shared_ptr<Array> rhs) { return binary<SubOp>(rhs, binary_dtypes); }
@@ -226,6 +239,8 @@ namespace xv::core
     std::shared_ptr<Array> Array::mul(std::shared_ptr<Array> rhs) { return binary<MulOp>(rhs, binary_dtypes); }
 
     std::shared_ptr<Array> Array::div(std::shared_ptr<Array> rhs) { return binary<DivOp>(rhs, binary_dtypes); }
+
+    std::shared_ptr<Array> Array::exp() { return unary<ExpOp>(shared_from_this(), unary_float_dtypes); }
 
     std::shared_ptr<Array> Array::reshape(const std::vector<uint64_t> &view)
     {

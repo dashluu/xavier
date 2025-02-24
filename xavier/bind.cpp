@@ -1,3 +1,6 @@
+#define NS_PRIVATE_IMPLEMENTATION
+#define CA_PRIVATE_IMPLEMENTATION
+#define MTL_PRIVATE_IMPLEMENTATION
 #include "bind.h"
 
 PYBIND11_MODULE(xavier, m)
@@ -86,82 +89,21 @@ void init_xv_module(py::module_ &m)
         .def("__sub__", &Array::sub, "rhs"_a)
         .def("__mul__", &Array::mul, "rhs"_a)
         .def("__truediv__", &Array::div, "rhs"_a)
+        .def("exp", &Array::exp)
         .def_static("from_buffer", &array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = device0);
 
-    // py::class_<Graph, std::unique_ptr<Graph, py::nodelete>>(m, "Graph")
-    //     .def(py::init<std::shared_ptr<Array>>(), "root"_a)
-    //     .def("root", &Graph::get_root)
-    //     .def("__str__", &Graph::str)
-    //     .def("forward", &Graph::forward)
-    //     .def("backward", &Graph::backward);
+    py::class_<Graph, std::unique_ptr<Graph, py::nodelete>>(m, "Graph")
+        .def("root", &Graph::get_root)
+        .def("__str__", &Graph::str)
+        .def("forward", &Graph::forward)
+        .def("backward", &Graph::backward);
 
-    py::enum_<OpType>(m, "OpType")
-        .value("INITIALIZER", OpType::INITIALIZER)
-        .value("UNARY", OpType::UNARY)
-        .value("BINARY", OpType::BINARY)
-        .value("TRANSFORM", OpType::TRANSFORM);
-
-    py::enum_<OpName>(m, "OpName")
-        .value("CONSTANT", OpName::CONSTANT)
-        .value("ARANGE", OpName::ARANGE)
-        .value("BUFF", OpName::BUFF)
-        .value("ADD", OpName::ADD)
-        .value("SUB", OpName::SUB)
-        .value("MUL", OpName::MUL)
-        .value("DIV", OpName::DIV)
-        .value("MATMUL", OpName::MATMUL)
-        .value("NEG", OpName::NEG)
-        .value("EXP", OpName::EXP)
-        .value("LOG", OpName::LOG)
-        .value("RESHAPE", OpName::RESHAPE);
-
-    py::class_<Op, std::shared_ptr<Op>>(m, "Op")
-        .def("name", &Op::get_name)
-        .def("type", &Op::get_type)
-        .def("__str__", &Op::str);
-
-    m.attr("opnames") = &opnames;
-
-    py::class_<ArangeOp, Op, std::shared_ptr<ArangeOp>>(m, "ArangeOp")
-        .def("view", &ArangeOp::get_view)
-        .def("start", &ArangeOp::get_start)
-        .def("step", &ArangeOp::get_step)
-        .def("dtype", &ArangeOp::get_dtype);
-
-    py::class_<ConstOp, Op, std::shared_ptr<ConstOp>>(m, "ConstOp")
-        .def("view", &ConstOp::get_view)
-        .def("const", &ConstOp::get_const)
-        .def("dtype", &ConstOp::get_dtype);
-
-    py::class_<BuffOp, Op, std::shared_ptr<BuffOp>>(m, "BuffOp");
-
-    py::class_<UnaryOp, Op, std::shared_ptr<UnaryOp>>(m, "UnaryOp")
-        .def("operand", &UnaryOp::get_operand);
-
-    py::class_<BinaryOp, Op, std::shared_ptr<BinaryOp>>(m, "BinaryOp")
-        .def("lhs", &BinaryOp::get_lhs)
-        .def("rhs", &BinaryOp::get_rhs);
-
-    py::class_<AddOp, BinaryOp, std::shared_ptr<AddOp>>(m, "AddOp");
-    py::class_<SubOp, BinaryOp, std::shared_ptr<SubOp>>(m, "SubOp");
-    py::class_<MulOp, BinaryOp, std::shared_ptr<MulOp>>(m, "MulOp");
-    py::class_<DivOp, BinaryOp, std::shared_ptr<DivOp>>(m, "DivOp");
-    py::class_<NegOp, UnaryOp, std::shared_ptr<NegOp>>(m, "NegOp");
-    py::class_<ExpOp, UnaryOp, std::shared_ptr<ExpOp>>(m, "ExpOp");
-    py::class_<LogOp, UnaryOp, std::shared_ptr<LogOp>>(m, "LogOp");
-
-    py::class_<TransformOp, Op, std::shared_ptr<TransformOp>>(m, "TransformOp")
-        .def("operand", &TransformOp::get_operand);
-
-    py::class_<SliceOp, TransformOp, std::shared_ptr<SliceOp>>(m, "SliceOp")
-        .def("ranges", &SliceOp::get_ranges);
-
-    py::class_<BroadcastOp, TransformOp, std::shared_ptr<BroadcastOp>>(m, "BroadcastOp")
-        .def("view", &BroadcastOp::get_view);
-
-    py::class_<ReshapeOp, TransformOp, std::shared_ptr<ReshapeOp>>(m, "ReshapeOp")
-        .def("view", &ReshapeOp::get_view)
-        .def("copy", &ReshapeOp::get_copy);
+#ifdef __APPLE__
+    py::class_<MTLGraph, Graph, std::unique_ptr<MTLGraph>>(m, "MTLGraph")
+        .def(py::init<std::shared_ptr<Array>, std::shared_ptr<MTLContext>>(), "root"_a, "ctx"_a);
+    py::class_<MTLContext, std::shared_ptr<MTLContext>>(m, "MTLContext")
+        .def(py::init<const std::string &>(), "lib_path"_a);
+#endif
 }
 
 bool is_buff_contiguous(py::buffer_info &buff_info)

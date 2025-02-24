@@ -44,7 +44,7 @@ namespace xv::backend::metal
     {
         if (kernels.contains(name))
         {
-            throw std::runtime_error("Cannot register existing kernel " + name + ".");
+            throw std::invalid_argument("Cannot register existing kernel " + name + ".");
         }
         kernels.insert(std::make_pair(name, kernel));
     }

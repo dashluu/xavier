@@ -4,7 +4,7 @@
 
 namespace xv::backend::metal
 {
-    class MTLContext
+    class MTLContext : public std::enable_shared_from_this<MTLContext>
     {
     private:
         static std::vector<std::string> initializer_ops;

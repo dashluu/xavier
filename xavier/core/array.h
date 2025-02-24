@@ -144,6 +144,11 @@ namespace xv::core
 
         std::shared_ptr<Array> div(std::shared_ptr<Array> rhs);
 
+        template <class O>
+        std::shared_ptr<Array> unary(std::shared_ptr<Array> operand, const std::unordered_map<Dtype, Dtype> &dtype_map);
+
+        std::shared_ptr<Array> exp();
+
         std::shared_ptr<Array> reshape(const std::vector<uint64_t> &view);
     };
 

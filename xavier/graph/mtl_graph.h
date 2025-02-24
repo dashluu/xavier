@@ -26,5 +26,7 @@ namespace xv::graph
         MTLGraph(std::shared_ptr<Array> root, std::shared_ptr<MTLContext> ctx) : Graph(root), ctx(ctx) {}
 
         void forward() override;
+
+        void backward() override;
     };
 }
