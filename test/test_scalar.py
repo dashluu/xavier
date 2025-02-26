@@ -4,9 +4,10 @@ import time
 
 
 class TestScalar:
-    ctx = MTLContext("./xavier/build/backend/metal/kernels.metallib")
+    lib = "./xavier/build/backend/metal/kernels.metallib"
 
     def binary_no_broadcast(self, name: str, op1, op2):
+        ctx = MTLContext(TestScalar.lib)
         print(f"{name}:")
         n = np.random.randint(1, 5)
         shape = [np.random.randint(1, 100) for _ in range(n)]
@@ -15,7 +16,7 @@ class TestScalar:
         arr1 = Array.from_buffer(np1).reshape(shape)
         arr2 = Array.from_buffer(np2).reshape(shape)
         arr3: Array = op1(arr1, arr2)
-        g = MTLGraph(arr3, TestScalar.ctx)
+        g = MTLGraph(arr3, ctx)
         start = time.time()
         g.forward()
         end = time.time()
@@ -29,13 +30,14 @@ class TestScalar:
         assert np.allclose(np3, np4.flatten(), atol=1e-3, rtol=0)
 
     def unary_no_broadcast(self, name: str, op1, op2):
+        ctx = MTLContext(TestScalar.lib)
         print(f"{name}:")
         n = np.random.randint(1, 5)
         shape = [np.random.randint(1, 100) for _ in range(n)]
         np1 = np.random.randn(*shape).astype(np.float32)
         arr1 = Array.from_buffer(np1).reshape(shape)
         arr2: Array = op1(arr1)
-        g = MTLGraph(arr2, TestScalar.ctx)
+        g = MTLGraph(arr2, ctx)
         start = time.time()
         g.forward()
         end = time.time()
@@ -77,3 +79,52 @@ class TestScalar:
             return x.exp()
 
         self.unary_no_broadcast("exp", exp, np.exp)
+
+    def test_neg(self):
+        def neg(x: Array):
+            return -x
+
+        self.unary_no_broadcast("neg", neg, np.negative)
+
+    def test_log(self):
+        ctx = MTLContext(TestScalar.lib)
+        print(f"log:")
+        n = np.random.randint(1, 5)
+        shape = [np.random.randint(1, 100) for _ in range(n)]
+        np1 = np.abs(np.random.randn(*shape).astype(np.float32))
+        arr1 = Array.from_buffer(np1).reshape(shape)
+        arr2: Array = arr1.log()
+        g = MTLGraph(arr2, ctx)
+        start = time.time()
+        g.forward()
+        end = time.time()
+        print(f"xv for {shape}: {end - start}")
+        np2 = np.frombuffer(arr2, dtype=np.float32)
+        start = time.time()
+        np3: np.ndarray = np.log(np1)
+        end = time.time()
+        print(f"np for {shape}: {end - start}\n")
+        assert tuple(arr2.shape().view()) == np3.shape
+        assert np.allclose(np2, np3.flatten(), atol=1e-3, rtol=0)
+
+    def test_recip(self):
+        ctx = MTLContext(TestScalar.lib)
+        print(f"recip:")
+        n = np.random.randint(1, 5)
+        shape = [np.random.randint(1, 100) for _ in range(n)]
+        # Prevent the values from being 0 to avoid division by zero
+        np1 = np.abs(np.random.randn(*shape).astype(np.float32)) + 1
+        arr1 = Array.from_buffer(np1).reshape(shape)
+        arr2: Array = arr1.recip()
+        g = MTLGraph(arr2, ctx)
+        start = time.time()
+        g.forward()
+        end = time.time()
+        print(f"xv for {shape}: {end - start}")
+        np2 = np.frombuffer(arr2, dtype=np.float32)
+        start = time.time()
+        np3: np.ndarray = np.reciprocal(np1)
+        end = time.time()
+        print(f"np for {shape}: {end - start}\n")
+        assert tuple(arr2.shape().view()) == np3.shape
+        assert np.allclose(np2, np3.flatten(), atol=1e-3, rtol=0)

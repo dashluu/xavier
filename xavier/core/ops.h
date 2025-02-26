@@ -19,6 +19,7 @@ namespace xv::core
         NEG,
         EXP,
         LOG,
+        RECIP,
         RESHAPE,
         PERMUTE,
         TRANSPOSE,
@@ -51,6 +52,10 @@ namespace xv::core
         {OpName::NEG, "neg"},
         {OpName::EXP, "exp"},
         {OpName::LOG, "log"},
+        {OpName::RECIP, "recip"},
+        {OpName::BROADCAST, "broadcast"},
+        {OpName::SQUEEZE, "squeeze"},
+        {OpName::UNSQUEEZE, "unsqueeze"},
         {OpName::RESHAPE, "reshape"},
         {OpName::PERMUTE, "permute"},
     };
@@ -184,6 +189,12 @@ namespace xv::core
     {
     public:
         LogOp(std::shared_ptr<Array> operand) : UnaryOp(OpName::LOG, operand) {}
+    };
+
+    struct RecipOp : public UnaryOp
+    {
+    public:
+        RecipOp(std::shared_ptr<Array> operand) : UnaryOp(OpName::RECIP, operand) {}
     };
 
     struct ReshapeOp : public TransformOp

@@ -90,6 +90,9 @@ void init_xv_module(py::module_ &m)
         .def("__mul__", &Array::mul, "rhs"_a)
         .def("__truediv__", &Array::div, "rhs"_a)
         .def("exp", &Array::exp)
+        .def("log", &Array::log)
+        .def("__neg__", &Array::neg)
+        .def("recip", &Array::recip)
         .def_static("from_buffer", &array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = device0);
 
     py::class_<Graph, std::unique_ptr<Graph, py::nodelete>>(m, "Graph")

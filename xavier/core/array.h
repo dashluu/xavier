@@ -149,6 +149,12 @@ namespace xv::core
 
         std::shared_ptr<Array> exp();
 
+        std::shared_ptr<Array> log();
+
+        std::shared_ptr<Array> neg();
+
+        std::shared_ptr<Array> recip();
+
         std::shared_ptr<Array> reshape(const std::vector<uint64_t> &view);
     };
 

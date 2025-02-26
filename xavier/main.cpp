@@ -9,7 +9,7 @@ using namespace xv::core;
 
 int main()
 {
-    auto lib_path = "backend/metal/kernels.metallib";
+    std::string lib_path = "backend/metal/kernels.metallib";
     MTLContext ctx(lib_path);
     std::vector<uint64_t> view = {1, 2, 3};
     auto x1 = Array::constant(view, 7.0f);

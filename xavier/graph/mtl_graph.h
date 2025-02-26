@@ -11,6 +11,7 @@ namespace xv::graph
     {
     private:
         std::shared_ptr<MTLContext> ctx;
+        std::vector<std::shared_ptr<Array>> leaves;
 
         void initializer(std::shared_ptr<Array> arr);
 
@@ -20,7 +21,9 @@ namespace xv::graph
 
         void transform(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited);
 
-        void recur_forward(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited) override;
+        void recur_forward(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited);
+
+        void recur_backward(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited);
 
     public:
         MTLGraph(std::shared_ptr<Array> root, std::shared_ptr<MTLContext> ctx) : Graph(root), ctx(ctx) {}

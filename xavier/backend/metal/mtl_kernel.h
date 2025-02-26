@@ -16,11 +16,8 @@ namespace xv::backend::metal
         Dtype dtype;
 
     public:
-        MTLKernel(NS::SharedPtr<MTL::Device> device, const MTL::Function *f, Dtype dtype) : dtype(dtype)
+        MTLKernel(NS::SharedPtr<MTL::ComputePipelineState> state, Dtype dtype) : state(state), dtype(dtype)
         {
-            // TODO: handle error
-            NS::Error *error = nullptr;
-            state = NS::TransferPtr<MTL::ComputePipelineState>(device->newComputePipelineState(f, &error));
         }
 
         NS::SharedPtr<MTL::ComputePipelineState> get_state() { return state; }

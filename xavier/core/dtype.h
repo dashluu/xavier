@@ -64,6 +64,9 @@ namespace xv::core
     inline const std::unordered_map<Dtype, Dtype> binary_dtypes = {
         {i32, i32},
         {f32, f32}};
+    inline const std::unordered_map<Dtype, Dtype> unary_dtypes = {
+        {i32, i32},
+        {f32, f32}};
     inline const std::unordered_map<Dtype, Dtype> unary_float_dtypes = {
         {i32, f32},
         {f32, f32}};

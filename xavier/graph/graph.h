@@ -13,8 +13,6 @@ namespace xv::graph
 
         const std::string recur_str(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited) const;
 
-        virtual void recur_forward(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited) = 0;
-
     public:
         Graph(std::shared_ptr<Array> root) : root(root) {}
 

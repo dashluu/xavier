@@ -242,6 +242,12 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::exp() { return unary<ExpOp>(shared_from_this(), unary_float_dtypes); }
 
+    std::shared_ptr<Array> Array::log() { return unary<LogOp>(shared_from_this(), unary_float_dtypes); }
+
+    std::shared_ptr<Array> Array::neg() { return unary<NegOp>(shared_from_this(), unary_dtypes); }
+
+    std::shared_ptr<Array> Array::recip() { return unary<RecipOp>(shared_from_this(), unary_float_dtypes); }
+
     std::shared_ptr<Array> Array::reshape(const std::vector<uint64_t> &view)
     {
         Shape::check_view(view);

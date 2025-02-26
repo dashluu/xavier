@@ -11,6 +11,7 @@ namespace xv::backend::metal
         static std::vector<std::string> unary_ops;
         static std::vector<std::string> binary_ops;
         static std::vector<std::string> util_ops;
+        NS::SharedPtr<NS::AutoreleasePool> pool;
         NS::SharedPtr<MTL::Device> device;
         NS::SharedPtr<MTL::Library> lib;
         NS::SharedPtr<MTL::CommandQueue> cmd_queue;

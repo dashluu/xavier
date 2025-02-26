@@ -16,14 +16,18 @@ namespace xv::backend::metal
             {
                 auto name = prefix + op + "_" + dtype.get_name();
                 auto tmp = NS::String::string(name.c_str(), NS::UTF8StringEncoding);
-                auto f = lib->newFunction(tmp);
-                kernels[name] = std::make_shared<MTLKernel>(device, f, dtype);
+                auto f = NS::TransferPtr<MTL::Function>(lib->newFunction(tmp));
+                // TODO: handle error
+                NS::Error *error = nullptr;
+                auto state = NS::TransferPtr<MTL::ComputePipelineState>(device->newComputePipelineState(f.get(), &error));
+                kernels[name] = std::make_shared<MTLKernel>(state, dtype);
             }
         }
     }
 
     MTLContext::MTLContext(const std::string &lib_path)
     {
+        pool = NS::TransferPtr<NS::AutoreleasePool>(NS::AutoreleasePool::alloc()->init());
         device = NS::TransferPtr<MTL::Device>(MTL::CreateSystemDefaultDevice());
         auto path = NS::String::string(lib_path.c_str(), NS::ASCIIStringEncoding);
         auto url = NS::URL::fileURLWithPath(path);

@@ -38,8 +38,8 @@ if(APPLE)
         backend/metal/mtl_kernels.cpp
     )
     add_subdirectory(backend/metal)
-    # pybind11_add_module(${PROJECT_NAME} bind.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
-    add_executable(${PROJECT_NAME} main.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
+    pybind11_add_module(${PROJECT_NAME} bind.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
+    # add_executable(${PROJECT_NAME} main.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
     # Metal-cpp
     set(MTL_CPP "${CMAKE_SOURCE_DIR}/metal-cpp")
     # Add include directories

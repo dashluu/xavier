@@ -5,7 +5,7 @@ namespace xv::backend::metal
     void constant(std::shared_ptr<Array> arr, float c, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
-        auto cmd_buff = NS::TransferPtr<MTL::CommandBuffer>(cmd_queue->commandBuffer());
+        auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto name = "constant_c_" + arr->get_dtype().str();
         auto kernel = ctx.get_kernel(name);
@@ -26,7 +26,7 @@ namespace xv::backend::metal
     void arange(std::shared_ptr<Array> arr, int start, int step, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
-        auto cmd_buff = NS::TransferPtr<MTL::CommandBuffer>(cmd_queue->commandBuffer());
+        auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto name = "arange_" + arr->get_dtype().str();
         auto kernel = ctx.get_kernel(name);
@@ -49,7 +49,7 @@ namespace xv::backend::metal
     void copy(std::shared_ptr<Array> input, std::shared_ptr<Array> output, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
-        auto cmd_buff = NS::TransferPtr<MTL::CommandBuffer>(cmd_queue->commandBuffer());
+        auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto name = "copy_" + input->get_dtype().str();
         auto kernel = ctx.get_kernel(name);
@@ -70,7 +70,7 @@ namespace xv::backend::metal
     void sparse_copy(std::shared_ptr<Array> input, std::shared_ptr<Array> output, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
-        auto cmd_buff = NS::TransferPtr<MTL::CommandBuffer>(cmd_queue->commandBuffer());
+        auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto name = "sparse_copy_" + input->get_dtype().str();
         auto kernel = ctx.get_kernel(name);
@@ -103,7 +103,7 @@ namespace xv::backend::metal
     void ss_op(const std::string &name, std::vector<std::shared_ptr<Array>> input, std::shared_ptr<Array> output, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
-        auto cmd_buff = NS::TransferPtr<MTL::CommandBuffer>(cmd_queue->commandBuffer());
+        auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto kernel_name = name + "_" + output->get_dtype().str();
         auto kernel = ctx.get_kernel(kernel_name);
@@ -129,7 +129,7 @@ namespace xv::backend::metal
     void sparse_ss_op(const std::string &name, std::vector<std::shared_ptr<Array>> input, std::shared_ptr<Array> output, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
-        auto cmd_buff = NS::TransferPtr<MTL::CommandBuffer>(cmd_queue->commandBuffer());
+        auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto kernel_name = name + "_" + output->get_dtype().str();
         auto kernel = ctx.get_kernel(kernel_name);

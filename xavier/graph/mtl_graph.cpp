@@ -4,6 +4,7 @@ namespace xv::graph
 {
     void MTLGraph::initializer(std::shared_ptr<Array> arr)
     {
+        leaves.push_back(arr);
         arr->alloc();
         auto op = arr->get_op();
         switch (op->get_name())
@@ -19,6 +20,8 @@ namespace xv::graph
             arange(arr, arange_op->get_start(), arange_op->get_step(), *ctx);
             break;
         }
+        default:
+            break;
         }
     }
 
@@ -58,6 +61,8 @@ namespace xv::graph
             sparse_copy(operand, arr, *ctx);
             break;
         }
+        default:
+            break;
         }
     }
 
@@ -82,7 +87,13 @@ namespace xv::graph
         case OpType::TRANSFORM:
             transform(arr, visited);
             break;
+        default:
+            break;
         }
+    }
+
+    void MTLGraph::recur_backward(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited)
+    {
     }
 
     void MTLGraph::forward()
