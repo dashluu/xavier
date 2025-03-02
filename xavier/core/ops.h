@@ -9,13 +9,19 @@ namespace xv::core
     {
         RANDN,
         ARANGE,
-        CONSTANT,
+        FULL,
         BUFF,
         ADD,
+        IADD,
         SUB,
+        ISUB,
         MUL,
+        IMUL,
         DIV,
+        IDIV,
         MATMUL,
+        SQ,
+        SQRT,
         NEG,
         EXP,
         LOG,
@@ -35,6 +41,7 @@ namespace xv::core
         INITIALIZER,
         UNARY,
         BINARY,
+        IBINARY,
         TRANSFORM,
         REDUCE
     };
@@ -42,13 +49,19 @@ namespace xv::core
     inline const std::unordered_map<OpName, std::string> opnames = {
         {OpName::RANDN, "randn"},
         {OpName::ARANGE, "arange"},
-        {OpName::CONSTANT, "constant"},
+        {OpName::FULL, "full"},
         {OpName::BUFF, "buff"},
         {OpName::ADD, "add"},
+        {OpName::IADD, "iadd"},
         {OpName::SUB, "sub"},
+        {OpName::ISUB, "isub"},
         {OpName::MUL, "mul"},
+        {OpName::IMUL, "imul"},
         {OpName::DIV, "div"},
+        {OpName::IDIV, "idiv"},
         {OpName::MATMUL, "matmul"},
+        {OpName::SQ, "sq"},
+        {OpName::SQRT, "sqrt"},
         {OpName::NEG, "neg"},
         {OpName::EXP, "exp"},
         {OpName::LOG, "log"},
@@ -74,9 +87,17 @@ namespace xv::core
         virtual ~Op() = default;
         OpName get_name() const { return name; }
         OpType get_type() const { return type; }
+        virtual void backward(std::shared_ptr<Array> arr) const {}
     };
 
-    struct ArangeOp : public Op
+    struct InitializerOp : public Op
+    {
+    public:
+        InitializerOp(OpName name) : Op(name, OpType::INITIALIZER) {}
+        const std::string str() const override { return opnames.at(name); }
+    };
+
+    struct ArangeOp : public InitializerOp
     {
     private:
         std::vector<uint64_t> view;
@@ -85,15 +106,18 @@ namespace xv::core
         Dtype dtype;
 
     public:
-        ArangeOp(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype) : Op(OpName::ARANGE, OpType::INITIALIZER), view(view), start(start), step(step), dtype(dtype) {}
+        ArangeOp(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype) : InitializerOp(OpName::ARANGE), view(view), start(start), step(step), dtype(dtype) {}
         const std::vector<uint64_t> &get_view() { return view; }
         int64_t get_start() { return start; }
         int64_t get_step() { return step; }
         const Dtype &get_dtype() { return dtype; }
-        const std::string str() const override { return opnames.at(name) + "((" + numstr(view) + "), " + std::to_string(start) + ", " + std::to_string(step) + ")"; }
+        const std::string str() const override
+        {
+            return InitializerOp::str() + ", view: (" + numstr(view) + "), start: " + std::to_string(start) + ", step: " + std::to_string(step);
+        }
     };
 
-    struct ConstOp : public Op
+    struct FullOp : public InitializerOp
     {
     private:
         std::vector<uint64_t> view;
@@ -101,18 +125,17 @@ namespace xv::core
         Dtype dtype;
 
     public:
-        ConstOp(const std::vector<uint64_t> &view, float c, const Dtype &dtype) : Op(OpName::CONSTANT, OpType::INITIALIZER), view(view), c(c), dtype(dtype) {}
+        FullOp(const std::vector<uint64_t> &view, float c, const Dtype &dtype) : InitializerOp(OpName::FULL), view(view), c(c), dtype(dtype) {}
         const std::vector<uint64_t> &get_view() { return view; }
         float get_const() const { return c; }
         const Dtype &get_dtype() { return dtype; }
-        const std::string str() const override { return opnames.at(name) + "((" + numstr(view) + "), " + std::to_string(c) + ")"; }
+        const std::string str() const override { return InitializerOp::str() + ", view: (" + numstr(view) + "), value: " + std::to_string(c); }
     };
 
-    struct BuffOp : public Op
+    struct BuffOp : public InitializerOp
     {
     public:
-        BuffOp() : Op(OpName::BUFF, OpType::INITIALIZER) {}
-        const std::string str() const override { return opnames.at(name); }
+        BuffOp() : InitializerOp(OpName::BUFF) {}
     };
 
     struct UnaryOp : public Op
@@ -123,20 +146,33 @@ namespace xv::core
     public:
         UnaryOp(OpName name, std::shared_ptr<Array> operand) : Op(name, OpType::UNARY), operand(operand) {}
         std::shared_ptr<Array> get_operand() const { return operand; }
-        const std::string str() const override { return opnames.at(name); }
+        const std::string str() const override;
     };
 
-    struct BinaryOp : public Op
+    struct RootBinaryOp : public Op
     {
     protected:
         std::shared_ptr<Array> lhs;
         std::shared_ptr<Array> rhs;
 
     public:
-        BinaryOp(OpName name, std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : Op(name, OpType::BINARY), lhs(lhs), rhs(rhs) {}
+        RootBinaryOp(OpName name, OpType type, std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : Op(name, type), lhs(lhs), rhs(rhs) {}
         std::shared_ptr<Array> get_lhs() const { return lhs; }
         std::shared_ptr<Array> get_rhs() const { return rhs; }
-        const std::string str() const override { return opnames.at(name); }
+        const std::string str() const override;
+    };
+
+    struct BinaryOp : public RootBinaryOp
+    {
+    public:
+        BinaryOp(OpName name, std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : RootBinaryOp(name, OpType::BINARY, lhs, rhs) {}
+        void backward_helper(std::shared_ptr<Array> arr, std::shared_ptr<Array> lgrad, std::shared_ptr<Array> rgrad) const;
+    };
+
+    struct IBinaryOp : public RootBinaryOp
+    {
+    public:
+        IBinaryOp(OpName name, std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : RootBinaryOp(name, OpType::IBINARY, lhs, rhs) {}
     };
 
     struct TransformOp : public Op
@@ -147,30 +183,75 @@ namespace xv::core
     public:
         TransformOp(OpName name, std::shared_ptr<Array> operand) : Op(name, OpType::TRANSFORM), operand(operand) {}
         std::shared_ptr<Array> get_operand() const { return operand; }
+        const std::string str() const override;
     };
 
     struct AddOp : public BinaryOp
     {
     public:
         AddOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::ADD, lhs, rhs) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
+    };
+
+    struct IAddOp : public IBinaryOp
+    {
+    public:
+        IAddOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : IBinaryOp(OpName::IADD, lhs, rhs) {}
     };
 
     struct SubOp : public BinaryOp
     {
     public:
         SubOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::SUB, lhs, rhs) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
+    };
+
+    struct ISubOp : public IBinaryOp
+    {
+    public:
+        ISubOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : IBinaryOp(OpName::ISUB, lhs, rhs) {}
     };
 
     struct MulOp : public BinaryOp
     {
     public:
         MulOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::MUL, lhs, rhs) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
+    };
+
+    struct IMulOp : public IBinaryOp
+    {
+    public:
+        IMulOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : IBinaryOp(OpName::IMUL, lhs, rhs) {}
     };
 
     struct DivOp : public BinaryOp
     {
     public:
         DivOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::DIV, lhs, rhs) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
+    };
+
+    struct IDivOp : public IBinaryOp
+    {
+    public:
+        IDivOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : IBinaryOp(OpName::IDIV, lhs, rhs) {}
+    };
+
+    struct SqOp : public UnaryOp
+    {
+    public:
+        SqOp(std::shared_ptr<Array> operand) : UnaryOp(OpName::SQ, operand) {}
+    };
+
+    struct SqrtOp : public UnaryOp
+    {
+    public:
+        SqrtOp(std::shared_ptr<Array> operand) : UnaryOp(OpName::SQRT, operand) {}
     };
 
     struct NegOp : public UnaryOp
@@ -207,7 +288,7 @@ namespace xv::core
         ReshapeOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view, bool copy) : TransformOp(OpName::RESHAPE, operand), view(view), copy(copy) {}
         const std::vector<uint64_t> &get_view() { return view; }
         bool get_copy() { return copy; }
-        const std::string str() const override { return opnames.at(name) + "(" + numstr(view) + ")"; }
+        const std::string str() const override { return TransformOp::str() + ", view: (" + numstr(view) + ")"; }
     };
 
     struct SliceOp : public TransformOp
@@ -220,8 +301,8 @@ namespace xv::core
         const std::vector<Range> &get_ranges() { return ranges; }
         const std::string str() const override
         {
-            return opnames.at(name) + "(" + vstr<Range>(ranges, [](Range range)
-                                                        { return range.str(); }) +
+            return TransformOp::str() + ", ranges:(" + vstr<Range>(ranges, [](Range range)
+                                                                   { return range.str(); }) +
                    ")";
         }
     };
@@ -236,7 +317,7 @@ namespace xv::core
         const std::vector<uint64_t> &get_view() { return view; }
         const std::string str() const override
         {
-            return opnames.at(name) + "(" + numstr(view) + ")";
+            return TransformOp::str() + ", view: (" + numstr(view) + ")";
         }
     };
 }

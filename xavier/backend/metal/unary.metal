@@ -36,6 +36,24 @@ struct Recip
     }
 };
 
+struct Sqrt
+{
+    template <typename T>
+    float operator()(T x) const
+    {
+        return metal::sqrt(static_cast<float>(x));
+    }
+};
+
+struct Sq
+{
+    template <typename T>
+    float operator()(T x) const
+    {
+        return x * x;
+    }
+};
+
 // Unary operations for scalar-scalar
 template <class Op, class T, class R>
 [[kernel]] void unary_ss(
@@ -75,3 +93,5 @@ unary_float(exp, Exp)
 unary_float(log, Log)
 unary_all(neg, Neg)
 unary_float(recip, Recip)
+unary_all(sq, Sq)
+unary_float(sqrt, Sqrt)

@@ -2,12 +2,12 @@
 
 namespace xv::backend::metal
 {
-    void constant(std::shared_ptr<Array> arr, float c, MTLContext &ctx)
+    void full(std::shared_ptr<Array> arr, float c, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
-        auto name = "constant_c_" + arr->get_dtype().str();
+        auto name = "full_" + arr->get_dtype().str();
         auto kernel = ctx.get_kernel(name);
         auto device = ctx.get_device();
         auto c_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&c, sizeof(c), MTL::ResourceStorageModeShared, nullptr));
@@ -100,12 +100,12 @@ namespace xv::backend::metal
         cmd_buff->waitUntilCompleted();
     }
 
-    void ss_op(const std::string &name, std::vector<std::shared_ptr<Array>> input, std::shared_ptr<Array> output, MTLContext &ctx)
+    void ss_op(const std::string &name, std::vector<std::shared_ptr<Array>> input, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
-        auto kernel_name = name + "_" + output->get_dtype().str();
+        auto kernel_name = name + "_" + input[0]->get_dtype().str();
         auto kernel = ctx.get_kernel(kernel_name);
         auto device = ctx.get_device();
         auto buff_idx = 0;
@@ -115,10 +115,8 @@ namespace xv::backend::metal
             encoder->setBuffer(in_buff.get(), 0, buff_idx);
             buff_idx++;
         }
-        auto out_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(output->get_ptr(), output->get_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(out_buff.get(), 0, buff_idx);
         encoder->setComputePipelineState(kernel->get_state().get());
-        auto grid_size = MTL::Size::Make(output->get_numel(), 1, 1);
+        auto grid_size = MTL::Size::Make(input[0]->get_numel(), 1, 1);
         auto thread_group_size = MTL::Size::Make(kernel->get_state()->maxTotalThreadsPerThreadgroup(), 1, 1);
         encoder->dispatchThreads(grid_size, thread_group_size);
         encoder->endEncoding();
@@ -126,17 +124,17 @@ namespace xv::backend::metal
         cmd_buff->waitUntilCompleted();
     }
 
-    void sparse_ss_op(const std::string &name, std::vector<std::shared_ptr<Array>> input, std::shared_ptr<Array> output, MTLContext &ctx)
+    void sparse_ss_op(const std::string &name, std::vector<std::shared_ptr<Array>> input, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
-        auto kernel_name = name + "_" + output->get_dtype().str();
+        auto kernel_name = name + "_" + input[0]->get_dtype().str();
         auto kernel = ctx.get_kernel(kernel_name);
         auto device = ctx.get_device();
         auto buff_idx = 0;
         // Input # dimensions
-        auto ndim = output->get_ndim();
+        auto ndim = input[0]->get_ndim();
         auto dim_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&ndim, sizeof(uint64_t), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(dim_buff.get(), 0, buff_idx);
         buff_idx++;
@@ -152,17 +150,15 @@ namespace xv::backend::metal
             encoder->setBuffer(stride_buff.get(), 0, buff_idx);
             buff_idx++;
         }
-        // Input and output
+        // Input data
         for (auto &arr : input)
         {
             auto in_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(arr->get_ptr(), arr->get_nbytes(), MTL::ResourceStorageModeShared, nullptr));
             encoder->setBuffer(in_buff.get(), 0, buff_idx);
             buff_idx++;
         }
-        auto out_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(output->get_ptr(), output->get_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(out_buff.get(), 0, buff_idx);
         encoder->setComputePipelineState(kernel->get_state().get());
-        auto grid_size = MTL::Size::Make(output->get_numel(), 1, 1);
+        auto grid_size = MTL::Size::Make(input[0]->get_numel(), 1, 1);
         auto thread_group_size = MTL::Size::Make(kernel->get_state()->maxTotalThreadsPerThreadgroup(), 1, 1);
         encoder->dispatchThreads(grid_size, thread_group_size);
         encoder->endEncoding();

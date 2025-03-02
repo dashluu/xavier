@@ -126,6 +126,27 @@ namespace xv::core
             return true;
         }
 
+        // One-direction broadcast check
+        bool broadcastable_to(const std::vector<uint64_t> &target) const
+        {
+            if (view == target)
+            {
+                return true;
+            }
+            if (view.size() > target.size())
+            {
+                return false;
+            }
+            for (auto view_iter = view.rbegin(), target_iter = target.rbegin(); view_iter != view.rend(); view_iter++, target_iter++)
+            {
+                if (*view_iter != *target_iter && *view_iter != 1)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         bool matmul_compat(const std::vector<uint64_t> &target) const
         {
             if (view.size() != target.size() || view[view.size() - 1] != target[target.size() - 2])
@@ -142,7 +163,37 @@ namespace xv::core
             return true;
         }
 
-        std::pair<Shape, Shape> broadcast(Shape &rhs) const
+        // One-direction broadcast
+        Shape broadcast_to(const std::vector<uint64_t> &target) const
+        {
+            if (view == target)
+            {
+                return *this;
+            }
+            if (!broadcastable_to(target))
+            {
+                throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") to (" + numstr(target) + ").");
+            }
+            auto v = view;
+            auto n = target.size() - v.size();
+            for (int i = 0; i < n; i++)
+            {
+                v.insert(v.begin(), 1);
+            }
+            auto s = Shape(offset, v);
+            for (int i = v.size() - 1; i >= 0; i--)
+            {
+                if (v[i] < target[i])
+                {
+                    // v[i] == 1
+                    s.view[i] = target[i];
+                    s.stride[i] = 0;
+                }
+            }
+            return s;
+        }
+
+        std::pair<Shape, Shape> broadcast(const Shape &rhs) const
         {
             if (view == rhs.view)
             {
@@ -150,16 +201,18 @@ namespace xv::core
             }
             if (!broadcastable(rhs.view))
             {
-                throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") to (" + numstr(rhs.view) + ").");
+                throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") and (" + numstr(rhs.view) + ").");
             }
             auto ndim = std::max(view.size(), rhs.view.size());
             auto v1 = view;
             auto v2 = rhs.view;
-            for (int i = 0; i < ndim - v1.size(); i++)
+            auto n1 = ndim - v1.size();
+            auto n2 = ndim - v2.size();
+            for (int i = 0; i < n1; i++)
             {
                 v1.insert(v1.begin(), 1);
             }
-            for (int i = 0; i < ndim - v2.size(); i++)
+            for (int i = 0; i < n2; i++)
             {
                 v2.insert(v2.begin(), 1);
             }

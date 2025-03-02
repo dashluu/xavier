@@ -20,8 +20,8 @@ set(HEADER_FILES
 )
 
 set(SRC_FILES
+    core/ops.cpp
     core/array.cpp
-    graph/graph.cpp
 )
 
 if(APPLE)

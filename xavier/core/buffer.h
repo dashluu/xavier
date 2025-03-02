@@ -18,7 +18,13 @@ namespace xv::core
 
         Buffer(const Buffer &buff) : ptr(buff.ptr), nbytes(buff.nbytes), root(false) {}
 
-        Buffer &operator=(const Buffer &) = delete;
+        Buffer &operator=(const Buffer &buff)
+        {
+            ptr = buff.ptr;
+            nbytes = buff.nbytes;
+            root = false;
+            return *this;
+        }
 
         uint8_t *get_ptr() const { return ptr; }
 

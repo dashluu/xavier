@@ -17,6 +17,7 @@ class TestScalar:
         arr2 = Array.from_buffer(np2).reshape(shape)
         arr3: Array = op1(arr1, arr2)
         g = MTLGraph(arr3, ctx)
+        g.compile()
         start = time.time()
         g.forward()
         end = time.time()
@@ -38,6 +39,7 @@ class TestScalar:
         arr1 = Array.from_buffer(np1).reshape(shape)
         arr2: Array = op1(arr1)
         g = MTLGraph(arr2, ctx)
+        g.compile()
         start = time.time()
         g.forward()
         end = time.time()
@@ -88,20 +90,21 @@ class TestScalar:
 
     def test_log(self):
         ctx = MTLContext(TestScalar.lib)
-        print(f"log:")
+        print("log:")
         n = np.random.randint(1, 5)
         shape = [np.random.randint(1, 100) for _ in range(n)]
         np1 = np.abs(np.random.randn(*shape).astype(np.float32))
         arr1 = Array.from_buffer(np1).reshape(shape)
-        arr2: Array = arr1.log()
+        arr2 = arr1.log()
         g = MTLGraph(arr2, ctx)
+        g.compile()
         start = time.time()
         g.forward()
         end = time.time()
         print(f"xv for {shape}: {end - start}")
         np2 = np.frombuffer(arr2, dtype=np.float32)
         start = time.time()
-        np3: np.ndarray = np.log(np1)
+        np3 = np.log(np1)
         end = time.time()
         print(f"np for {shape}: {end - start}\n")
         assert tuple(arr2.shape().view()) == np3.shape
@@ -109,7 +112,7 @@ class TestScalar:
 
     def test_recip(self):
         ctx = MTLContext(TestScalar.lib)
-        print(f"recip:")
+        print("recip:")
         n = np.random.randint(1, 5)
         shape = [np.random.randint(1, 100) for _ in range(n)]
         # Prevent the values from being 0 to avoid division by zero
@@ -117,13 +120,14 @@ class TestScalar:
         arr1 = Array.from_buffer(np1).reshape(shape)
         arr2: Array = arr1.recip()
         g = MTLGraph(arr2, ctx)
+        g.compile()
         start = time.time()
         g.forward()
         end = time.time()
         print(f"xv for {shape}: {end - start}")
         np2 = np.frombuffer(arr2, dtype=np.float32)
         start = time.time()
-        np3: np.ndarray = np.reciprocal(np1)
+        np3 = np.reciprocal(np1)
         end = time.time()
         print(f"np for {shape}: {end - start}\n")
         assert tuple(arr2.shape().view()) == np3.shape

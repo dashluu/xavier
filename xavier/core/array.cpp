@@ -220,6 +220,41 @@ namespace xv::core
     }
 
     template <class O>
+    std::shared_ptr<Array> Array::ibinary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map)
+    {
+        auto dummy_op = std::make_shared<O>(nullptr, nullptr);
+        auto &rhs_shape = rhs->shape;
+        auto &rhs_view = rhs_shape.get_view();
+        if (!rhs_shape.broadcastable_to(shape.get_view()))
+        {
+            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible shapes " + numstr(shape.get_view()) + " and " + numstr(rhs_view) + ".");
+        }
+        if (dtype_map.find(dtype) == dtype_map.end() || dtype != rhs->dtype)
+        {
+            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible data types " + dtype.str() + " and " + rhs->dtype.str() + ".");
+        }
+        if (device != rhs->get_device())
+        {
+            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible devices " + device.str() + " and " + rhs->device.str() + ".");
+        }
+        auto broadcasted_shape = rhs_shape.broadcast_to(shape.get_view());
+        std::shared_ptr<Array> broadcasted_rhs;
+        // If the rhs is already broadcasted, then we don't need to create a new array
+        if (broadcasted_shape == rhs_shape)
+        {
+            broadcasted_rhs = rhs;
+        }
+        else
+        {
+            broadcasted_rhs = std::make_shared<Array>(broadcasted_shape, dtype, device);
+            broadcasted_rhs->op = std::make_shared<BroadcastOp>(rhs, broadcasted_rhs->shape.get_view());
+        }
+        auto result = std::make_shared<Array>(shape, dtype, device);
+        result->op = std::make_shared<O>(shared_from_this(), broadcasted_rhs);
+        return result;
+    }
+
+    template <class O>
     std::shared_ptr<Array> Array::unary(std::shared_ptr<Array> operand, const std::unordered_map<Dtype, Dtype> &dtype_map)
     {
         auto dummy_op = std::make_shared<O>(nullptr);
@@ -234,11 +269,23 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::add(std::shared_ptr<Array> rhs) { return binary<AddOp>(rhs, binary_dtypes); }
 
+    std::shared_ptr<Array> Array::iadd(std::shared_ptr<Array> rhs) { return ibinary<IAddOp>(rhs, binary_dtypes); }
+
     std::shared_ptr<Array> Array::sub(std::shared_ptr<Array> rhs) { return binary<SubOp>(rhs, binary_dtypes); }
+
+    std::shared_ptr<Array> Array::isub(std::shared_ptr<Array> rhs) { return ibinary<ISubOp>(rhs, binary_dtypes); }
 
     std::shared_ptr<Array> Array::mul(std::shared_ptr<Array> rhs) { return binary<MulOp>(rhs, binary_dtypes); }
 
+    std::shared_ptr<Array> Array::imul(std::shared_ptr<Array> rhs) { return ibinary<IMulOp>(rhs, binary_dtypes); }
+
     std::shared_ptr<Array> Array::div(std::shared_ptr<Array> rhs) { return binary<DivOp>(rhs, binary_dtypes); }
+
+    std::shared_ptr<Array> Array::idiv(std::shared_ptr<Array> rhs) { return ibinary<IDivOp>(rhs, binary_dtypes); }
+
+    std::shared_ptr<Array> Array::sq() { return unary<SqOp>(shared_from_this(), unary_dtypes); }
+
+    std::shared_ptr<Array> Array::sqrt() { return unary<SqrtOp>(shared_from_this(), unary_float_dtypes); }
 
     std::shared_ptr<Array> Array::exp() { return unary<ExpOp>(shared_from_this(), unary_float_dtypes); }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "exceptions.h"
 #include "range.h"
 #include "shape.h"
 #include "dtype.h"
@@ -41,13 +42,15 @@ namespace xv::core
         Device device;
         std::shared_ptr<Buffer> buff = nullptr;
         std::shared_ptr<Op> op = nullptr;
-        std::shared_ptr<Array> grad = nullptr;
 
         void check_ranges(const std::vector<Range> &ranges) const;
 
     public:
+        std::shared_ptr<Array> grad = nullptr;
+
         Array(uint8_t *ptr, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0) : shape(shape), dtype(dtype), device(device)
         {
+            // This method is mostly used to deal with plain pointers
             // No information on the number of bytes allocated so 0 is used
             buff = std::make_shared<Buffer>(ptr + shape.get_offset() * dtype.get_size(), 0, false);
             id = id_gen.generate();
@@ -66,6 +69,7 @@ namespace xv::core
             }
         }
 
+        // Only allocate if the buffer is null
         void alloc()
         {
             if (buff == nullptr)
@@ -74,7 +78,19 @@ namespace xv::core
             }
         }
 
-        Array(const Array &arr) : shape(arr.shape), dtype(arr.dtype), device(arr.device), buff(arr.buff) {}
+        // Low overhead by pointing to another buffer
+        void alloc(Buffer &buff)
+        {
+            if (this->buff == nullptr)
+            {
+                this->buff = std::make_shared<Buffer>(buff);
+            }
+        }
+
+        Array(const Array &arr) : shape(arr.shape), dtype(arr.dtype), device(arr.device), buff(arr.buff)
+        {
+            id = id_gen.generate();
+        }
 
         const IdType &get_id() const { return id; }
 
@@ -86,9 +102,9 @@ namespace xv::core
 
         const Device &get_device() const { return device; }
 
-        std::shared_ptr<Op> get_op() const { return op; }
+        std::shared_ptr<Buffer> get_buff() const { return buff; }
 
-        std::shared_ptr<Array> get_grad() const { return grad; }
+        std::shared_ptr<Op> get_op() const { return op; }
 
         uint64_t get_numel() const { return shape.get_numel(); }
 
@@ -107,6 +123,16 @@ namespace xv::core
 
         const std::string str() const override;
 
+        static std::shared_ptr<Array> zeros_like(std::shared_ptr<Array> arr)
+        {
+            return full(arr->get_shape().get_view(), 0.0f, arr->get_dtype(), arr->get_device());
+        }
+
+        static std::shared_ptr<Array> ones_like(std::shared_ptr<Array> arr)
+        {
+            return full(arr->get_shape().get_view(), 1.0f, arr->get_dtype(), arr->get_device());
+        }
+
         std::shared_ptr<Array> slice(const std::vector<Range> &ranges);
 
         static std::shared_ptr<Array> arange(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype = f32, const Device &device = device0)
@@ -117,9 +143,9 @@ namespace xv::core
             return arr;
         }
 
-        static std::shared_ptr<Array> constant(const std::vector<uint64_t> &view, float c, const Dtype &dtype = f32, const Device &device = device0)
+        static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, float c, const Dtype &dtype = f32, const Device &device = device0)
         {
-            auto op = std::make_shared<ConstOp>(view, c, dtype);
+            auto op = std::make_shared<FullOp>(view, c, dtype);
             auto arr = std::make_shared<Array>(Shape(view), dtype, device);
             arr->op = op;
             return arr;
@@ -136,16 +162,31 @@ namespace xv::core
         template <class O>
         std::shared_ptr<Array> binary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map);
 
+        template <class O>
+        std::shared_ptr<Array> ibinary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map);
+
         std::shared_ptr<Array> add(std::shared_ptr<Array> rhs);
+
+        std::shared_ptr<Array> iadd(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> sub(std::shared_ptr<Array> rhs);
 
+        std::shared_ptr<Array> isub(std::shared_ptr<Array> rhs);
+
         std::shared_ptr<Array> mul(std::shared_ptr<Array> rhs);
+
+        std::shared_ptr<Array> imul(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> div(std::shared_ptr<Array> rhs);
 
+        std::shared_ptr<Array> idiv(std::shared_ptr<Array> rhs);
+
         template <class O>
         std::shared_ptr<Array> unary(std::shared_ptr<Array> operand, const std::unordered_map<Dtype, Dtype> &dtype_map);
+
+        std::shared_ptr<Array> sq();
+
+        std::shared_ptr<Array> sqrt();
 
         std::shared_ptr<Array> exp();
 

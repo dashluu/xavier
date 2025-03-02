@@ -2,16 +2,15 @@
 
 namespace xv::graph
 {
-    void MTLGraph::initializer(std::shared_ptr<Array> arr)
+    void MTLGraph::call_initializer(std::shared_ptr<Array> arr)
     {
-        leaves.push_back(arr);
         arr->alloc();
         auto op = arr->get_op();
         switch (op->get_name())
         {
-        case OpName::CONSTANT:
+        case OpName::FULL:
         {
-            constant(arr, std::static_pointer_cast<ConstOp>(op)->get_const(), *ctx);
+            full(arr, std::static_pointer_cast<FullOp>(op)->get_const(), *ctx);
             break;
         }
         case OpName::ARANGE:
@@ -25,34 +24,40 @@ namespace xv::graph
         }
     }
 
-    void MTLGraph::unary(const std::string &name, std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited)
+    void MTLGraph::call_unary(const std::string &name, std::shared_ptr<Array> arr)
     {
         auto unary_op = std::static_pointer_cast<UnaryOp>(arr->get_op());
         auto operand = unary_op->get_operand();
-        recur_forward(operand, visited);
         arr->alloc();
-        std::vector<std::shared_ptr<Array>> input = {operand};
-        ss_op(name, input, arr, *ctx);
+        std::vector<std::shared_ptr<Array>> input = {operand, arr};
+        ss_op(name, input, *ctx);
     }
 
-    void MTLGraph::binary(const std::string &name, std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited)
+    void MTLGraph::call_binary(const std::string &name, std::shared_ptr<Array> arr)
     {
         auto binary_op = std::static_pointer_cast<BinaryOp>(arr->get_op());
         auto lhs = binary_op->get_lhs();
         auto rhs = binary_op->get_rhs();
-        recur_forward(lhs, visited);
-        recur_forward(rhs, visited);
         arr->alloc();
-        std::vector<std::shared_ptr<Array>> input = {lhs, rhs};
-        ss_op(name, input, arr, *ctx);
+        std::vector<std::shared_ptr<Array>> input = {lhs, rhs, arr};
+        ss_op(name, input, *ctx);
     }
 
-    void MTLGraph::transform(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited)
+    void MTLGraph::call_ibinary(const std::string &name, std::shared_ptr<Array> arr)
+    {
+        auto binary_op = std::static_pointer_cast<IBinaryOp>(arr->get_op());
+        auto lhs = binary_op->get_lhs();
+        auto rhs = binary_op->get_rhs();
+        arr->alloc(*lhs->get_buff());
+        std::vector<std::shared_ptr<Array>> input = {rhs, lhs};
+        ss_op(name, input, *ctx);
+    }
+
+    void MTLGraph::call_transform(std::shared_ptr<Array> arr)
     {
         auto op = arr->get_op();
         auto transform_op = std::static_pointer_cast<TransformOp>(op);
         auto operand = transform_op->get_operand();
-        recur_forward(operand, visited);
         switch (op->get_name())
         {
         case OpName::RESHAPE:
@@ -66,43 +71,163 @@ namespace xv::graph
         }
     }
 
-    void MTLGraph::recur_forward(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited)
+    void MTLGraph::toposort(std::shared_ptr<Array> arr, std::vector<std::shared_ptr<Array>> &order)
     {
         if (visited.contains(arr->get_id()))
         {
             return;
         }
+        visited.insert(arr->get_id());
         auto op = arr->get_op();
         switch (op->get_type())
         {
         case OpType::INITIALIZER:
-            initializer(arr);
+        {
+            order.push_back(arr);
             break;
+        }
         case OpType::UNARY:
-            unary(opnames.at(op->get_name()), arr, visited);
+        {
+            auto unary_op = std::static_pointer_cast<UnaryOp>(arr->get_op());
+            auto operand = unary_op->get_operand();
+            toposort(operand, order);
+            order.push_back(arr);
             break;
+        }
         case OpType::BINARY:
-            binary(opnames.at(op->get_name()), arr, visited);
+        {
+            auto binary_op = std::static_pointer_cast<BinaryOp>(arr->get_op());
+            auto lhs = binary_op->get_lhs();
+            auto rhs = binary_op->get_rhs();
+            toposort(lhs, order);
+            toposort(rhs, order);
+            order.push_back(arr);
             break;
+        }
+        case OpType::IBINARY:
+        {
+            auto binary_op = std::static_pointer_cast<IBinaryOp>(arr->get_op());
+            auto lhs = binary_op->get_lhs();
+            auto rhs = binary_op->get_rhs();
+            toposort(lhs, order);
+            toposort(rhs, order);
+            order.push_back(arr);
+            break;
+        }
         case OpType::TRANSFORM:
-            transform(arr, visited);
+        {
+            auto transform_op = std::static_pointer_cast<TransformOp>(arr->get_op());
+            auto operand = transform_op->get_operand();
+            toposort(operand, order);
+            order.push_back(arr);
             break;
+        }
         default:
             break;
         }
     }
 
-    void MTLGraph::recur_backward(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited)
+    void MTLGraph::call(std::shared_ptr<Array> arr)
     {
+        auto op = arr->get_op();
+        switch (op->get_type())
+        {
+        case OpType::INITIALIZER:
+        {
+            call_initializer(arr);
+            break;
+        }
+        case OpType::UNARY:
+        {
+            call_unary(opnames.at(op->get_name()), arr);
+            break;
+        }
+        case OpType::BINARY:
+        {
+            call_binary(opnames.at(op->get_name()), arr);
+            break;
+        }
+        case OpType::IBINARY:
+        {
+            call_ibinary(opnames.at(op->get_name()), arr);
+            break;
+        }
+        case OpType::TRANSFORM:
+        {
+            call_transform(arr);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    void MTLGraph::compile()
+    {
+        if (fw_order.empty())
+        {
+            toposort(root, fw_order);
+            // Seed root for now
+            root->grad = Array::ones_like(root);
+            // Initializes the gradient array first without allocating buffers
+            for (auto &arr : std::views::reverse(fw_order))
+            {
+                if (arr->get_op()->get_type() != OpType::INITIALIZER)
+                {
+                    arr->get_op()->backward(arr);
+                }
+            }
+            // Order the gradient arrays
+            for (auto &arr : std::views::reverse(fw_order))
+            {
+                if (arr->grad != nullptr)
+                {
+                    toposort(arr->grad, bw_order);
+                }
+            }
+        }
     }
 
     void MTLGraph::forward()
     {
-        std::unordered_set<IdType> visited;
-        recur_forward(root, visited);
+        if (fw_order.empty())
+        {
+            throw MTLGraphNotCompiledException();
+        }
+        for (auto &arr : fw_order)
+        {
+            call(arr);
+        }
     }
 
     void MTLGraph::backward()
     {
+        if (bw_order.empty())
+        {
+            throw MTLGraphNotCompiledException();
+        }
+        for (auto &arr : bw_order)
+        {
+            call(arr);
+        }
+    }
+
+    const std::string MTLGraph::str() const
+    {
+        if (fw_order.empty())
+        {
+            throw MTLGraphNotCompiledException();
+        }
+        std::string s = "Forward:\n";
+        for (auto &arr : fw_order)
+        {
+            s += std::to_string(arr->get_id()) + ": " + arr->get_op()->str() + "\n";
+        }
+        s += "Backward:\n";
+        for (auto &arr : bw_order)
+        {
+            s += std::to_string(arr->get_id()) + ": " + arr->get_op()->str() + "\n";
+        }
+        return s;
     }
 }

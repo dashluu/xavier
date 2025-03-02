@@ -11,8 +11,6 @@ namespace xv::graph
     protected:
         std::shared_ptr<Array> root;
 
-        const std::string recur_str(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited) const;
-
     public:
         Graph(std::shared_ptr<Array> root) : root(root) {}
 
@@ -22,7 +20,7 @@ namespace xv::graph
 
         std::shared_ptr<Array> get_root() { return root; }
 
-        const std::string str() const override;
+        virtual void compile() = 0;
 
         virtual void forward() = 0;
 

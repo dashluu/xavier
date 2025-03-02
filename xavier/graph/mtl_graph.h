@@ -11,25 +11,33 @@ namespace xv::graph
     {
     private:
         std::shared_ptr<MTLContext> ctx;
-        std::vector<std::shared_ptr<Array>> leaves;
+        std::unordered_set<IdType> visited;
+        std::vector<std::shared_ptr<Array>> fw_order;
+        std::vector<std::shared_ptr<Array>> bw_order;
 
-        void initializer(std::shared_ptr<Array> arr);
+        void toposort(std::shared_ptr<Array> arr, std::vector<std::shared_ptr<Array>> &order);
 
-        void unary(const std::string &name, std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited);
+        void call(std::shared_ptr<Array> arr);
 
-        void binary(const std::string &name, std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited);
+        void call_initializer(std::shared_ptr<Array> arr);
 
-        void transform(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited);
+        void call_unary(const std::string &name, std::shared_ptr<Array> arr);
 
-        void recur_forward(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited);
+        void call_binary(const std::string &name, std::shared_ptr<Array> arr);
 
-        void recur_backward(std::shared_ptr<Array> arr, std::unordered_set<IdType> &visited);
+        void call_ibinary(const std::string &name, std::shared_ptr<Array> arr);
+
+        void call_transform(std::shared_ptr<Array> arr);
 
     public:
         MTLGraph(std::shared_ptr<Array> root, std::shared_ptr<MTLContext> ctx) : Graph(root), ctx(ctx) {}
 
+        void compile() override;
+
         void forward() override;
 
         void backward() override;
+
+        const std::string str() const override;
     };
 }
