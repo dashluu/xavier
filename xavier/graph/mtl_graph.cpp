@@ -43,9 +43,9 @@ namespace xv::graph
         ss_op(name, input, *ctx);
     }
 
-    void MTLGraph::call_ibinary(const std::string &name, std::shared_ptr<Array> arr)
+    void MTLGraph::call_self_binary(const std::string &name, std::shared_ptr<Array> arr)
     {
-        auto binary_op = std::static_pointer_cast<IBinaryOp>(arr->get_op());
+        auto binary_op = std::static_pointer_cast<SelfBinaryOp>(arr->get_op());
         auto lhs = binary_op->get_lhs();
         auto rhs = binary_op->get_rhs();
         arr->alloc(*lhs->get_buff());
@@ -104,9 +104,9 @@ namespace xv::graph
             order.push_back(arr);
             break;
         }
-        case OpType::IBINARY:
+        case OpType::SELF_BINARY:
         {
-            auto binary_op = std::static_pointer_cast<IBinaryOp>(arr->get_op());
+            auto binary_op = std::static_pointer_cast<SelfBinaryOp>(arr->get_op());
             auto lhs = binary_op->get_lhs();
             auto rhs = binary_op->get_rhs();
             toposort(lhs, order);
@@ -147,9 +147,9 @@ namespace xv::graph
             call_binary(opnames.at(op->get_name()), arr);
             break;
         }
-        case OpType::IBINARY:
+        case OpType::SELF_BINARY:
         {
-            call_ibinary(opnames.at(op->get_name()), arr);
+            call_self_binary(opnames.at(op->get_name()), arr);
             break;
         }
         case OpType::TRANSFORM:
@@ -172,10 +172,7 @@ namespace xv::graph
             // Initializes the gradient array first without allocating buffers
             for (auto &arr : std::views::reverse(fw_order))
             {
-                if (arr->get_op()->get_type() != OpType::INITIALIZER)
-                {
-                    arr->get_op()->backward(arr);
-                }
+                arr->get_op()->backward(arr);
             }
             // Order the gradient arrays
             for (auto &arr : std::views::reverse(fw_order))

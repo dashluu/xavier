@@ -72,7 +72,7 @@ template <class Op, class T, class R>
 }
 
 template <class Op, class T, class R>
-[[kernel]] void ibinary_ss(
+[[kernel]] void self_binary_ss(
     device T *input [[buffer(0)]],
     device R *output [[buffer(1)]],
     uint id [[thread_position_in_grid]])
@@ -98,7 +98,7 @@ template <class Op, class T, class R>
 }
 
 template <class Op, class T, class R>
-[[kernel]] void sparse_ibinary_ss(
+[[kernel]] void sparse_self_binary_ss(
     constant const uint *ndim [[buffer(0)]],
     constant const uint *shape1 [[buffer(1)]],
     constant const uint *stride1 [[buffer(2)]],
@@ -118,10 +118,10 @@ template [[host_name(#opname "_f32")]] [[kernel]] decltype(binary_ss<op, float, 
 template [[host_name(#opname "_i32")]] [[kernel]] decltype(binary_ss<op, int, int>) binary_ss<op, int, int>;                                \
 template [[host_name("sparse_" #opname "_f32")]] [[kernel]] decltype(sparse_binary_ss<op, float, float>) sparse_binary_ss<op, float, float>;\
 template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_binary_ss<op, int, int>) sparse_binary_ss<op, int, int>;        \
-template [[host_name("i" #opname "_f32")]] [[kernel]] decltype(ibinary_ss<op, float, float>) ibinary_ss<op, float, float>;                        \
-template [[host_name("i" #opname "_i32")]] [[kernel]] decltype(ibinary_ss<op, int, int>) ibinary_ss<op, int, int>;                                \
-template [[host_name("sparse_i" #opname "_f32")]] [[kernel]] decltype(sparse_ibinary_ss<op, float, float>) sparse_ibinary_ss<op, float, float>;\
-template [[host_name("sparse_i" #opname "_i32")]] [[kernel]] decltype(sparse_ibinary_ss<op, int, int>) sparse_ibinary_ss<op, int, int>;
+template [[host_name("self_" #opname "_f32")]] [[kernel]] decltype(self_binary_ss<op, float, float>) self_binary_ss<op, float, float>;                        \
+template [[host_name("self_" #opname "_i32")]] [[kernel]] decltype(self_binary_ss<op, int, int>) self_binary_ss<op, int, int>;                                \
+template [[host_name("sparse_self_" #opname "_f32")]] [[kernel]] decltype(sparse_self_binary_ss<op, float, float>) sparse_self_binary_ss<op, float, float>;\
+template [[host_name("sparse_self_" #opname "_i32")]] [[kernel]] decltype(sparse_self_binary_ss<op, int, int>) sparse_self_binary_ss<op, int, int>;
 
 #define cmp_all(opname, op) \
 template [[host_name(#opname "_f32")]] [[kernel]] decltype(binary_ss<op, float, bool>) binary_ss<op, float, bool>;                          \

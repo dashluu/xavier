@@ -87,6 +87,15 @@ namespace xv::core
             }
         }
 
+        void init_grad()
+        {
+            // This method only initializes the gradient array without allocating any new buffer for the data
+            if (grad == nullptr)
+            {
+                grad = Array::zeros_like(shared_from_this());
+            }
+        }
+
         Array(const Array &arr) : shape(arr.shape), dtype(arr.dtype), device(arr.device), buff(arr.buff)
         {
             id = id_gen.generate();
@@ -163,23 +172,23 @@ namespace xv::core
         std::shared_ptr<Array> binary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map);
 
         template <class O>
-        std::shared_ptr<Array> ibinary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map);
+        std::shared_ptr<Array> self_binary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map);
 
         std::shared_ptr<Array> add(std::shared_ptr<Array> rhs);
 
-        std::shared_ptr<Array> iadd(std::shared_ptr<Array> rhs);
+        std::shared_ptr<Array> self_add(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> sub(std::shared_ptr<Array> rhs);
 
-        std::shared_ptr<Array> isub(std::shared_ptr<Array> rhs);
+        std::shared_ptr<Array> self_sub(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> mul(std::shared_ptr<Array> rhs);
 
-        std::shared_ptr<Array> imul(std::shared_ptr<Array> rhs);
+        std::shared_ptr<Array> self_mul(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> div(std::shared_ptr<Array> rhs);
 
-        std::shared_ptr<Array> idiv(std::shared_ptr<Array> rhs);
+        std::shared_ptr<Array> self_div(std::shared_ptr<Array> rhs);
 
         template <class O>
         std::shared_ptr<Array> unary(std::shared_ptr<Array> operand, const std::unordered_map<Dtype, Dtype> &dtype_map);

@@ -4,7 +4,7 @@ namespace xv::backend::metal
 {
     std::vector<std::string> MTLContext::initializer_ops = {"full", "arange"};
     std::vector<std::string> MTLContext::unary_ops = {"exp", "log", "neg", "recip", "sq", "sqrt"};
-    std::vector<std::string> MTLContext::binary_ops = {"add", "iadd", "sub", "isub", "mul", "imul", "div", "idiv", "eq", "neq", "lt", "gt", "leq", "geq"};
+    std::vector<std::string> MTLContext::binary_ops = {"add", "self_add", "sub", "self_sub", "mul", "self_mul", "div", "self_div", "eq", "neq", "lt", "gt", "leq", "geq"};
     std::vector<std::string> MTLContext::util_ops = {"copy"};
 
     void MTLContext::init_kernels(std::vector<std::string> &ops, bool sparse)

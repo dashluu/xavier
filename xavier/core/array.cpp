@@ -220,7 +220,7 @@ namespace xv::core
     }
 
     template <class O>
-    std::shared_ptr<Array> Array::ibinary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map)
+    std::shared_ptr<Array> Array::self_binary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map)
     {
         auto dummy_op = std::make_shared<O>(nullptr, nullptr);
         auto &rhs_shape = rhs->shape;
@@ -269,19 +269,19 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::add(std::shared_ptr<Array> rhs) { return binary<AddOp>(rhs, binary_dtypes); }
 
-    std::shared_ptr<Array> Array::iadd(std::shared_ptr<Array> rhs) { return ibinary<IAddOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::self_add(std::shared_ptr<Array> rhs) { return self_binary<SelfAddOp>(rhs, binary_dtypes); }
 
     std::shared_ptr<Array> Array::sub(std::shared_ptr<Array> rhs) { return binary<SubOp>(rhs, binary_dtypes); }
 
-    std::shared_ptr<Array> Array::isub(std::shared_ptr<Array> rhs) { return ibinary<ISubOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::self_sub(std::shared_ptr<Array> rhs) { return self_binary<SelfSubOp>(rhs, binary_dtypes); }
 
     std::shared_ptr<Array> Array::mul(std::shared_ptr<Array> rhs) { return binary<MulOp>(rhs, binary_dtypes); }
 
-    std::shared_ptr<Array> Array::imul(std::shared_ptr<Array> rhs) { return ibinary<IMulOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::self_mul(std::shared_ptr<Array> rhs) { return self_binary<SelfMulOp>(rhs, binary_dtypes); }
 
     std::shared_ptr<Array> Array::div(std::shared_ptr<Array> rhs) { return binary<DivOp>(rhs, binary_dtypes); }
 
-    std::shared_ptr<Array> Array::idiv(std::shared_ptr<Array> rhs) { return ibinary<IDivOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::self_div(std::shared_ptr<Array> rhs) { return self_binary<SelfDivOp>(rhs, binary_dtypes); }
 
     std::shared_ptr<Array> Array::sq() { return unary<SqOp>(shared_from_this(), unary_dtypes); }
 

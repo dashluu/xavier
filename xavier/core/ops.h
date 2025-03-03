@@ -12,13 +12,13 @@ namespace xv::core
         FULL,
         BUFF,
         ADD,
-        IADD,
+        SELF_ADD,
         SUB,
-        ISUB,
+        SELF_SUB,
         MUL,
-        IMUL,
+        SELF_MUL,
         DIV,
-        IDIV,
+        SELF_DIV,
         MATMUL,
         SQ,
         SQRT,
@@ -41,7 +41,7 @@ namespace xv::core
         INITIALIZER,
         UNARY,
         BINARY,
-        IBINARY,
+        SELF_BINARY,
         TRANSFORM,
         REDUCE
     };
@@ -52,13 +52,13 @@ namespace xv::core
         {OpName::FULL, "full"},
         {OpName::BUFF, "buff"},
         {OpName::ADD, "add"},
-        {OpName::IADD, "iadd"},
+        {OpName::SELF_ADD, "self_add"},
         {OpName::SUB, "sub"},
-        {OpName::ISUB, "isub"},
+        {OpName::SELF_SUB, "self_sub"},
         {OpName::MUL, "mul"},
-        {OpName::IMUL, "imul"},
+        {OpName::SELF_MUL, "self_mul"},
         {OpName::DIV, "div"},
-        {OpName::IDIV, "idiv"},
+        {OpName::SELF_DIV, "self_div"},
         {OpName::MATMUL, "matmul"},
         {OpName::SQ, "sq"},
         {OpName::SQRT, "sqrt"},
@@ -166,13 +166,12 @@ namespace xv::core
     {
     public:
         BinaryOp(OpName name, std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : RootBinaryOp(name, OpType::BINARY, lhs, rhs) {}
-        void backward_helper(std::shared_ptr<Array> arr, std::shared_ptr<Array> lgrad, std::shared_ptr<Array> rgrad) const;
     };
 
-    struct IBinaryOp : public RootBinaryOp
+    struct SelfBinaryOp : public RootBinaryOp
     {
     public:
-        IBinaryOp(OpName name, std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : RootBinaryOp(name, OpType::IBINARY, lhs, rhs) {}
+        SelfBinaryOp(OpName name, std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : RootBinaryOp(name, OpType::SELF_BINARY, lhs, rhs) {}
     };
 
     struct TransformOp : public Op
@@ -194,10 +193,12 @@ namespace xv::core
         void backward(std::shared_ptr<Array> arr) const override;
     };
 
-    struct IAddOp : public IBinaryOp
+    struct SelfAddOp : public SelfBinaryOp
     {
     public:
-        IAddOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : IBinaryOp(OpName::IADD, lhs, rhs) {}
+        SelfAddOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : SelfBinaryOp(OpName::SELF_ADD, lhs, rhs) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
     };
 
     struct SubOp : public BinaryOp
@@ -208,10 +209,10 @@ namespace xv::core
         void backward(std::shared_ptr<Array> arr) const override;
     };
 
-    struct ISubOp : public IBinaryOp
+    struct SelfSubOp : public SelfBinaryOp
     {
     public:
-        ISubOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : IBinaryOp(OpName::ISUB, lhs, rhs) {}
+        SelfSubOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : SelfBinaryOp(OpName::SELF_SUB, lhs, rhs) {}
     };
 
     struct MulOp : public BinaryOp
@@ -222,10 +223,10 @@ namespace xv::core
         void backward(std::shared_ptr<Array> arr) const override;
     };
 
-    struct IMulOp : public IBinaryOp
+    struct SelfMulOp : public SelfBinaryOp
     {
     public:
-        IMulOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : IBinaryOp(OpName::IMUL, lhs, rhs) {}
+        SelfMulOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : SelfBinaryOp(OpName::SELF_MUL, lhs, rhs) {}
     };
 
     struct DivOp : public BinaryOp
@@ -236,16 +237,18 @@ namespace xv::core
         void backward(std::shared_ptr<Array> arr) const override;
     };
 
-    struct IDivOp : public IBinaryOp
+    struct SelfDivOp : public SelfBinaryOp
     {
     public:
-        IDivOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : IBinaryOp(OpName::IDIV, lhs, rhs) {}
+        SelfDivOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : SelfBinaryOp(OpName::SELF_DIV, lhs, rhs) {}
     };
 
     struct SqOp : public UnaryOp
     {
     public:
         SqOp(std::shared_ptr<Array> operand) : UnaryOp(OpName::SQ, operand) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
     };
 
     struct SqrtOp : public UnaryOp
@@ -258,24 +261,32 @@ namespace xv::core
     {
     public:
         NegOp(std::shared_ptr<Array> operand) : UnaryOp(OpName::NEG, operand) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
     };
 
     struct ExpOp : public UnaryOp
     {
     public:
         ExpOp(std::shared_ptr<Array> operand) : UnaryOp(OpName::EXP, operand) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
     };
 
     struct LogOp : public UnaryOp
     {
     public:
         LogOp(std::shared_ptr<Array> operand) : UnaryOp(OpName::LOG, operand) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
     };
 
     struct RecipOp : public UnaryOp
     {
     public:
         RecipOp(std::shared_ptr<Array> operand) : UnaryOp(OpName::RECIP, operand) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
     };
 
     struct ReshapeOp : public TransformOp

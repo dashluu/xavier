@@ -25,7 +25,7 @@ namespace xv::graph
 
         void call_binary(const std::string &name, std::shared_ptr<Array> arr);
 
-        void call_ibinary(const std::string &name, std::shared_ptr<Array> arr);
+        void call_self_binary(const std::string &name, std::shared_ptr<Array> arr);
 
         void call_transform(std::shared_ptr<Array> arr);
 

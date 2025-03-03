@@ -20,7 +20,7 @@ int main()
     auto x5 = x3->add(x4);
     auto x6 = x3->mul(x4);
     auto x7 = x5->add(x6);
-    // x1 = x1->iadd(x2);
+    // x1 = x1->self_add(x2);
     MTLGraph graph(x7, ctx);
     graph.compile();
     std::cout << "Graph:\n"

@@ -18,36 +18,29 @@ namespace xv::core
         return opnames.at(name) + ", operand: " + std::to_string(operand->get_id());
     }
 
-    void BinaryOp::backward_helper(std::shared_ptr<Array> arr, std::shared_ptr<Array> lgrad, std::shared_ptr<Array> rgrad) const
-    {
-        if (lhs->get_op()->get_type() != OpType::INITIALIZER)
-        {
-            if (lhs->grad == nullptr)
-            {
-                lhs->grad = Array::zeros_like(lhs);
-            }
-            lhs->grad = lhs->grad->iadd(lgrad);
-        }
-        if (rhs->get_op()->get_type() != OpType::INITIALIZER)
-        {
-            if (rhs->grad == nullptr)
-            {
-                rhs->grad = Array::zeros_like(rhs);
-            }
-            rhs->grad = rhs->grad->iadd(rgrad);
-        }
-    }
-
     void AddOp::backward(std::shared_ptr<Array> arr) const
     {
-        auto grad = arr->grad;
-        backward_helper(arr, grad, grad);
+        lhs->init_grad();
+        rhs->init_grad();
+        lhs->grad = lhs->grad->self_add(arr->grad);
+        rhs->grad = rhs->grad->self_add(arr->grad);
+    }
+
+    void SelfAddOp::backward(std::shared_ptr<Array> arr) const
+    {
+        // x += y
+        // dy += dx
+        lhs->grad = arr->grad;
+        rhs->init_grad();
+        rhs->grad = rhs->grad->self_add(arr->grad);
     }
 
     void SubOp::backward(std::shared_ptr<Array> arr) const
     {
-        auto grad = arr->grad;
-        backward_helper(arr, grad, grad->neg());
+        lhs->init_grad();
+        rhs->init_grad();
+        lhs->grad = lhs->grad->self_add(arr->grad);
+        rhs->grad = rhs->grad->self_sub(arr->grad);
     }
 
     void MulOp::backward(std::shared_ptr<Array> arr) const
@@ -55,16 +48,60 @@ namespace xv::core
         // z = x*y
         // dx += dz*y
         // dy += dz*x
-        auto grad = arr->grad;
-        backward_helper(arr, grad->mul(rhs), grad->mul(lhs));
+        lhs->init_grad();
+        rhs->init_grad();
+        lhs->grad = lhs->grad->self_add(arr->grad->mul(rhs));
+        rhs->grad = rhs->grad->self_add(arr->grad->mul(lhs));
     }
 
     void DivOp::backward(std::shared_ptr<Array> arr) const
     {
         // z = x/y
         // dx += dz * (1/y)
-        // dy += dz * (-x / y^2)
+        // dy += dz * (-x / y**2)
+        lhs->init_grad();
+        rhs->init_grad();
+        lhs->grad = lhs->grad->self_add(arr->grad->div(rhs));
+        rhs->grad = rhs->grad->self_sub(arr->grad->mul(arr->div(rhs)));
+    }
+
+    void SqOp::backward(std::shared_ptr<Array> arr) const
+    {
+        // z = x**2
+        // dx += dz * 2x
         auto grad = arr->grad;
-        backward_helper(arr, grad->mul(rhs->recip()), grad->mul(lhs->div(rhs->sq()))->neg());
+        // backward_helper(arr, grad->mul(operand->mul(2.0f)));
+    }
+
+    void ExpOp::backward(std::shared_ptr<Array> arr) const
+    {
+        // z = e**x
+        // dx += dz * e**x
+        operand->init_grad();
+        operand->grad = operand->grad->self_add(arr->grad->mul(arr));
+    }
+
+    void LogOp::backward(std::shared_ptr<Array> arr) const
+    {
+        // z = ln(x)
+        // dx += dz / x
+        operand->init_grad();
+        operand->grad = operand->grad->self_add(arr->grad->div(operand));
+    }
+
+    void NegOp::backward(std::shared_ptr<Array> arr) const
+    {
+        // z = -x
+        // dx += -dz
+        operand->init_grad();
+        operand->grad = operand->grad->self_sub(arr->grad);
+    }
+
+    void RecipOp::backward(std::shared_ptr<Array> arr) const
+    {
+        // z = 1/x
+        // dx += dz * -1/x**2
+        operand->init_grad();
+        operand->grad = operand->grad->self_sub(arr->grad->mul(operand->sq()));
     }
 }
