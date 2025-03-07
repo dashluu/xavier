@@ -29,6 +29,8 @@ namespace xv::graph
 
         void call_transform(std::shared_ptr<Array> arr);
 
+        void call_move(std::shared_ptr<Array> arr);
+
     public:
         MTLGraph(std::shared_ptr<Array> root, std::shared_ptr<MTLContext> ctx) : Graph(root), ctx(ctx) {}
 

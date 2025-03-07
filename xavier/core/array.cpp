@@ -177,8 +177,7 @@ namespace xv::core
     std::shared_ptr<Array> Array::binary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map)
     {
         auto dummy_op = std::make_shared<O>(nullptr, nullptr);
-        auto &rhs_shape = rhs->shape;
-        auto &rhs_view = rhs_shape.get_view();
+        auto &rhs_view = rhs->shape.get_view();
         if (!shape.broadcastable(rhs_view))
         {
             throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible shapes " + numstr(shape.get_view()) + " and " + numstr(rhs_view) + ".");
@@ -191,32 +190,11 @@ namespace xv::core
         {
             throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible devices " + device.str() + " and " + rhs->device.str() + ".");
         }
-        auto broadcasted_shapes = shape.broadcast(rhs_shape);
-        std::shared_ptr<Array> broadcasted_lhs;
-        std::shared_ptr<Array> broadcasted_rhs;
-        // If the lhs is already broadcasted, then we don't need to create a new array
-        if (broadcasted_shapes.first == shape)
-        {
-            broadcasted_lhs = shared_from_this();
-        }
-        else
-        {
-            broadcasted_lhs = std::make_shared<Array>(broadcasted_shapes.first, dtype, device);
-            broadcasted_lhs->op = std::make_shared<BroadcastOp>(shared_from_this(), broadcasted_lhs->shape.get_view());
-        }
-        // If the rhs is already broadcasted, then we don't need to create a new array
-        if (broadcasted_shapes.second == rhs_shape)
-        {
-            broadcasted_rhs = rhs;
-        }
-        else
-        {
-            broadcasted_rhs = std::make_shared<Array>(broadcasted_shapes.second, dtype, device);
-            broadcasted_rhs->op = std::make_shared<BroadcastOp>(rhs, broadcasted_rhs->shape.get_view());
-        }
-        auto result = std::make_shared<Array>(Shape(broadcasted_lhs->shape.get_view()), dtype, device);
-        result->op = std::make_shared<O>(broadcasted_lhs, broadcasted_rhs);
-        return result;
+        auto broadcasted_lhs = broadcast(rhs_view);
+        auto broadcasted_rhs = rhs->broadcast(shape.get_view());
+        auto arr = std::make_shared<Array>(Shape(broadcasted_lhs->shape.get_view()), dtype, device);
+        arr->op = std::make_shared<O>(broadcasted_lhs, broadcasted_rhs);
+        return arr;
     }
 
     template <class O>
@@ -237,21 +215,10 @@ namespace xv::core
         {
             throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible devices " + device.str() + " and " + rhs->device.str() + ".");
         }
-        auto broadcasted_shape = rhs_shape.broadcast_to(shape.get_view());
-        std::shared_ptr<Array> broadcasted_rhs;
-        // If the rhs is already broadcasted, then we don't need to create a new array
-        if (broadcasted_shape == rhs_shape)
-        {
-            broadcasted_rhs = rhs;
-        }
-        else
-        {
-            broadcasted_rhs = std::make_shared<Array>(broadcasted_shape, dtype, device);
-            broadcasted_rhs->op = std::make_shared<BroadcastOp>(rhs, broadcasted_rhs->shape.get_view());
-        }
-        auto result = std::make_shared<Array>(shape, dtype, device);
-        result->op = std::make_shared<O>(shared_from_this(), broadcasted_rhs);
-        return result;
+        auto broadcasted_rhs = rhs->broadcast_to(shape.get_view());
+        auto arr = std::make_shared<Array>(shape, dtype, device);
+        arr->op = std::make_shared<O>(shared_from_this(), broadcasted_rhs);
+        return arr;
     }
 
     template <class O>
@@ -262,9 +229,9 @@ namespace xv::core
         {
             throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible data type " + dtype.str() + ".");
         }
-        auto result = std::make_shared<Array>(Shape(shape.get_view()), dtype, device);
-        result->op = std::make_shared<O>(shared_from_this());
-        return result;
+        auto arr = std::make_shared<Array>(Shape(shape.get_view()), dtype, device);
+        arr->op = std::make_shared<O>(shared_from_this());
+        return arr;
     }
 
     std::shared_ptr<Array> Array::add(std::shared_ptr<Array> rhs) { return binary<AddOp>(rhs, binary_dtypes); }
@@ -304,21 +271,37 @@ namespace xv::core
             throw std::invalid_argument("Cannot reshape array of " + std::to_string(shape.get_numel()) +
                                         " to " + std::to_string(numel) + " elements.");
         }
-        auto s = Shape(shape.get_offset(), view);
-        std::shared_ptr<Array> arr;
-        if (is_contiguous())
+        auto arr = std::make_shared<Array>(shape.reshape(view), dtype, device);
+        arr->op = std::make_shared<ReshapeOp>(shared_from_this(), view);
+        return arr;
+    }
+
+    std::shared_ptr<Array> Array::broadcast(const std::vector<uint64_t> &view)
+    {
+        if (shape.get_view() == view)
         {
-            arr = std::make_shared<Array>(get_ptr(), s, dtype, device);
-            auto op = std::make_shared<ReshapeOp>(shared_from_this(), view, false);
-            arr->op = op;
+            return shared_from_this();
         }
-        else
+        auto arr = std::make_shared<Array>(shape.broadcast(view), dtype, device);
+        arr->op = std::make_shared<BroadcastOp>(shared_from_this(), view);
+        return arr;
+    }
+
+    std::shared_ptr<Array> Array::broadcast_to(const std::vector<uint64_t> &view)
+    {
+        if (shape.get_view() == view)
         {
-            // Copy is done on the GPU
-            arr = std::make_shared<Array>(s, dtype, device);
-            auto op = std::make_shared<ReshapeOp>(shared_from_this(), view, true);
-            arr->op = op;
+            return shared_from_this();
         }
+        auto arr = std::make_shared<Array>(shape.broadcast_to(view), dtype, device);
+        arr->op = std::make_shared<BroadcastOp>(shared_from_this(), view);
+        return arr;
+    }
+
+    std::shared_ptr<Array> Array::copy()
+    {
+        auto arr = std::make_shared<Array>(Shape(shape.get_view()), dtype, device);
+        arr->op = std::make_shared<MoveOp>(shared_from_this());
         return arr;
     }
 }

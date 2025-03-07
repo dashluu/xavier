@@ -100,25 +100,19 @@ namespace xv::core
 
         uint64_t get_ndim() const { return view.size(); }
 
-        uint64_t get_numel() const
-        {
-            uint64_t n = 1;
-            for (auto &v : view)
-            {
-                n *= v;
-            }
-            return n;
-        }
+        uint64_t get_numel() const { return std::accumulate(view.begin(), view.end(), 1, std::multiplies<uint64_t>()); }
 
-        bool broadcastable(const std::vector<uint64_t> &target) const
+        bool broadcastable(const std::vector<uint64_t> &rhs) const
         {
-            if (view == target)
+            if (view == rhs)
             {
                 return true;
             }
-            for (auto view_iter = view.rbegin(), target_iter = target.rbegin(); view_iter != view.rend(); view_iter++, target_iter++)
+            for (auto view_iter = view.rbegin(), rhs_iter = rhs.rbegin();
+                 view_iter != view.rend() && rhs_iter != rhs.rend();
+                 view_iter++, rhs_iter++)
             {
-                if (*view_iter != *target_iter && *view_iter != 1 && *target_iter != 1)
+                if (*view_iter != *rhs_iter && *view_iter != 1 && *rhs_iter != 1)
                 {
                     return false;
                 }
@@ -175,17 +169,14 @@ namespace xv::core
                 throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") to (" + numstr(target) + ").");
             }
             auto v = view;
-            auto n = target.size() - v.size();
-            for (int i = 0; i < n; i++)
-            {
-                v.insert(v.begin(), 1);
-            }
+            auto diff = target.size() - v.size();
+            v.insert(v.begin(), diff, 1);
             auto s = Shape(offset, v);
-            for (int i = v.size() - 1; i >= 0; i--)
+            std::fill_n(s.stride.begin(), diff, 0);
+            for (int i = 0; i < target.size(); i++)
             {
                 if (v[i] < target[i])
                 {
-                    // v[i] == 1
                     s.view[i] = target[i];
                     s.stride[i] = 0;
                 }
@@ -193,47 +184,34 @@ namespace xv::core
             return s;
         }
 
-        std::pair<Shape, Shape> broadcast(const Shape &rhs) const
+        Shape broadcast(const std::vector<uint64_t> &rhs) const
         {
-            if (view == rhs.view)
+            if (view == rhs)
             {
-                return std::make_pair(*this, rhs);
+                return *this;
             }
-            if (!broadcastable(rhs.view))
+            if (!broadcastable(rhs))
             {
-                throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") and (" + numstr(rhs.view) + ").");
+                throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") and (" + numstr(rhs) + ").");
             }
-            auto ndim = std::max(view.size(), rhs.view.size());
             auto v1 = view;
-            auto v2 = rhs.view;
-            auto n1 = ndim - v1.size();
-            auto n2 = ndim - v2.size();
-            for (int i = 0; i < n1; i++)
-            {
-                v1.insert(v1.begin(), 1);
-            }
-            for (int i = 0; i < n2; i++)
-            {
-                v2.insert(v2.begin(), 1);
-            }
-            auto s1 = Shape(offset, v1);
-            auto s2 = Shape(rhs.offset, v2);
-            for (int i = v1.size() - 1; i >= 0; i--)
+            auto v2 = rhs;
+            auto ndim = std::max(v1.size(), v2.size());
+            auto diff1 = ndim - v1.size();
+            auto diff2 = ndim - v2.size();
+            v1.insert(v1.begin(), diff1, 1);
+            v2.insert(v2.begin(), diff2, 1);
+            auto s = Shape(offset, v1);
+            std::fill_n(s.stride.begin(), diff1, 0);
+            for (int i = 0; i < ndim; i++)
             {
                 if (v1[i] < v2[i])
                 {
-                    // v1[i] == 1
-                    s1.view[i] = v2[i];
-                    s1.stride[i] = 0;
-                }
-                else if (v1[i] > v2[i])
-                {
-                    // v2[i] == 1
-                    s2.view[i] = v1[i];
-                    s2.stride[i] = 0;
+                    s.view[i] = v2[i];
+                    s.stride[i] = 0;
                 }
             }
-            return std::make_pair(s1, s2);
+            return s;
         }
 
         Shape matmul_broadcast(const std::vector<uint64_t> &target) const
@@ -254,6 +232,12 @@ namespace xv::core
                 }
             }
             return shape;
+        }
+
+        Shape reshape(const std::vector<uint64_t> &target)
+        {
+            // TODO: fix this
+            return Shape(offset, target);
         }
 
         Shape remove(uint64_t dim) const

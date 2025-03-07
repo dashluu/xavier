@@ -12,6 +12,7 @@ namespace py = pybind11;
 using namespace pybind11::literals;
 using namespace xv::core;
 using namespace xv::graph;
+using namespace xv::backend::metal;
 
 void init_xv_module(py::module_ &);
 bool is_buff_contiguous(py::buffer_info &buff_info);

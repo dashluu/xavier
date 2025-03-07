@@ -26,7 +26,6 @@ namespace xv::core
 
         void start()
         {
-            ptr = arr->get_ptr();
             counter = 0;
         }
 

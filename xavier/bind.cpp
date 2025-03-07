@@ -19,6 +19,13 @@ void init_xv_module(py::module_ &m)
         .def("elms_per_dim", &Shape::get_elms_per_dim)
         .def("ndim", &Shape::get_ndim)
         .def("numel", &Shape::get_numel)
+        .def("is_contiguous", &Shape::is_contiguous)
+        .def("broadcast_to", &Shape::broadcast_to, "target"_a)
+        .def("broadcast", &Shape::broadcast, "rhs"_a)
+        .def("broadcastable", &Shape::broadcastable, "rhs"_a)
+        .def("broadcastable_to", &Shape::broadcastable_to, "target"_a)
+        .def("remove", &Shape::remove, "dim"_a)
+        .def("permute", &Shape::permute, "order"_a)
         .def("__eq__", &Shape::operator==, "shape"_a)
         .def("__neq__", &Shape::operator!=, "shape"_a)
         .def("__getitem__", [](const Shape &shape, const py::object &obj)
@@ -79,6 +86,10 @@ void init_xv_module(py::module_ &m)
         .def("__len__", [](const Array &arr)
              { return arr.get_shape()[0]; })
         .def("reshape", &Array::reshape, "Reshapes the array to the given view in-place.", "view"_a)
+        .def("copy", &Array::copy)
+        .def("broadcast", &Array::broadcast)
+        .def("broadcast_to", &Array::broadcast_to)
+        .def("as_contiguous", &Array::as_contiguous)
         .def("__getitem__", [](Array &arr, const py::object &obj)
              { return arr.slice(get_arr_ranges(arr, obj)); }, "obj"_a)
         .def_static("arange", &Array::arange, "Creates a new array containing an algebraic sequence of integers.", "view"_a, "start"_a, "step"_a, "dtype"_a = f32, "device"_a = device0)
@@ -107,6 +118,8 @@ void init_xv_module(py::module_ &m)
         .def("compile", &Graph::compile)
         .def("forward", &Graph::forward)
         .def("backward", &Graph::backward);
+
+    // m.def("sparse_copy", &sparse_copy, "Sparsely copies data from one array to another.", "input"_a, "output"_a, "ctx"_a);
 
 #ifdef __APPLE__
     py::class_<MTLGraph, Graph, std::unique_ptr<MTLGraph>>(m, "MTLGraph")
@@ -137,9 +150,10 @@ std::shared_ptr<Array> array_from_buffer(py::buffer &buff, const Device &device)
         throw std::invalid_argument("Buffer is not contiguous.");
     }
     uint64_t numel = buff_info.size;
+    uint64_t nbytes = buff_info.size * buff_info.itemsize;
     Shape shape(0, {numel}, {1});
     uint8_t *ptr = static_cast<uint8_t *>(buff_info.ptr);
-    return Array::from_buff(ptr, shape, descriptors_to_dtypes.at(buff_info.format), device);
+    return Array::from_buff(ptr, nbytes, shape, descriptors_to_dtypes.at(buff_info.format), device);
 }
 
 py::buffer_info array_to_buffer(Array &arr)

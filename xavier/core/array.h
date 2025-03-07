@@ -48,11 +48,9 @@ namespace xv::core
     public:
         std::shared_ptr<Array> grad = nullptr;
 
-        Array(uint8_t *ptr, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0) : shape(shape), dtype(dtype), device(device)
+        Array(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0) : shape(shape), dtype(dtype), device(device)
         {
-            // This method is mostly used to deal with plain pointers
-            // No information on the number of bytes allocated so 0 is used
-            buff = std::make_shared<Buffer>(ptr + shape.get_offset() * dtype.get_size(), 0, false);
+            buff = std::make_shared<Buffer>(ptr, nbytes, false);
             id = id_gen.generate();
         }
 
@@ -105,7 +103,11 @@ namespace xv::core
 
         const Shape &get_shape() const { return shape; }
 
-        uint8_t *get_ptr() const { return buff->get_ptr(); }
+        // Gets the buffer pointer without accounting for offset
+        uint8_t *get_buff_ptr() const { return buff->get_ptr(); }
+
+        // Gets the buffer pointer after accounting for offset
+        uint8_t *get_ptr() const { return get_buff_ptr() + shape.get_offset() * get_itemsize(); }
 
         const Dtype &get_dtype() const { return dtype; }
 
@@ -122,6 +124,10 @@ namespace xv::core
         uint64_t get_itemsize() const { return dtype.get_size(); }
 
         uint64_t get_nbytes() const { return get_numel() * get_itemsize(); }
+
+        // Get the number of bytes of the buffer the array is working on
+        // Note: get_buff_nbytes() != get_nbytes()
+        uint64_t get_buff_nbytes() const { return buff->get_nbytes(); }
 
         bool is_contiguous() const { return shape.is_contiguous(); }
 
@@ -160,10 +166,10 @@ namespace xv::core
             return arr;
         }
 
-        static std::shared_ptr<Array> from_buff(uint8_t *ptr, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0)
+        static std::shared_ptr<Array> from_buff(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0)
         {
             auto op = std::make_shared<BuffOp>();
-            auto arr = std::make_shared<Array>(ptr, shape, dtype, device);
+            auto arr = std::make_shared<Array>(ptr, nbytes, shape, dtype, device);
             arr->op = op;
             return arr;
         }
@@ -206,6 +212,14 @@ namespace xv::core
         std::shared_ptr<Array> recip();
 
         std::shared_ptr<Array> reshape(const std::vector<uint64_t> &view);
+
+        std::shared_ptr<Array> broadcast(const std::vector<uint64_t> &view);
+
+        std::shared_ptr<Array> broadcast_to(const std::vector<uint64_t> &view);
+
+        std::shared_ptr<Array> copy();
+
+        std::shared_ptr<Array> as_contiguous() { return is_contiguous() ? shared_from_this() : copy(); }
     };
 
     inline IdGenerator Array::id_gen = IdGenerator();

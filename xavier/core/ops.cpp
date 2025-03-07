@@ -18,6 +18,11 @@ namespace xv::core
         return opnames.at(name) + ", operand: " + std::to_string(operand->get_id());
     }
 
+    const std::string MoveOp::str() const
+    {
+        return opnames.at(name) + ", operand: " + std::to_string(operand->get_id());
+    }
+
     void AddOp::backward(std::shared_ptr<Array> arr) const
     {
         lhs->init_grad();

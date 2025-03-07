@@ -67,14 +67,15 @@ template <class Op, class T, class R>
 template <class Op, class T, class R>
 [[kernel]] void sparse_unary_ss(
     constant const uint *ndim [[buffer(0)]],
-    constant const uint *shape [[buffer(1)]],
-    constant const uint *stride [[buffer(2)]],
-    device T *input [[buffer(3)]],
-    device R *output [[buffer(4)]],
+    constant const uint *offset [[buffer(1)]],
+    constant const uint *shape [[buffer(2)]],
+    constant const uint *stride [[buffer(3)]],
+    device T *input [[buffer(4)]],
+    device R *output [[buffer(5)]],
     uint id [[thread_position_in_grid]])
 {
     uint idx = access(id, ndim, shape, stride);
-    output[id] = Op()(input[idx]);
+    output[id] = Op()(input[*offset + idx]);
 }
 
 #define unary_float(opname, op) \

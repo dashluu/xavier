@@ -7,7 +7,7 @@ import torch
 class TestBackprop:
     lib = "./xavier/build/backend/metal/kernels.metallib"
 
-    def test_backprop1(self):
+    def test_backprop_v1(self):
         ctx = MTLContext(TestBackprop.lib)
         print("backprop 1:")
         n = np.random.randint(1, 5)

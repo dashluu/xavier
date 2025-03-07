@@ -12,14 +12,15 @@ template <class T>
 template <class T>
 [[kernel]] void sparse_copy(
     constant const uint *ndim [[buffer(0)]],
-    constant const uint *shape [[buffer(1)]],
-    constant const uint *stride [[buffer(2)]],
-    device T *input [[buffer(3)]],
-    device T *output [[buffer(4)]],
+    constant const uint *offset [[buffer(1)]],
+    constant const uint *shape [[buffer(2)]],
+    constant const uint *stride [[buffer(3)]],
+    device T *input [[buffer(4)]],
+    device T *output [[buffer(5)]],
     uint id [[thread_position_in_grid]])
 {
     uint idx = access(id, ndim, shape, stride);
-    output[id] = input[idx];
+    output[id] = input[*offset + idx];
 }
 
 #define copy_all() \

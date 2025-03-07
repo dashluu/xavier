@@ -33,7 +33,8 @@ namespace xv::core
         SQUEEZE,
         UNSQUEEZE,
         INTERPRET,
-        SLICE
+        SLICE,
+        MOVE
     };
 
     enum class OpType
@@ -43,7 +44,8 @@ namespace xv::core
         BINARY,
         SELF_BINARY,
         TRANSFORM,
-        REDUCE
+        REDUCE,
+        MOVE
     };
 
     inline const std::unordered_map<OpName, std::string> opnames = {
@@ -71,7 +73,10 @@ namespace xv::core
         {OpName::UNSQUEEZE, "unsqueeze"},
         {OpName::RESHAPE, "reshape"},
         {OpName::PERMUTE, "permute"},
-    };
+        {OpName::TRANSPOSE, "transpose"},
+        {OpName::INTERPRET, "interpret"},
+        {OpName::SLICE, "slice"},
+        {OpName::MOVE, "move"}};
 
     struct Op : public std::enable_shared_from_this<Op>, public IStr
     {
@@ -293,12 +298,10 @@ namespace xv::core
     {
     private:
         std::vector<uint64_t> view;
-        bool copy;
 
     public:
-        ReshapeOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view, bool copy) : TransformOp(OpName::RESHAPE, operand), view(view), copy(copy) {}
+        ReshapeOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view) : TransformOp(OpName::RESHAPE, operand), view(view) {}
         const std::vector<uint64_t> &get_view() { return view; }
-        bool get_copy() { return copy; }
         const std::string str() const override { return TransformOp::str() + ", view: (" + numstr(view) + ")"; }
     };
 
@@ -330,5 +333,16 @@ namespace xv::core
         {
             return TransformOp::str() + ", view: (" + numstr(view) + ")";
         }
+    };
+
+    struct MoveOp : public Op
+    {
+    private:
+        std::shared_ptr<Array> operand;
+
+    public:
+        MoveOp(std::shared_ptr<Array> operand) : Op(OpName::MOVE, OpType::MOVE), operand(operand) {}
+        std::shared_ptr<Array> get_operand() const { return operand; }
+        const std::string str() const override;
     };
 }

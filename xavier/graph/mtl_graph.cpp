@@ -56,18 +56,47 @@ namespace xv::graph
     void MTLGraph::call_transform(std::shared_ptr<Array> arr)
     {
         auto op = arr->get_op();
-        auto transform_op = std::static_pointer_cast<TransformOp>(op);
-        auto operand = transform_op->get_operand();
         switch (op->get_name())
         {
         case OpName::RESHAPE:
         {
-            arr->alloc();
-            sparse_copy(operand, arr, *ctx);
+            auto reshape_op = std::static_pointer_cast<ReshapeOp>(op);
+            auto operand = reshape_op->get_operand();
+            if (operand->is_contiguous())
+            {
+                arr->alloc(*operand->get_buff());
+            }
+            else
+            {
+                arr->alloc();
+                sparse_copy(operand, arr, *ctx);
+            }
+            break;
+        }
+        case OpName::SLICE:
+        {
+            auto slice_op = std::static_pointer_cast<SliceOp>(op);
+            auto operand = slice_op->get_operand();
+            arr->alloc(*operand->get_buff());
             break;
         }
         default:
             break;
+        }
+    }
+
+    void MTLGraph::call_move(std::shared_ptr<Array> arr)
+    {
+        auto move_op = std::static_pointer_cast<TransformOp>(arr->get_op());
+        auto operand = move_op->get_operand();
+        arr->alloc();
+        if (arr->is_contiguous() && operand->is_contiguous())
+        {
+            copy(operand, arr, *ctx);
+        }
+        else
+        {
+            sparse_copy(operand, arr, *ctx);
         }
     }
 
@@ -123,6 +152,11 @@ namespace xv::graph
             break;
         }
         default:
+            // Move operation
+            auto move_op = std::static_pointer_cast<MoveOp>(arr->get_op());
+            auto operand = move_op->get_operand();
+            toposort(operand, order);
+            order.push_back(arr);
             break;
         }
     }
@@ -158,7 +192,10 @@ namespace xv::graph
             break;
         }
         default:
+        {
+            call_move(arr);
             break;
+        }
         }
     }
 

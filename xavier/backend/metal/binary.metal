@@ -83,34 +83,38 @@ template <class Op, class T, class R>
 template <class Op, class T, class R>
 [[kernel]] void sparse_binary_ss(
     constant const uint *ndim [[buffer(0)]],
-    constant const uint *shape1 [[buffer(1)]],
-    constant const uint *stride1 [[buffer(2)]],
-    constant const uint *shape2 [[buffer(3)]],
-    constant const uint *stride2 [[buffer(4)]],
-    device T *input1 [[buffer(5)]],
-    device T *input2 [[buffer(6)]],
-    device R *output [[buffer(7)]],
+    constant const uint *offset1 [[buffer(1)]],
+    constant const uint *shape1 [[buffer(2)]],
+    constant const uint *stride1 [[buffer(3)]],
+    constant const uint *offset2 [[buffer(4)]],
+    constant const uint *shape2 [[buffer(5)]],
+    constant const uint *stride2 [[buffer(6)]],
+    device T *input1 [[buffer(7)]],
+    device T *input2 [[buffer(8)]],
+    device R *output [[buffer(9)]],
     uint id [[thread_position_in_grid]])
 {
     uint idx1 = access(id, ndim, shape1, stride1);
     uint idx2 = access(id, ndim, shape2, stride2);
-    output[id] = Op()(input1[idx1], input2[idx2]);
+    output[id] = Op()(input1[*offset1 + idx1], input2[*offset2 + idx2]);
 }
 
 template <class Op, class T, class R>
 [[kernel]] void sparse_self_binary_ss(
     constant const uint *ndim [[buffer(0)]],
-    constant const uint *shape1 [[buffer(1)]],
-    constant const uint *stride1 [[buffer(2)]],
-    constant const uint *shape2 [[buffer(3)]],
-    constant const uint *stride2 [[buffer(4)]],
-    device T *input [[buffer(5)]],
-    device R *output [[buffer(6)]],
+    constant const uint *offset1 [[buffer(1)]],
+    constant const uint *shape1 [[buffer(2)]],
+    constant const uint *stride1 [[buffer(3)]],
+    constant const uint *offset2 [[buffer(4)]],
+    constant const uint *shape2 [[buffer(5)]],
+    constant const uint *stride2 [[buffer(6)]],
+    device T *input [[buffer(7)]],
+    device R *output [[buffer(8)]],
     uint id [[thread_position_in_grid]])
 {
     uint idx1 = access(id, ndim, shape1, stride1);
     uint idx2 = access(id, ndim, shape2, stride2);
-    output[idx2] = Op()(output[idx2], input[idx1]);
+    output[*offset2 + idx2] = Op()(output[*offset2 + idx2], input[*offset1 + idx1]);
 }
 
 #define binary_all(opname, op) \
