@@ -52,6 +52,39 @@ class TestScalar:
         assert tuple(arr2.shape().view()) == np3.shape
         assert np.allclose(np2, np3.flatten(), atol=1e-3, rtol=0)
 
+    def binary_with_broadcast(self, name: str, op1, op2):
+        ctx = MTLContext(TestScalar.lib)
+        print(f"{name} with broadcast:")
+        # Test cases with different broadcasting scenarios
+        test_cases = [
+            # [shape1, shape2, result_shape]
+            ([2, 1, 4], [3, 4], [2, 3, 4]),  # Left broadcast
+            ([1, 5], [2, 1, 5], [2, 1, 5]),  # Right broadcast
+            ([3, 1, 1], [1, 4, 5], [3, 4, 5]),  # Both broadcast
+            ([1], [2, 3, 4], [2, 3, 4]),  # Scalar to array
+            ([2, 3, 4], [1], [2, 3, 4]),  # Array to scalar
+        ]
+        for shape1, shape2, expected_shape in test_cases:
+            print(f"\nTesting shapes: {shape1}, {shape2} -> {expected_shape}")
+            np1 = np.random.randn(*shape1).astype(np.float32)
+            np2 = np.random.randn(*shape2).astype(np.float32)
+            arr1 = Array.from_buffer(np1).reshape(shape1)
+            arr2 = Array.from_buffer(np2).reshape(shape2)
+            arr3: Array = op1(arr1, arr2)
+            g = MTLGraph(arr3, ctx)
+            g.compile()
+            start = time.time()
+            g.forward()
+            end = time.time()
+            print(f"xv time: {end - start}")
+            np3 = np.frombuffer(arr3, dtype=np.float32)
+            start = time.time()
+            np4: np.ndarray = op2(np1, np2)
+            end = time.time()
+            print(f"np time: {end - start}")
+            assert tuple(arr3.shape().view()) == np4.shape
+            assert np.allclose(np3, np4.flatten(), atol=1e-3, rtol=0)
+
     def test_add(self):
         def add(x1: Array, x2: Array):
             return x1 + x2
@@ -75,6 +108,34 @@ class TestScalar:
             return x1 / x2
 
         self.binary_no_broadcast("div", div, np.divide)
+
+    def test_add_broadcast(self):
+        def add(x1: Array, x2: Array):
+            return x1 + x2
+
+        self.binary_with_broadcast("add", add, np.add)
+
+    # def test_mul_broadcast(self):
+    #     def mul(x1: Array, x2: Array):
+    #         return x1 * x2
+
+    #     self.binary_with_broadcast("mul", mul, np.multiply)
+
+    # def test_div_broadcast(self):
+    #     def div(x1: Array, x2: Array):
+    #         return x1 / x2
+
+    #     # Ensure denominators are non-zero
+    #     def safe_divide(x1, x2):
+    #         return np.divide(x1, x2 + 1e-6)
+
+    #     self.binary_with_broadcast("div", div, safe_divide)
+
+    # def test_sub_broadcast(self):
+    #     def sub(x1: Array, x2: Array):
+    #         return x1 - x2
+
+    #     self.binary_with_broadcast("sub", sub, np.subtract)
 
     def test_exp(self):
         def exp(x: Array):

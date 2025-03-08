@@ -29,8 +29,14 @@ namespace xv::graph
         auto unary_op = std::static_pointer_cast<UnaryOp>(arr->get_op());
         auto operand = unary_op->get_operand();
         arr->alloc();
-        std::vector<std::shared_ptr<Array>> input = {operand, arr};
-        ss_op(name, input, *ctx);
+        if (operand->is_contiguous())
+        {
+            unary_ss(name, operand, arr, *ctx);
+        }
+        else
+        {
+            sparse_unary_ss(name, operand, arr, *ctx);
+        }
     }
 
     void MTLGraph::call_binary(const std::string &name, std::shared_ptr<Array> arr)
@@ -39,8 +45,14 @@ namespace xv::graph
         auto lhs = binary_op->get_lhs();
         auto rhs = binary_op->get_rhs();
         arr->alloc();
-        std::vector<std::shared_ptr<Array>> input = {lhs, rhs, arr};
-        ss_op(name, input, *ctx);
+        if (lhs->is_contiguous() && rhs->is_contiguous())
+        {
+            binary_ss(name, lhs, rhs, arr, *ctx);
+        }
+        else
+        {
+            sparse_binary_ss(name, lhs, rhs, arr, *ctx);
+        }
     }
 
     void MTLGraph::call_self_binary(const std::string &name, std::shared_ptr<Array> arr)
@@ -49,8 +61,14 @@ namespace xv::graph
         auto lhs = binary_op->get_lhs();
         auto rhs = binary_op->get_rhs();
         arr->alloc(*lhs->get_buff());
-        std::vector<std::shared_ptr<Array>> input = {rhs, lhs};
-        ss_op(name, input, *ctx);
+        if (lhs->is_contiguous() && rhs->is_contiguous())
+        {
+            binary_ss(name, lhs, rhs, lhs, *ctx);
+        }
+        else
+        {
+            sparse_binary_ss(name, lhs, rhs, lhs, *ctx);
+        }
     }
 
     void MTLGraph::call_transform(std::shared_ptr<Array> arr)
@@ -77,6 +95,13 @@ namespace xv::graph
         {
             auto slice_op = std::static_pointer_cast<SliceOp>(op);
             auto operand = slice_op->get_operand();
+            arr->alloc(*operand->get_buff());
+            break;
+        }
+        case OpName::BROADCAST:
+        {
+            auto broadcast_op = std::static_pointer_cast<BroadcastOp>(op);
+            auto operand = broadcast_op->get_operand();
             arr->alloc(*operand->get_buff());
             break;
         }

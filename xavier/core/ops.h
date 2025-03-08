@@ -327,7 +327,7 @@ namespace xv::core
         std::vector<uint64_t> view;
 
     public:
-        BroadcastOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view) : TransformOp(OpName::SLICE, operand), view(view) {}
+        BroadcastOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view) : TransformOp(OpName::BROADCAST, operand), view(view) {}
         const std::vector<uint64_t> &get_view() { return view; }
         const std::string str() const override
         {

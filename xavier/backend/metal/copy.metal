@@ -14,7 +14,7 @@ template <class T>
     constant const uint *ndim [[buffer(0)]],
     constant const uint *offset [[buffer(1)]],
     constant const uint *shape [[buffer(2)]],
-    constant const uint *stride [[buffer(3)]],
+    constant const int *stride [[buffer(3)]],
     device T *input [[buffer(4)]],
     device T *output [[buffer(5)]],
     uint id [[thread_position_in_grid]])
