@@ -2,7 +2,7 @@
 
 template <class T>
 [[kernel]] void full(
-    device float *c [[buffer(0)]],
+    device T *c [[buffer(0)]],
     device T *output [[buffer(1)]],
     uint id [[thread_position_in_grid]])
 {
@@ -19,9 +19,14 @@ template <class T>
     output[id] = *start + id * *step;
 }
 
-#define initializer_all(tyname, ty) \
-template [[host_name("full_" #tyname)]] [[kernel]] decltype(full<ty>) full<ty>; \
-template [[host_name("arange_" #tyname)]] [[kernel]] decltype(arange<ty>) arange<ty>;
+#define initializer_all(opname, op) \
+template [[host_name(#opname "_f32")]] [[kernel]] decltype(op<float>) op<float>;    \
+template [[host_name(#opname "_i32")]] [[kernel]] decltype(op<int>) op<int>;        \
+template [[host_name(#opname "_b8")]] [[kernel]] decltype(op<bool>) op<bool>;
 
-initializer_all(f32, float)
-initializer_all(i32, int)
+#define initializer_numeric_all(opname, op) \
+template [[host_name(#opname "_f32")]] [[kernel]] decltype(op<float>) op<float>;    \
+template [[host_name(#opname "_i32")]] [[kernel]] decltype(op<int>) op<int>;
+
+initializer_all(full, full)
+initializer_numeric_all(arange, arange)

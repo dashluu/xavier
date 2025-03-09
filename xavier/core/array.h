@@ -90,7 +90,7 @@ namespace xv::core
             // This method only initializes the gradient array without allocating any new buffer for the data
             if (grad == nullptr)
             {
-                grad = Array::zeros_like(shared_from_this());
+                grad = Array::zeros_like(shared_from_this(), device);
             }
         }
 
@@ -138,19 +138,23 @@ namespace xv::core
 
         const std::string str() const override;
 
-        static std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, float val, const Dtype &dtype = f32, const Device &device = device0)
+        static std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, int c, const Device &device = device0)
         {
-            return full(arr->get_shape().get_view(), val, dtype, device);
+            return full(arr->get_shape().get_view(), c, arr->get_dtype(), device);
         }
 
-        static std::shared_ptr<Array> zeros_like(std::shared_ptr<Array> arr, const Dtype &dtype = f32, const Device &device = device0)
+        static std::shared_ptr<Array> zeros_like(std::shared_ptr<Array> arr, const Device &device = device0)
         {
-            return full_like(arr, 0.0f, dtype, device);
+            return full_like(arr, 0, device);
         }
 
-        static std::shared_ptr<Array> ones_like(std::shared_ptr<Array> arr, const Dtype &dtype = f32, const Device &device = device0)
+        static std::shared_ptr<Array> ones_like(std::shared_ptr<Array> arr, const Device &device = device0)
         {
-            return full_like(arr, 1.0f, dtype, device);
+            if (arr->get_dtype() == f32)
+            {
+                return full_like(arr, std::bit_cast<int>(1.0f), device);
+            }
+            return full_like(arr, 1, device);
         }
 
         std::shared_ptr<Array> slice(const std::vector<Range> &ranges);
@@ -163,7 +167,7 @@ namespace xv::core
             return arr;
         }
 
-        static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, float c, const Dtype &dtype = f32, const Device &device = device0)
+        static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, int c, const Dtype &dtype = f32, const Device &device = device0)
         {
             auto op = std::make_shared<FullOp>(view, c, dtype);
             auto arr = std::make_shared<Array>(Shape(view), dtype, device);

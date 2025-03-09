@@ -5,7 +5,7 @@
 namespace xv::backend::metal
 {
     template <class T1, class T2>
-    std::vector<T2> vec64to32(const std::vector<T1> &v)
+    std::vector<T2> v64to32(const std::vector<T1> &v)
     {
         std::vector<T2> v32(v.size());
         for (size_t i = 0; i < v.size(); i++)

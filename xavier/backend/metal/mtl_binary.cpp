@@ -46,7 +46,7 @@ namespace xv::backend::metal
 
         // View (shared since dimensions match)
         auto view = lhs->get_shape().get_view();
-        std::vector<uint32_t> view32 = vec64to32<uint64_t, uint32_t>(view);
+        std::vector<uint32_t> view32 = v64to32<uint64_t, uint32_t>(view);
         auto view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(view32.data(), view32.size() * sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(view_buff.get(), 0, 1);
 
@@ -57,7 +57,7 @@ namespace xv::backend::metal
 
         // lhs stride
         auto lhs_stride = lhs->get_shape().get_stride();
-        std::vector<int32_t> lhs_stride32 = vec64to32<int64_t, int32_t>(lhs_stride);
+        std::vector<int32_t> lhs_stride32 = v64to32<int64_t, int32_t>(lhs_stride);
         auto lhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs_stride32.data(), lhs_stride32.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(lhs_stride_buff.get(), 0, 3);
 
@@ -68,7 +68,7 @@ namespace xv::backend::metal
 
         // rhs stride
         auto rhs_stride = rhs->get_shape().get_stride();
-        std::vector<int32_t> rhs_stride32 = vec64to32<int64_t, int32_t>(rhs_stride);
+        std::vector<int32_t> rhs_stride32 = v64to32<int64_t, int32_t>(rhs_stride);
         auto rhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs_stride32.data(), rhs_stride32.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(rhs_stride_buff.get(), 0, 5);
 
@@ -99,7 +99,7 @@ namespace xv::backend::metal
 
         // View (shared since dimensions match)
         auto view = lhs->get_shape().get_view();
-        std::vector<uint32_t> view32 = vec64to32<uint64_t, uint32_t>(view);
+        std::vector<uint32_t> view32 = v64to32<uint64_t, uint32_t>(view);
         auto view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(view32.data(), view32.size() * sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(view_buff.get(), 0, 1);
 
@@ -110,7 +110,7 @@ namespace xv::backend::metal
 
         // lhs stride
         auto lhs_stride = lhs->get_shape().get_stride();
-        std::vector<int32_t> lhs_stride32 = vec64to32<int64_t, int32_t>(lhs_stride);
+        std::vector<int32_t> lhs_stride32 = v64to32<int64_t, int32_t>(lhs_stride);
         auto lhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs_stride32.data(), lhs_stride32.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(lhs_stride_buff.get(), 0, 3);
 
@@ -121,7 +121,7 @@ namespace xv::backend::metal
 
         // rhs stride
         auto rhs_stride = rhs->get_shape().get_stride();
-        std::vector<int32_t> rhs_stride32 = vec64to32<int64_t, int32_t>(rhs_stride);
+        std::vector<int32_t> rhs_stride32 = v64to32<int64_t, int32_t>(rhs_stride);
         auto rhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs_stride32.data(), rhs_stride32.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(rhs_stride_buff.get(), 0, 5);
 

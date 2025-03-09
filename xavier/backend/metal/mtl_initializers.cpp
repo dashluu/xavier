@@ -2,13 +2,13 @@
 
 namespace xv::backend::metal
 {
-    void full(std::shared_ptr<Array> arr, float c, MTLContext &ctx)
+    void full(std::shared_ptr<Array> arr, int c, uint64_t size, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto device = ctx.get_device();
-        auto c_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&c, sizeof(c), MTL::ResourceStorageModeShared, nullptr));
+        auto c_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&c, size, MTL::ResourceStorageModeShared, nullptr));
         auto out_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(arr->get_buff_ptr(), arr->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(c_buff.get(), 0, 0);
         encoder->setBuffer(out_buff.get(), 0, 1);

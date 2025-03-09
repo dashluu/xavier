@@ -37,14 +37,14 @@ namespace xv::backend::metal
         // View
         auto &view = input->get_shape().get_view();
         // Cast to 32-bit since the kernel accepts uint buffertr
-        std::vector<uint32_t> view32 = vec64to32<uint64_t, uint32_t>(view);
+        std::vector<uint32_t> view32 = v64to32<uint64_t, uint32_t>(view);
         auto view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(view32.data(), view32.size() * sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(view_buff.get(), 0, 2);
 
         // Stride
         auto &stride = input->get_shape().get_stride();
         // Cast to 32-bit since the kernel accepts uint buffer
-        std::vector<int32_t> stride32 = vec64to32<int64_t, int32_t>(stride);
+        std::vector<int32_t> stride32 = v64to32<int64_t, int32_t>(stride);
         auto stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(stride32.data(), stride32.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(stride_buff.get(), 0, 3);
 

@@ -5,22 +5,22 @@ namespace xv::core
 {
     const std::string UnaryOp::str() const
     {
-        return opnames.at(name) + ", operand: " + std::to_string(operand->get_id());
+        return get_name_str() + ", operand: " + std::to_string(operand->get_id());
     }
 
     const std::string RootBinaryOp::str() const
     {
-        return opnames.at(name) + ", lhs: " + std::to_string(lhs->get_id()) + ", rhs: " + std::to_string(rhs->get_id());
+        return get_name_str() + ", lhs: " + std::to_string(lhs->get_id()) + ", rhs: " + std::to_string(rhs->get_id());
     }
 
     const std::string TransformOp::str() const
     {
-        return opnames.at(name) + ", operand: " + std::to_string(operand->get_id());
+        return get_name_str() + ", operand: " + std::to_string(operand->get_id());
     }
 
     const std::string MoveOp::str() const
     {
-        return opnames.at(name) + ", operand: " + std::to_string(operand->get_id());
+        return get_name_str() + ", operand: " + std::to_string(operand->get_id());
     }
 
     void AddOp::backward(std::shared_ptr<Array> arr) const

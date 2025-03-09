@@ -31,8 +31,6 @@ namespace xv::core
             return std::to_string(*reinterpret_cast<int16_t *>(ptr));
         case 4:
             return fmt_num<int32_t, float>(ptr, dtype);
-        case 8:
-            return fmt_num<int64_t, double>(ptr, dtype);
         default:
             throw std::invalid_argument("Unsupported dtype.");
         }
@@ -180,15 +178,15 @@ namespace xv::core
         auto &rhs_view = rhs->shape.get_view();
         if (!shape.broadcastable(rhs_view))
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible shapes " + numstr(shape.get_view()) + " and " + numstr(rhs_view) + ".");
+            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible shapes " + numstr(shape.get_view()) + " and " + numstr(rhs_view) + ".");
         }
         if (dtype_map.find(dtype) == dtype_map.end() || dtype != rhs->dtype)
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible data types " + dtype.str() + " and " + rhs->dtype.str() + ".");
+            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible data types " + dtype.str() + " and " + rhs->dtype.str() + ".");
         }
         if (device != rhs->get_device())
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible devices " + device.str() + " and " + rhs->device.str() + ".");
+            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible devices " + device.str() + " and " + rhs->device.str() + ".");
         }
         auto broadcasted_lhs = broadcast(rhs_view);
         auto broadcasted_rhs = rhs->broadcast(shape.get_view());
@@ -205,15 +203,15 @@ namespace xv::core
         auto &rhs_view = rhs_shape.get_view();
         if (!rhs_shape.broadcastable_to(shape.get_view()))
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible shapes " + numstr(shape.get_view()) + " and " + numstr(rhs_view) + ".");
+            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible shapes " + numstr(shape.get_view()) + " and " + numstr(rhs_view) + ".");
         }
         if (dtype_map.find(dtype) == dtype_map.end() || dtype != rhs->dtype)
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible data types " + dtype.str() + " and " + rhs->dtype.str() + ".");
+            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible data types " + dtype.str() + " and " + rhs->dtype.str() + ".");
         }
         if (device != rhs->get_device())
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible devices " + device.str() + " and " + rhs->device.str() + ".");
+            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible devices " + device.str() + " and " + rhs->device.str() + ".");
         }
         auto broadcasted_rhs = rhs->broadcast_to(shape.get_view());
         auto arr = std::make_shared<Array>(shape, dtype, device);
@@ -227,7 +225,7 @@ namespace xv::core
         auto dummy_op = std::make_shared<O>(nullptr);
         if (dtype_map.find(dtype) == dtype_map.end())
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->str() + " on incompatible data type " + dtype.str() + ".");
+            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible data type " + dtype.str() + ".");
         }
         auto arr = std::make_shared<Array>(Shape(shape.get_view()), dtype, device);
         arr->op = std::make_shared<O>(shared_from_this());

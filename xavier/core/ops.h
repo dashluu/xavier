@@ -91,6 +91,7 @@ namespace xv::core
         Op &operator=(const Op &) = delete;
         virtual ~Op() = default;
         OpName get_name() const { return name; }
+        std::string get_name_str() const { return opnames.at(name); }
         OpType get_type() const { return type; }
         virtual void backward(std::shared_ptr<Array> arr) const {}
     };
@@ -99,7 +100,6 @@ namespace xv::core
     {
     public:
         InitializerOp(OpName name) : Op(name, OpType::INITIALIZER) {}
-        const std::string str() const override { return opnames.at(name); }
     };
 
     struct ArangeOp : public InitializerOp
@@ -118,7 +118,7 @@ namespace xv::core
         const Dtype &get_dtype() { return dtype; }
         const std::string str() const override
         {
-            return InitializerOp::str() + ", view: (" + numstr(view) + "), start: " + std::to_string(start) + ", step: " + std::to_string(step);
+            return get_name_str() + ", view: (" + numstr(view) + "), start: " + std::to_string(start) + ", step: " + std::to_string(step);
         }
     };
 
@@ -126,21 +126,34 @@ namespace xv::core
     {
     private:
         std::vector<uint64_t> view;
-        float c;
+        int c;
         Dtype dtype;
 
     public:
-        FullOp(const std::vector<uint64_t> &view, float c, const Dtype &dtype) : InitializerOp(OpName::FULL), view(view), c(c), dtype(dtype) {}
+        FullOp(const std::vector<uint64_t> &view, int c, const Dtype &dtype) : InitializerOp(OpName::FULL), view(view), c(c), dtype(dtype) {}
         const std::vector<uint64_t> &get_view() { return view; }
-        float get_const() const { return c; }
+        int get_const() const { return c; }
         const Dtype &get_dtype() { return dtype; }
-        const std::string str() const override { return InitializerOp::str() + ", view: (" + numstr(view) + "), value: " + std::to_string(c); }
+        const std::string str() const override
+        {
+            auto s = get_name_str() + ", view: (" + numstr(view) + "), value: ";
+            if (bool_dtypes.contains(dtype))
+            {
+                return s + std::to_string(static_cast<bool>(c));
+            }
+            else if (int_dtypes.contains(dtype))
+            {
+                return s + std::to_string(c);
+            }
+            return s + std::to_string(std::bit_cast<float>(c));
+        }
     };
 
     struct BuffOp : public InitializerOp
     {
     public:
         BuffOp() : InitializerOp(OpName::BUFF) {}
+        const std::string str() const override { return get_name_str(); }
     };
 
     struct UnaryOp : public Op

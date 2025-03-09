@@ -7,17 +7,20 @@ namespace xv::backend::metal
     class MTLContext : public std::enable_shared_from_this<MTLContext>
     {
     private:
-        static std::vector<std::string> initializer_ops;
-        static std::vector<std::string> unary_ops;
-        static std::vector<std::string> binary_ops;
-        static std::vector<std::string> util_ops;
+        static std::vector<std::string> num_unary_ops;
+        static std::vector<std::string> num_binary_ops;
         NS::SharedPtr<NS::AutoreleasePool> pool;
         NS::SharedPtr<MTL::Device> device;
         NS::SharedPtr<MTL::Library> lib;
         NS::SharedPtr<MTL::CommandQueue> cmd_queue;
         std::unordered_map<std::string, std::shared_ptr<MTLKernel>> kernels;
 
-        void init_kernels(std::vector<std::string> &ops, bool sparse);
+        void init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, bool sparse);
+        void init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes, bool sparse);
+        void init_initializer_kernels();
+        void init_unary_kernels();
+        void init_binary_kernels();
+        void init_util_kernels();
 
     public:
         MTLContext(const std::string &lib_path);

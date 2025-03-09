@@ -10,7 +10,8 @@ namespace xv::graph
         {
         case OpName::FULL:
         {
-            full(arr, std::static_pointer_cast<FullOp>(op)->get_const(), *ctx);
+            auto full_op = std::static_pointer_cast<FullOp>(op);
+            full(arr, full_op->get_const(), arr->get_dtype().get_size(), *ctx);
             break;
         }
         case OpName::ARANGE:
@@ -198,17 +199,17 @@ namespace xv::graph
         }
         case OpType::UNARY:
         {
-            call_unary(opnames.at(op->get_name()), arr);
+            call_unary(op->get_name_str(), arr);
             break;
         }
         case OpType::BINARY:
         {
-            call_binary(opnames.at(op->get_name()), arr);
+            call_binary(op->get_name_str(), arr);
             break;
         }
         case OpType::SELF_BINARY:
         {
-            call_self_binary(opnames.at(op->get_name()), arr);
+            call_self_binary(op->get_name_str(), arr);
             break;
         }
         case OpType::TRANSFORM:
@@ -230,7 +231,7 @@ namespace xv::graph
         {
             toposort(root, fw_order);
             // Seed root for now
-            root->grad = Array::ones_like(root);
+            root->grad = Array::ones_like(root, root->get_device());
             // Initializes the gradient array first without allocating buffers
             for (auto &arr : std::views::reverse(fw_order))
             {

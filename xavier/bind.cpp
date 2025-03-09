@@ -45,11 +45,9 @@ void init_xv_module(py::module_ &m)
 
     m.attr("f16") = &f16;
     m.attr("f32") = &f32;
-    m.attr("f64") = &f64;
     m.attr("i8") = &i8;
     m.attr("i16") = &i16;
     m.attr("i32") = &i32;
-    m.attr("i64") = &i64;
     m.attr("b8") = &b8;
     m.attr("binary_dtypes") = &binary_dtypes;
     m.attr("num_dtypes") = &num_dtypes;
@@ -94,9 +92,10 @@ void init_xv_module(py::module_ &m)
         .def("__getitem__", [](Array &arr, const py::object &obj)
              { return arr.slice(get_arr_ranges(arr, obj)); }, "obj"_a)
         .def_static("arange", &Array::arange, "Creates a new array containing an algebraic sequence of integers.", "view"_a, "start"_a, "step"_a, "dtype"_a = f32, "device"_a = device0)
-        .def_static("full", &Array::full, "Creates a new array containing the same constant value.", "view"_a, "c"_a, "dtype"_a = f32, "device"_a = device0)
-        .def_static("zeros_like", &Array::zeros_like, "Creates a new array similar to the given array containing zeros.", "arr"_a)
-        .def_static("ones_like", &Array::ones_like, "Creates a new array similar to the given array containing ones.", "arr"_a)
+        .def_static("full", [](const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device)
+                    { return full(view, c, dtype, device); }, "Creates a new array containing the same constant value.", "view"_a, "c"_a, "dtype"_a = f32, "device"_a = device0)
+        .def_static("zeros_like", &Array::zeros_like, "Creates a new array similar to the given array containing zeros.", "arr"_a, "device"_a = device0)
+        .def_static("ones_like", &Array::ones_like, "Creates a new array similar to the given array containing ones.", "arr"_a, "device"_a = device0)
         .def("__add__", &Array::add, "rhs"_a)
         .def("__sub__", &Array::sub, "rhs"_a)
         .def("__mul__", &Array::mul, "rhs"_a)
@@ -120,14 +119,26 @@ void init_xv_module(py::module_ &m)
         .def("forward", &Graph::forward)
         .def("backward", &Graph::backward);
 
-    // m.def("sparse_copy", &sparse_copy, "Sparsely copies data from one array to another.", "input"_a, "output"_a, "ctx"_a);
-
 #ifdef __APPLE__
     py::class_<MTLGraph, Graph, std::unique_ptr<MTLGraph>>(m, "MTLGraph")
         .def(py::init<std::shared_ptr<Array>, std::shared_ptr<MTLContext>>(), "root"_a, "ctx"_a);
     py::class_<MTLContext, std::shared_ptr<MTLContext>>(m, "MTLContext")
         .def(py::init<const std::string &>(), "lib_path"_a);
 #endif
+}
+
+std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device)
+{
+    if (py::isinstance<py::float_>(c))
+    {
+        return Array::full(view, std::bit_cast<int>(c.cast<float>()), dtype, device);
+    }
+    else if (py::isinstance<py::int_>(c) || py::isinstance<py::bool_>(c))
+    {
+        return Array::full(view, c.cast<int>(), dtype, device);
+    }
+
+    throw std::invalid_argument("Expected a float, int, or bool but received an object of type " + c.attr("__class__").cast<py::str>().cast<std::string>() + ".");
 }
 
 bool is_buff_contiguous(py::buffer_info &buff_info)
@@ -218,7 +229,7 @@ std::vector<Range> get_arr_ranges(const Array &arr, const py::object &obj)
     }
     else
     {
-        // obj is a tuple of ints or slices
+        // TODO: make sure obj is a tuple of ints or slices
         auto tuple = obj.cast<py::tuple>();
         if (tuple.size() > shape.get_ndim())
         {

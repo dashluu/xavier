@@ -38,11 +38,9 @@ namespace xv::core
 
     inline const Dtype f16("f16", 2);
     inline const Dtype f32("f32", 4);
-    inline const Dtype f64("f64", 8);
     inline const Dtype i8("i8", 1);
     inline const Dtype i16("i16", 2);
     inline const Dtype i32("i32", 4);
-    inline const Dtype i64("i64", 8);
     inline const Dtype b8("b8", 1);
 }
 
@@ -60,7 +58,11 @@ namespace std
 
 namespace xv::core
 {
+    inline const std::unordered_set<Dtype> all_dtypes = {b8, i32, f32};
     inline const std::unordered_set<Dtype> num_dtypes = {i32, f32};
+    inline const std::unordered_set<Dtype> bool_dtypes = {b8};
+    inline const std::unordered_set<Dtype> int_dtypes = {i32};
+    inline const std::unordered_set<Dtype> float_dtypes = {f32};
     inline const std::unordered_map<Dtype, Dtype> binary_dtypes = {
         {i32, i32},
         {f32, f32}};

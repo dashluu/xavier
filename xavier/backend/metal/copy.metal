@@ -26,7 +26,9 @@ template <class T>
 #define copy_all() \
 template [[host_name("copy_f32")]] [[kernel]] decltype(copy<float>) copy<float>;                        \
 template [[host_name("copy_i32")]] [[kernel]] decltype(copy<int>) copy<int>;                            \
+template [[host_name("copy_b8")]] [[kernel]] decltype(copy<bool>) copy<bool>;                           \
 template [[host_name("sparse_copy_f32")]] [[kernel]] decltype(sparse_copy<float>) sparse_copy<float>;   \
-template [[host_name("sparse_copy_i32")]] [[kernel]] decltype(sparse_copy<int>) sparse_copy<int>;
+template [[host_name("sparse_copy_i32")]] [[kernel]] decltype(sparse_copy<int>) sparse_copy<int>;       \
+template [[host_name("sparse_copy_b8")]] [[kernel]] decltype(sparse_copy<bool>) sparse_copy<bool>;
 
 copy_all()
