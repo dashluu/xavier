@@ -138,14 +138,19 @@ namespace xv::core
 
         const std::string str() const override;
 
-        static std::shared_ptr<Array> zeros_like(std::shared_ptr<Array> arr)
+        static std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, float val, const Dtype &dtype = f32, const Device &device = device0)
         {
-            return full(arr->get_shape().get_view(), 0.0f, arr->get_dtype(), arr->get_device());
+            return full(arr->get_shape().get_view(), val, dtype, device);
         }
 
-        static std::shared_ptr<Array> ones_like(std::shared_ptr<Array> arr)
+        static std::shared_ptr<Array> zeros_like(std::shared_ptr<Array> arr, const Dtype &dtype = f32, const Device &device = device0)
         {
-            return full(arr->get_shape().get_view(), 1.0f, arr->get_dtype(), arr->get_device());
+            return full_like(arr, 0.0f, dtype, device);
+        }
+
+        static std::shared_ptr<Array> ones_like(std::shared_ptr<Array> arr, const Dtype &dtype = f32, const Device &device = device0)
+        {
+            return full_like(arr, 1.0f, dtype, device);
         }
 
         std::shared_ptr<Array> slice(const std::vector<Range> &ranges);

@@ -63,11 +63,11 @@ namespace xv::graph
         arr->alloc(*lhs->get_buff());
         if (lhs->is_contiguous() && rhs->is_contiguous())
         {
-            binary_ss(name, lhs, rhs, lhs, *ctx);
+            self_binary_ss(name, lhs, rhs, *ctx);
         }
         else
         {
-            sparse_binary_ss(name, lhs, rhs, lhs, *ctx);
+            sparse_self_binary_ss(name, lhs, rhs, *ctx);
         }
     }
 

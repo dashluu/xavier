@@ -1,7 +1,11 @@
 from python.xavier import Array, MTLGraph, MTLContext
 import numpy as np
-import time
 import torch
+
+
+def compare_grads(arr_grad: Array, torch_grad: torch.Tensor, name: str):
+    t_grad = torch.frombuffer(arr_grad, dtype=torch.float32)
+    assert torch.allclose(t_grad, torch_grad.flatten(), atol=1e-3, rtol=0), f"Gradient mismatch for {name}"
 
 
 class TestBackprop:
@@ -42,11 +46,149 @@ class TestBackprop:
         assert torch.allclose(t8, t7.flatten(), atol=1e-3, rtol=0)
         t9 = torch.frombuffer(arr3.grad, dtype=torch.float32)
         assert torch.allclose(t9, t3.grad.flatten(), atol=1e-3, rtol=0)
-        t10 = torch.frombuffer(arr4.grad, dtype=torch.float32)
-        assert torch.allclose(t10, t4.grad.flatten(), atol=1e-3, rtol=0)
-        t11 = torch.frombuffer(arr5.grad, dtype=torch.float32)
-        assert torch.allclose(t11, t5.grad.flatten(), atol=1e-3, rtol=0)
-        t12 = torch.frombuffer(arr6.grad, dtype=torch.float32)
-        assert torch.allclose(t12, t6.grad.flatten(), atol=1e-3, rtol=0)
-        t13 = torch.frombuffer(arr7.grad, dtype=torch.float32)
-        assert torch.allclose(t13, t7.grad.flatten(), atol=1e-3, rtol=0)
+        compare_grads(arr3.grad, t3.grad, "arr3")
+        compare_grads(arr4.grad, t4.grad, "arr4")
+        compare_grads(arr5.grad, t5.grad, "arr5")
+        compare_grads(arr6.grad, t6.grad, "arr6")
+        compare_grads(arr7.grad, t7.grad, "arr7")
+
+    def test_backprop_v2(self):
+        ctx = MTLContext(TestBackprop.lib)
+        print("Testing complex unary(and one binary) operations chain:")
+
+        shape = [2, 3]
+        np1 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)  # Positive values for log
+
+        # Xavier implementation: log(exp(x) * x) / x
+        arr1 = Array.from_buffer(np1).reshape(shape)
+        arr2 = arr1.exp()
+        arr3 = arr2 * arr1
+        arr4 = arr3.log()
+        arr5 = arr4 / arr1
+
+        g = MTLGraph(arr5, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        t1 = torch.from_numpy(np1).requires_grad_(True)
+        t2 = torch.exp(t1)
+        t2.retain_grad()
+        t3 = t2 * t1
+        t3.retain_grad()
+        t4 = torch.log(t3)
+        t4.retain_grad()
+        t5 = t4 / t1
+        t5.sum().backward()
+
+        # Compare gradients
+        compare_grads(arr1.grad, t1.grad, "input")
+        compare_grads(arr2.grad, t2.grad, "exp")
+        compare_grads(arr3.grad, t3.grad, "mul")
+        compare_grads(arr4.grad, t4.grad, "log")
+
+    def test_backprop_v3(self):
+        ctx = MTLContext(TestBackprop.lib)
+        print("Testing branched operations:")
+
+        shape = [3, 4, 2]
+        np1 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)
+        np2 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)
+
+        # Xavier implementation
+        # Branch 1: log(x1) * exp(x2)
+        # Branch 2: x1 / x2
+        # Result: Branch1 + Branch2
+        arr1 = Array.from_buffer(np1).reshape(shape)
+        arr2 = Array.from_buffer(np2).reshape(shape)
+
+        # Branch 1
+        b1_1 = arr1.log()
+        b1_2 = arr2.exp()
+        branch1 = b1_1 * b1_2
+
+        # Branch 2
+        branch2 = arr1 / arr2
+
+        # Combine branches
+        result = branch1 + branch2
+
+        g = MTLGraph(result, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        t1 = torch.from_numpy(np1).requires_grad_(True)
+        t2 = torch.from_numpy(np2).requires_grad_(True)
+
+        # Branch 1
+        tb1_1 = torch.log(t1)
+        tb1_1.retain_grad()
+        tb1_2 = torch.exp(t2)
+        tb1_2.retain_grad()
+        tbranch1 = tb1_1 * tb1_2
+        tbranch1.retain_grad()
+
+        # Branch 2
+        tbranch2 = t1 / t2
+        tbranch2.retain_grad()
+
+        # Combine branches
+        tresult = tbranch1 + tbranch2
+        tresult.sum().backward()
+
+        # Compare gradients
+        compare_grads(arr1.grad, t1.grad, "input1")
+        compare_grads(arr2.grad, t2.grad, "input2")
+        compare_grads(b1_1.grad, tb1_1.grad, "log")
+        compare_grads(b1_2.grad, tb1_2.grad, "exp")
+        compare_grads(branch1.grad, tbranch1.grad, "branch1")
+        compare_grads(branch2.grad, tbranch2.grad, "branch2")
+
+    def test_backprop_v4(self):
+        ctx = MTLContext(TestBackprop.lib)
+        print("Testing nested operations:")
+
+        shape = [5, 7, 2, 4]
+        np1 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)
+        np2 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)
+
+        # Xavier implementation: log(exp(x1/x2) * recip(x1))
+        arr1 = Array.from_buffer(np1).reshape(shape)
+        arr2 = Array.from_buffer(np2).reshape(shape)
+
+        div1 = arr1 / arr2
+        exp1 = div1.exp()
+        rec1 = arr1.recip()
+        mul1 = exp1 * rec1
+        result = mul1.log()
+
+        g = MTLGraph(result, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        t1 = torch.from_numpy(np1).requires_grad_(True)
+        t2 = torch.from_numpy(np2).requires_grad_(True)
+
+        tdiv1 = t1 / t2
+        tdiv1.retain_grad()
+        texp1 = torch.exp(tdiv1)
+        texp1.retain_grad()
+        trec1 = 1.0 / t1
+        trec1.retain_grad()
+        tmul1 = texp1 * trec1
+        tmul1.retain_grad()
+        tresult = torch.log(tmul1)
+        tresult.sum().backward()
+
+        # Compare gradients
+        compare_grads(arr1.grad, t1.grad, "input1")
+        compare_grads(arr2.grad, t2.grad, "input2")
+        compare_grads(div1.grad, tdiv1.grad, "div")
+        compare_grads(exp1.grad, texp1.grad, "exp")
+        compare_grads(rec1.grad, trec1.grad, "recip")
+        compare_grads(mul1.grad, tmul1.grad, "mul")

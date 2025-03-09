@@ -1,7 +1,6 @@
 #define NS_PRIVATE_IMPLEMENTATION
 #define CA_PRIVATE_IMPLEMENTATION
 #define MTL_PRIVATE_IMPLEMENTATION
-#include "backend/metal/mtl_kernels.h"
 #include "graph/mtl_graph.h"
 
 using namespace xv::backend::metal;

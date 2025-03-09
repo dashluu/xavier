@@ -30,16 +30,23 @@ if(APPLE)
         backend/metal/metal.h
         backend/metal/mtl_context.h
         backend/metal/mtl_kernel.h
-        backend/metal/mtl_kernels.h
+        backend/metal/mtl_utils.h
+        backend/metal/mtl_initializers.h
+        backend/metal/mtl_copy.h
+        backend/metal/mtl_unary.h
+        backend/metal/mtl_binary.h
     )
     SET(MTL_SRC_FILES
         graph/mtl_graph.cpp
         backend/metal/mtl_context.cpp
-        backend/metal/mtl_kernels.cpp
+        backend/metal/mtl_initializers.cpp
+        backend/metal/mtl_copy.cpp
+        backend/metal/mtl_unary.cpp
+        backend/metal/mtl_binary.cpp
     )
     add_subdirectory(backend/metal)
-    pybind11_add_module(${PROJECT_NAME} bind.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
-    # add_executable(${PROJECT_NAME} main.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
+    # pybind11_add_module(${PROJECT_NAME} bind.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
+    add_executable(${PROJECT_NAME} main.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
     # Metal-cpp
     set(MTL_CPP "${CMAKE_SOURCE_DIR}/metal-cpp")
     # Add include directories

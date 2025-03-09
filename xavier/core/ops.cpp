@@ -107,6 +107,6 @@ namespace xv::core
         // z = 1/x
         // dx += dz * -1/x**2
         operand->init_grad();
-        operand->grad = operand->grad->self_sub(arr->grad->mul(operand->sq()));
+        operand->grad = operand->grad->self_sub(arr->grad->mul(arr->sq()));
     }
 }
