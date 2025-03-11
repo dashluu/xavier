@@ -15,6 +15,7 @@ using namespace xv::graph;
 
 void init_xv_module(py::module_ &);
 std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device);
+std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, const py::object &c, const Device &device);
 bool is_buff_contiguous(py::buffer_info &buff_info);
 std::shared_ptr<Array> array_from_buffer(py::buffer &buff, const Device &device);
 py::buffer_info array_to_buffer(Array &arr);
@@ -23,6 +24,7 @@ std::vector<T> vslice(const std::vector<T> &v, const py::object &obj);
 std::vector<Range> get_arr_ranges(const Array &arr, const py::object &obj);
 uint64_t map_idx(int64_t len, int64_t idx);
 Range slice_to_range(int64_t len, const py::object &obj);
+std::string get_pyclass(const py::object &obj) { return obj.attr("__class__").cast<py::str>().cast<std::string>(); }
 
 inline auto f32_fmt = py::format_descriptor<float>::format();
 inline auto i16_fmt = py::format_descriptor<int16_t>::format();

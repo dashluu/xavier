@@ -49,8 +49,6 @@ void init_xv_module(py::module_ &m)
     m.attr("i16") = &i16;
     m.attr("i32") = &i32;
     m.attr("b8") = &b8;
-    m.attr("binary_dtypes") = &binary_dtypes;
-    m.attr("num_dtypes") = &num_dtypes;
 
     py::enum_<DeviceType>(m, "DeviceType")
         .value("CPU", DeviceType::CPU)
@@ -93,7 +91,9 @@ void init_xv_module(py::module_ &m)
              { return arr.slice(get_arr_ranges(arr, obj)); }, "obj"_a)
         .def_static("arange", &Array::arange, "Creates a new array containing an algebraic sequence of integers.", "view"_a, "start"_a, "step"_a, "dtype"_a = f32, "device"_a = device0)
         .def_static("full", [](const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device)
-                    { return full(view, c, dtype, device); }, "Creates a new array containing the same constant value.", "view"_a, "c"_a, "dtype"_a = f32, "device"_a = device0)
+                    { return full(view, c, dtype, device); }, "Creates a new array containing the same value.", "view"_a, "c"_a, "dtype"_a = f32, "device"_a = device0)
+        .def_static("full_like", [](std::shared_ptr<Array> arr, const py::object &c, const Device &device)
+                    { return full_like(arr, c, device); }, "Creates a new array containing the same value that has the same shape and data type as the given array.", "arr"_a, "c"_a, "device"_a = device0)
         .def_static("zeros_like", &Array::zeros_like, "Creates a new array similar to the given array containing zeros.", "arr"_a, "device"_a = device0)
         .def_static("ones_like", &Array::ones_like, "Creates a new array similar to the given array containing ones.", "arr"_a, "device"_a = device0)
         .def("__add__", &Array::add, "rhs"_a)
@@ -104,6 +104,12 @@ void init_xv_module(py::module_ &m)
         .def("__isub__", &Array::self_sub, "rhs"_a)
         .def("__imul__", &Array::self_mul, "rhs"_a)
         .def("__itruediv__", &Array::self_div, "rhs"_a)
+        .def("__eq__", &Array::eq, "rhs"_a)
+        .def("__ne__", &Array::neq, "rhs"_a)
+        .def("__gt__", &Array::gt, "rhs"_a)
+        .def("__ge__", &Array::geq, "rhs"_a)
+        .def("__lt__", &Array::lt, "rhs"_a)
+        .def("__le__", &Array::leq, "rhs"_a)
         .def("exp", &Array::exp)
         .def("log", &Array::log)
         .def("__neg__", &Array::neg)
@@ -131,14 +137,34 @@ std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object 
 {
     if (py::isinstance<py::float_>(c))
     {
-        return Array::full(view, std::bit_cast<int>(c.cast<float>()), dtype, device);
+        if (float_dtypes.contains(dtype))
+        {
+            return Array::full(view, std::bit_cast<int>(c.cast<float>()), dtype, device);
+        }
+        return Array::full(view, static_cast<int>(c.cast<float>()), dtype, device);
     }
     else if (py::isinstance<py::int_>(c) || py::isinstance<py::bool_>(c))
     {
         return Array::full(view, c.cast<int>(), dtype, device);
     }
+    throw PybindInvalidArgumentType(get_pyclass(c), "float, int, bool");
+}
 
-    throw std::invalid_argument("Expected a float, int, or bool but received an object of type " + c.attr("__class__").cast<py::str>().cast<std::string>() + ".");
+std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, const py::object &c, const Device &device)
+{
+    if (py::isinstance<py::float_>(c))
+    {
+        if (float_dtypes.contains(arr->get_dtype()))
+        {
+            return Array::full_like(arr, std::bit_cast<int>(c.cast<float>()), device);
+        }
+        return Array::full_like(arr, static_cast<int>(c.cast<float>()), device);
+    }
+    else if (py::isinstance<py::int_>(c) || py::isinstance<py::bool_>(c))
+    {
+        return Array::full_like(arr, c.cast<int>(), device);
+    }
+    throw PybindInvalidArgumentType(get_pyclass(c), "float, int, bool");
 }
 
 bool is_buff_contiguous(py::buffer_info &buff_info)

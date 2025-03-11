@@ -57,19 +57,21 @@ struct Sq
 // Unary operations for scalar-scalar
 template <class Op, class T, class R>
 [[kernel]] void unary_ss(
-    device T *input [[buffer(0)]],
-    device R *output [[buffer(1)]],
+    constant const uint *offset [[buffer(0)]],
+    device T *input [[buffer(1)]],
+    device R *output [[buffer(2)]],
     uint id [[thread_position_in_grid]])
 {
-    output[id] = Op()(input[id]);
+    output[id] = Op()(input[*offset + id]);
 }
 
 template <class Op, class T>
 [[kernel]] void self_unary_ss(
-    device T *input [[buffer(0)]],
+    constant const uint *offset [[buffer(0)]],
+    device T *input [[buffer(1)]],
     uint id [[thread_position_in_grid]])
 {
-    input[id] = Op()(input[id]);
+    input[*offset + id] = Op()(input[*offset + id]);
 }
 
 template <class Op, class T, class R>

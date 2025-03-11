@@ -8,10 +8,15 @@ namespace xv::backend::metal
         auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto device = ctx.get_device();
+        // Offset
+        auto offset = static_cast<uint32_t>(input->get_shape().get_offset());
+        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&offset, sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
+        encoder->setBuffer(offset_buff.get(), 0, 0);
+        // Input and output buffers
         auto in_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(input->get_buff_ptr(), input->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(in_buff.get(), 0, 0);
+        encoder->setBuffer(in_buff.get(), 0, 1);
         auto out_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(output->get_buff_ptr(), output->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(out_buff.get(), 0, 1);
+        encoder->setBuffer(out_buff.get(), 0, 2);
         auto kernel_name = name + "_" + input->get_dtype().str();
         ss_dispatch(ctx, cmd_buff, encoder, kernel_name, input->get_numel());
     }
@@ -22,8 +27,13 @@ namespace xv::backend::metal
         auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto device = ctx.get_device();
+        // Offset
+        auto offset = static_cast<uint32_t>(input->get_shape().get_offset());
+        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&offset, sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
+        encoder->setBuffer(offset_buff.get(), 0, 0);
+        // Input buffer
         auto in_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(input->get_buff_ptr(), input->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(in_buff.get(), 0, 0);
+        encoder->setBuffer(in_buff.get(), 0, 1);
         auto kernel_name = name + "_" + input->get_dtype().str();
         ss_dispatch(ctx, cmd_buff, encoder, kernel_name, input->get_numel());
     }

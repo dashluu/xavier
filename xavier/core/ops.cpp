@@ -13,6 +13,11 @@ namespace xv::core
         return get_name_str() + ", lhs: " + std::to_string(lhs->get_id()) + ", rhs: " + std::to_string(rhs->get_id());
     }
 
+    const std::string MatmulOp::str() const
+    {
+        return get_name_str() + ", lhs: " + std::to_string(lhs->get_id()) + ", rhs: " + std::to_string(rhs->get_id());
+    }
+
     const std::string TransformOp::str() const
     {
         return get_name_str() + ", operand: " + std::to_string(operand->get_id());

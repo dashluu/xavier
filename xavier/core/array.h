@@ -150,8 +150,9 @@ namespace xv::core
 
         static std::shared_ptr<Array> ones_like(std::shared_ptr<Array> arr, const Device &device = device0)
         {
-            if (arr->get_dtype() == f32)
+            if (float_dtypes.contains(arr->get_dtype()))
             {
+                // TODO: this is for 32-bit fp, we might have to deal 16-bit or 8-bit
                 return full_like(arr, std::bit_cast<int>(1.0f), device);
             }
             return full_like(arr, 1, device);
@@ -184,10 +185,13 @@ namespace xv::core
         }
 
         template <class O>
-        std::shared_ptr<Array> binary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map);
+        std::shared_ptr<Array> binary(std::shared_ptr<Array> rhs);
 
         template <class O>
-        std::shared_ptr<Array> self_binary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map);
+        std::shared_ptr<Array> self_binary(std::shared_ptr<Array> rhs);
+
+        template <class O>
+        std::shared_ptr<Array> cmp(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> add(std::shared_ptr<Array> rhs);
 
@@ -205,8 +209,23 @@ namespace xv::core
 
         std::shared_ptr<Array> self_div(std::shared_ptr<Array> rhs);
 
+        std::shared_ptr<Array> eq(std::shared_ptr<Array> rhs);
+
+        std::shared_ptr<Array> neq(std::shared_ptr<Array> rhs);
+
+        std::shared_ptr<Array> lt(std::shared_ptr<Array> rhs);
+
+        std::shared_ptr<Array> gt(std::shared_ptr<Array> rhs);
+
+        std::shared_ptr<Array> leq(std::shared_ptr<Array> rhs);
+
+        std::shared_ptr<Array> geq(std::shared_ptr<Array> rhs);
+
         template <class O>
-        std::shared_ptr<Array> unary(std::shared_ptr<Array> operand, const std::unordered_map<Dtype, Dtype> &dtype_map);
+        std::shared_ptr<Array> unary();
+
+        template <class O>
+        std::shared_ptr<Array> unary_float();
 
         std::shared_ptr<Array> sq();
 

@@ -143,11 +143,12 @@ namespace xv::core
 
         bool matmul_compat(const std::vector<uint64_t> &target) const
         {
+            // Assume we already checked # dimensions >= 2
             if (view.size() != target.size() || view[view.size() - 1] != target[target.size() - 2])
             {
                 return false;
             }
-            for (int i = view.size() - 3; i >= 0; i--)
+            for (int i = 0; i < view.size() - 2; i--)
             {
                 if (view[i] != target[i] && view[i] != 1 && target[i] != 1)
                 {

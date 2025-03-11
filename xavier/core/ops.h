@@ -19,6 +19,12 @@ namespace xv::core
         SELF_MUL,
         DIV,
         SELF_DIV,
+        EQ,
+        NEQ,
+        GT,
+        GEQ,
+        LT,
+        LEQ,
         MATMUL,
         SQ,
         SQRT,
@@ -41,8 +47,10 @@ namespace xv::core
     {
         INITIALIZER,
         UNARY,
+        SELF_UNARY,
         BINARY,
         SELF_BINARY,
+        MATMUL,
         TRANSFORM,
         REDUCE,
         MOVE
@@ -61,6 +69,12 @@ namespace xv::core
         {OpName::SELF_MUL, "self_mul"},
         {OpName::DIV, "div"},
         {OpName::SELF_DIV, "self_div"},
+        {OpName::EQ, "eq"},
+        {OpName::NEQ, "neq"},
+        {OpName::GT, "gt"},
+        {OpName::GEQ, "geq"},
+        {OpName::LT, "lt"},
+        {OpName::LEQ, "leq"},
         {OpName::MATMUL, "matmul"},
         {OpName::SQ, "sq"},
         {OpName::SQRT, "sqrt"},
@@ -259,6 +273,56 @@ namespace xv::core
     {
     public:
         SelfDivOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : SelfBinaryOp(OpName::SELF_DIV, lhs, rhs) {}
+    };
+
+    struct EqOp : public BinaryOp
+    {
+    public:
+        EqOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::EQ, lhs, rhs) {}
+    };
+
+    struct NeqOp : public BinaryOp
+    {
+    public:
+        NeqOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::NEQ, lhs, rhs) {}
+    };
+
+    struct LtOp : public BinaryOp
+    {
+    public:
+        LtOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::LT, lhs, rhs) {}
+    };
+
+    struct GtOp : public BinaryOp
+    {
+    public:
+        GtOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::GT, lhs, rhs) {}
+    };
+
+    struct LeqOp : public BinaryOp
+    {
+    public:
+        LeqOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::LEQ, lhs, rhs) {}
+    };
+
+    struct GeqOp : public BinaryOp
+    {
+    public:
+        GeqOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::GEQ, lhs, rhs) {}
+    };
+
+    struct MatmulOp : public Op
+    {
+    protected:
+        std::shared_ptr<Array> lhs;
+        std::shared_ptr<Array> rhs;
+
+    public:
+        MatmulOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : Op(OpName::MATMUL, OpType::MATMUL), lhs(lhs), rhs(rhs) {}
+        std::shared_ptr<Array> get_lhs() const { return lhs; }
+        std::shared_ptr<Array> get_rhs() const { return rhs; }
+        const std::string str() const override;
+        void backward(std::shared_ptr<Array> arr) const override;
     };
 
     struct SqOp : public UnaryOp

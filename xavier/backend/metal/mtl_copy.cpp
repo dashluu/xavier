@@ -8,10 +8,15 @@ namespace xv::backend::metal
         auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto device = ctx.get_device();
+        // Offset
+        uint32_t offset[] = {static_cast<uint32_t>(input->get_shape().get_offset()), static_cast<uint32_t>(output->get_shape().get_offset())};
+        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset, sizeof(offset), MTL::ResourceStorageModeShared, nullptr));
+        encoder->setBuffer(offset_buff.get(), 0, 0);
+        // Input and output buffers
         auto in_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(input->get_buff_ptr(), input->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
+        encoder->setBuffer(in_buff.get(), 0, 1);
         auto out_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(output->get_buff_ptr(), output->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(in_buff.get(), 0, 0);
-        encoder->setBuffer(out_buff.get(), 0, 1);
+        encoder->setBuffer(out_buff.get(), 0, 2);
         auto name = "copy_" + input->get_dtype().str();
         ss_dispatch(ctx, cmd_buff, encoder, name, input->get_numel());
     }
@@ -30,8 +35,8 @@ namespace xv::backend::metal
         encoder->setBuffer(ndim_buff.get(), 0, 0);
 
         // Offset
-        auto offset = static_cast<uint32_t>(input->get_shape().get_offset());
-        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&offset, sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
+        uint32_t offset[] = {static_cast<uint32_t>(input->get_shape().get_offset()), static_cast<uint32_t>(output->get_shape().get_offset())};
+        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset, sizeof(offset), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(offset_buff.get(), 0, 1);
 
         // View
@@ -48,7 +53,7 @@ namespace xv::backend::metal
         auto stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(stride32.data(), stride32.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(stride_buff.get(), 0, 3);
 
-        // Data
+        // Input and output buffers
         auto in_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(input->get_buff_ptr(), input->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(in_buff.get(), 0, 4);
         auto out_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(output->get_buff_ptr(), output->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));

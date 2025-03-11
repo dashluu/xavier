@@ -172,21 +172,21 @@ namespace xv::core
     }
 
     template <class O>
-    std::shared_ptr<Array> Array::binary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map)
+    std::shared_ptr<Array> Array::binary(std::shared_ptr<Array> rhs)
     {
         auto dummy_op = std::make_shared<O>(nullptr, nullptr);
         auto &rhs_view = rhs->shape.get_view();
         if (!shape.broadcastable(rhs_view))
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible shapes " + numstr(shape.get_view()) + " and " + numstr(rhs_view) + ".");
+            throw IncompatShapesForOp(dummy_op->get_name_str(), numstr(shape.get_view()), numstr(rhs_view));
         }
-        if (dtype_map.find(dtype) == dtype_map.end() || dtype != rhs->dtype)
+        if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible data types " + dtype.str() + " and " + rhs->dtype.str() + ".");
+            throw IncompatDtypesForOp(dummy_op->get_name_str(), dtype.str(), rhs->dtype.str());
         }
         if (device != rhs->get_device())
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible devices " + device.str() + " and " + rhs->device.str() + ".");
+            throw IncompatDevicesForOp(dummy_op->get_name_str(), device.str(), rhs->device.str());
         }
         auto broadcasted_lhs = broadcast(rhs_view);
         auto broadcasted_rhs = rhs->broadcast(shape.get_view());
@@ -196,22 +196,22 @@ namespace xv::core
     }
 
     template <class O>
-    std::shared_ptr<Array> Array::self_binary(std::shared_ptr<Array> rhs, const std::unordered_map<Dtype, Dtype> &dtype_map)
+    std::shared_ptr<Array> Array::self_binary(std::shared_ptr<Array> rhs)
     {
         auto dummy_op = std::make_shared<O>(nullptr, nullptr);
         auto &rhs_shape = rhs->shape;
         auto &rhs_view = rhs_shape.get_view();
         if (!rhs_shape.broadcastable_to(shape.get_view()))
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible shapes " + numstr(shape.get_view()) + " and " + numstr(rhs_view) + ".");
+            throw IncompatShapesForOp(dummy_op->get_name_str(), numstr(shape.get_view()), numstr(rhs_view));
         }
-        if (dtype_map.find(dtype) == dtype_map.end() || dtype != rhs->dtype)
+        if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible data types " + dtype.str() + " and " + rhs->dtype.str() + ".");
+            throw IncompatDtypesForOp(dummy_op->get_name_str(), dtype.str(), rhs->dtype.str());
         }
         if (device != rhs->get_device())
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible devices " + device.str() + " and " + rhs->device.str() + ".");
+            throw IncompatDevicesForOp(dummy_op->get_name_str(), device.str(), rhs->device.str());
         }
         auto broadcasted_rhs = rhs->broadcast_to(shape.get_view());
         auto arr = std::make_shared<Array>(shape, dtype, device);
@@ -220,45 +220,95 @@ namespace xv::core
     }
 
     template <class O>
-    std::shared_ptr<Array> Array::unary(std::shared_ptr<Array> operand, const std::unordered_map<Dtype, Dtype> &dtype_map)
+    std::shared_ptr<Array> Array::cmp(std::shared_ptr<Array> rhs)
+    {
+        auto dummy_op = std::make_shared<O>(nullptr, nullptr);
+        auto &rhs_view = rhs->shape.get_view();
+        if (!shape.broadcastable(rhs_view))
+        {
+            throw IncompatShapesForOp(dummy_op->get_name_str(), numstr(shape.get_view()), numstr(rhs_view));
+        }
+        if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
+        {
+            throw IncompatDtypesForOp(dummy_op->get_name_str(), dtype.str(), rhs->dtype.str());
+        }
+        if (device != rhs->get_device())
+        {
+            throw IncompatDevicesForOp(dummy_op->get_name_str(), device.str(), rhs->device.str());
+        }
+        auto broadcasted_lhs = broadcast(rhs_view);
+        auto broadcasted_rhs = rhs->broadcast(shape.get_view());
+        auto arr = std::make_shared<Array>(Shape(broadcasted_lhs->shape.get_view()), b8, device);
+        arr->op = std::make_shared<O>(broadcasted_lhs, broadcasted_rhs);
+        return arr;
+    }
+
+    template <class O>
+    std::shared_ptr<Array> Array::unary()
     {
         auto dummy_op = std::make_shared<O>(nullptr);
-        if (dtype_map.find(dtype) == dtype_map.end())
+        if (!unary_dtypes.contains(dtype))
         {
-            throw std::runtime_error("Cannot run operator " + dummy_op->get_name_str() + " on incompatible data type " + dtype.str() + ".");
+            throw IncompatDtypeForOp(dummy_op->get_name_str(), dtype.str());
         }
         auto arr = std::make_shared<Array>(Shape(shape.get_view()), dtype, device);
         arr->op = std::make_shared<O>(shared_from_this());
         return arr;
     }
 
-    std::shared_ptr<Array> Array::add(std::shared_ptr<Array> rhs) { return binary<AddOp>(rhs, binary_dtypes); }
+    template <class O>
+    std::shared_ptr<Array> Array::unary_float()
+    {
+        auto dummy_op = std::make_shared<O>(nullptr);
+        auto result_dtype = unary_float_dtypes.find(dtype);
+        if (result_dtype == unary_float_dtypes.end())
+        {
+            throw IncompatDtypeForOp(dummy_op->get_name_str(), dtype.str());
+        }
+        auto arr = std::make_shared<Array>(Shape(shape.get_view()), result_dtype->second, device);
+        arr->op = std::make_shared<O>(shared_from_this());
+        return arr;
+    }
 
-    std::shared_ptr<Array> Array::self_add(std::shared_ptr<Array> rhs) { return self_binary<SelfAddOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::add(std::shared_ptr<Array> rhs) { return binary<AddOp>(rhs); }
 
-    std::shared_ptr<Array> Array::sub(std::shared_ptr<Array> rhs) { return binary<SubOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::self_add(std::shared_ptr<Array> rhs) { return self_binary<SelfAddOp>(rhs); }
 
-    std::shared_ptr<Array> Array::self_sub(std::shared_ptr<Array> rhs) { return self_binary<SelfSubOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::sub(std::shared_ptr<Array> rhs) { return binary<SubOp>(rhs); }
 
-    std::shared_ptr<Array> Array::mul(std::shared_ptr<Array> rhs) { return binary<MulOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::self_sub(std::shared_ptr<Array> rhs) { return self_binary<SelfSubOp>(rhs); }
 
-    std::shared_ptr<Array> Array::self_mul(std::shared_ptr<Array> rhs) { return self_binary<SelfMulOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::mul(std::shared_ptr<Array> rhs) { return binary<MulOp>(rhs); }
 
-    std::shared_ptr<Array> Array::div(std::shared_ptr<Array> rhs) { return binary<DivOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::self_mul(std::shared_ptr<Array> rhs) { return self_binary<SelfMulOp>(rhs); }
 
-    std::shared_ptr<Array> Array::self_div(std::shared_ptr<Array> rhs) { return self_binary<SelfDivOp>(rhs, binary_dtypes); }
+    std::shared_ptr<Array> Array::div(std::shared_ptr<Array> rhs) { return binary<DivOp>(rhs); }
 
-    std::shared_ptr<Array> Array::sq() { return unary<SqOp>(shared_from_this(), unary_dtypes); }
+    std::shared_ptr<Array> Array::self_div(std::shared_ptr<Array> rhs) { return self_binary<SelfDivOp>(rhs); }
 
-    std::shared_ptr<Array> Array::sqrt() { return unary<SqrtOp>(shared_from_this(), unary_float_dtypes); }
+    std::shared_ptr<Array> Array::eq(std::shared_ptr<Array> rhs) { return cmp<EqOp>(rhs); }
 
-    std::shared_ptr<Array> Array::exp() { return unary<ExpOp>(shared_from_this(), unary_float_dtypes); }
+    std::shared_ptr<Array> Array::neq(std::shared_ptr<Array> rhs) { return cmp<NeqOp>(rhs); }
 
-    std::shared_ptr<Array> Array::log() { return unary<LogOp>(shared_from_this(), unary_float_dtypes); }
+    std::shared_ptr<Array> Array::lt(std::shared_ptr<Array> rhs) { return cmp<LtOp>(rhs); }
 
-    std::shared_ptr<Array> Array::neg() { return unary<NegOp>(shared_from_this(), unary_dtypes); }
+    std::shared_ptr<Array> Array::gt(std::shared_ptr<Array> rhs) { return cmp<GtOp>(rhs); }
 
-    std::shared_ptr<Array> Array::recip() { return unary<RecipOp>(shared_from_this(), unary_float_dtypes); }
+    std::shared_ptr<Array> Array::leq(std::shared_ptr<Array> rhs) { return cmp<LeqOp>(rhs); }
+
+    std::shared_ptr<Array> Array::geq(std::shared_ptr<Array> rhs) { return cmp<GeqOp>(rhs); }
+
+    std::shared_ptr<Array> Array::sq() { return unary<SqOp>(); }
+
+    std::shared_ptr<Array> Array::sqrt() { return unary_float<SqrtOp>(); }
+
+    std::shared_ptr<Array> Array::exp() { return unary_float<ExpOp>(); }
+
+    std::shared_ptr<Array> Array::log() { return unary_float<LogOp>(); }
+
+    std::shared_ptr<Array> Array::neg() { return unary<NegOp>(); }
+
+    std::shared_ptr<Array> Array::recip() { return unary_float<RecipOp>(); }
 
     std::shared_ptr<Array> Array::reshape(const std::vector<uint64_t> &view)
     {
