@@ -141,16 +141,17 @@ namespace xv::core
             return true;
         }
 
-        bool matmul_compat(const std::vector<uint64_t> &target) const
+        bool matmul_broadcastable(const std::vector<uint64_t> &rhs) const
         {
-            // Assume we already checked # dimensions >= 2
-            if (view.size() != target.size() || view[view.size() - 1] != target[target.size() - 2])
+            if (view.size() < 2 || view[view.size() - 1] != rhs[rhs.size() - 2])
             {
                 return false;
             }
-            for (int i = 0; i < view.size() - 2; i--)
+            for (auto view_iter = view.begin(), rhs_iter = rhs.begin();
+                 view_iter != view.end() - 2 && rhs_iter != rhs.end() - 2;
+                 view_iter++, rhs_iter++)
             {
-                if (view[i] != target[i] && view[i] != 1 && target[i] != 1)
+                if (*view_iter != *rhs_iter && *view_iter != 1 && *rhs_iter != 1)
                 {
                     return false;
                 }
@@ -215,24 +216,34 @@ namespace xv::core
             return s;
         }
 
-        Shape matmul_broadcast(const std::vector<uint64_t> &target) const
+        Shape matmul_broadcast(const std::vector<uint64_t> &rhs, bool output_result = true) const
         {
-            if (!matmul_compat(target))
+            if (!matmul_broadcastable(rhs))
             {
-                throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") to (" + numstr(target) + ").");
+                throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") to (" + numstr(rhs) + ").");
             }
-            std::vector<uint64_t> v = view;
-            auto shape = Shape(offset, v);
-            for (int i = target.size() - 3; i >= 0; i--)
+            auto v1 = view;
+            auto v2 = rhs;
+            if (output_result)
             {
-                if (shape.view[i] < target[i])
+                v1[v1.size() - 2] = v2[v2.size() - 1];
+            }
+            auto ndim = std::max(v1.size(), v2.size());
+            auto diff1 = ndim - v1.size();
+            auto diff2 = ndim - v2.size();
+            v1.insert(v1.begin(), diff1, 1);
+            v2.insert(v2.begin(), diff2, 1);
+            auto s = Shape(offset, v1);
+            std::fill_n(s.stride.begin(), diff1, 0);
+            for (int i = 0; i < ndim - 2; i++)
+            {
+                if (v1[i] < v2[i])
                 {
-                    // shape.view[i] == 1
-                    shape.view[i] = target[i];
-                    shape.stride[i] = 0;
+                    s.view[i] = v2[i];
+                    s.stride[i] = 0;
                 }
             }
-            return shape;
+            return s;
         }
 
         Shape reshape(const std::vector<uint64_t> &target)

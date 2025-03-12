@@ -42,19 +42,20 @@ namespace xv::core
         Device device;
         std::shared_ptr<Buffer> buff = nullptr;
         std::shared_ptr<Op> op = nullptr;
+        bool constant;
 
         void check_ranges(const std::vector<Range> &ranges) const;
 
     public:
         std::shared_ptr<Array> grad = nullptr;
 
-        Array(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0) : shape(shape), dtype(dtype), device(device)
+        Array(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : shape(shape), dtype(dtype), device(device), constant(constant)
         {
             buff = std::make_shared<Buffer>(ptr, nbytes, false);
             id = id_gen.generate();
         }
 
-        Array(const Shape &shape, const Dtype &dtype = f32, const Device &device = device0) : shape(shape), dtype(dtype), device(device)
+        Array(const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : shape(shape), dtype(dtype), device(device), constant(constant)
         {
             id = id_gen.generate();
         }
@@ -113,6 +114,10 @@ namespace xv::core
 
         const Device &get_device() const { return device; }
 
+        bool is_constant() const { return constant; }
+
+        void set_constant() { constant = true; }
+
         std::shared_ptr<Buffer> get_buff() const { return buff; }
 
         std::shared_ptr<Op> get_op() const { return op; }
@@ -138,57 +143,95 @@ namespace xv::core
 
         const std::string str() const override;
 
-        static std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, int c, const Device &device = device0)
+        static std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, int c, const Device &device = device0, bool constant = false)
         {
-            return full(arr->get_shape().get_view(), c, arr->get_dtype(), device);
+            return full(arr->get_shape().get_view(), c, arr->get_dtype(), device, constant);
         }
 
-        static std::shared_ptr<Array> zeros_like(std::shared_ptr<Array> arr, const Device &device = device0)
+        static std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, float c, const Device &device = device0, bool constant = false)
         {
-            return full_like(arr, 0, device);
+            return full(arr->get_shape().get_view(), c, arr->get_dtype(), device, constant);
         }
 
-        static std::shared_ptr<Array> ones_like(std::shared_ptr<Array> arr, const Device &device = device0)
+        static std::shared_ptr<Array> zeros_like(std::shared_ptr<Array> arr, const Device &device = device0, bool constant = false)
+        {
+            return full_like(arr, 0, device, constant);
+        }
+
+        static std::shared_ptr<Array> ones_like(std::shared_ptr<Array> arr, const Device &device = device0, bool constant = false)
         {
             if (float_dtypes.contains(arr->get_dtype()))
             {
                 // TODO: this is for 32-bit fp, we might have to deal 16-bit or 8-bit
-                return full_like(arr, std::bit_cast<int>(1.0f), device);
+                return full_like(arr, 1.0f, device, constant);
             }
-            return full_like(arr, 1, device);
+            return full_like(arr, 1, device, constant);
         }
 
         std::shared_ptr<Array> slice(const std::vector<Range> &ranges);
 
-        static std::shared_ptr<Array> arange(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype = f32, const Device &device = device0)
+        static std::shared_ptr<Array> arange(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
         {
             auto op = std::make_shared<ArangeOp>(view, start, step, dtype);
-            auto arr = std::make_shared<Array>(Shape(view), dtype, device);
+            auto arr = std::make_shared<Array>(Shape(view), dtype, device, constant);
             arr->op = op;
             return arr;
         }
 
-        static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, int c, const Dtype &dtype = f32, const Device &device = device0)
+        static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, int c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
         {
             auto op = std::make_shared<FullOp>(view, c, dtype);
-            auto arr = std::make_shared<Array>(Shape(view), dtype, device);
+            auto arr = std::make_shared<Array>(Shape(view), dtype, device, constant);
             arr->op = op;
             return arr;
         }
 
-        static std::shared_ptr<Array> from_buff(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0)
+        static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, float c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
+        {
+            return full(view, std::bit_cast<int>(c), dtype, device, constant);
+        }
+
+        // Saves memory by storing only one constant value and broadcasts later if needed
+        static std::shared_ptr<Array> full(int c, const Dtype &dtype = f32, const Device &device = device0)
+        {
+            std::vector<uint64_t> view = {1};
+            return full(view, c, dtype, device, true);
+        }
+
+        static std::shared_ptr<Array> full(float c, const Dtype &dtype = f32, const Device &device = device0)
+        {
+            std::vector<uint64_t> view = {1};
+            return full(view, c, dtype, device, true);
+        }
+
+        static std::shared_ptr<Array> zeros(const std::vector<uint64_t> &view, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
+        {
+            return full(view, 0, dtype, device, constant);
+        }
+
+        static std::shared_ptr<Array> ones(const std::vector<uint64_t> &view, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
+        {
+            if (float_dtypes.contains(dtype))
+            {
+                // TODO: this is for 32-bit fp, we might have to deal 16-bit or 8-bit
+                return full(view, 1.0f, dtype, device, constant);
+            }
+            return full(view, 1, dtype, device, constant);
+        }
+
+        static std::shared_ptr<Array> from_buff(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
         {
             auto op = std::make_shared<BuffOp>();
-            auto arr = std::make_shared<Array>(ptr, nbytes, shape, dtype, device);
+            auto arr = std::make_shared<Array>(ptr, nbytes, shape, dtype, device, constant);
             arr->op = op;
             return arr;
         }
 
         template <class O>
-        std::shared_ptr<Array> binary(std::shared_ptr<Array> rhs);
+        std::shared_ptr<Array> binary_ss(std::shared_ptr<Array> rhs);
 
         template <class O>
-        std::shared_ptr<Array> self_binary(std::shared_ptr<Array> rhs);
+        std::shared_ptr<Array> self_binary_ss(std::shared_ptr<Array> rhs);
 
         template <class O>
         std::shared_ptr<Array> cmp(std::shared_ptr<Array> rhs);
@@ -203,11 +246,17 @@ namespace xv::core
 
         std::shared_ptr<Array> mul(std::shared_ptr<Array> rhs);
 
+        std::shared_ptr<Array> mul(int c) { return mul(full(c, dtype, device)); }
+
+        std::shared_ptr<Array> mul(float c) { return mul(full(c, dtype, device)); }
+
         std::shared_ptr<Array> self_mul(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> div(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> self_div(std::shared_ptr<Array> rhs);
+
+        std::shared_ptr<Array> matmul(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> eq(std::shared_ptr<Array> rhs);
 
@@ -222,10 +271,10 @@ namespace xv::core
         std::shared_ptr<Array> geq(std::shared_ptr<Array> rhs);
 
         template <class O>
-        std::shared_ptr<Array> unary();
+        std::shared_ptr<Array> unary_ss();
 
         template <class O>
-        std::shared_ptr<Array> unary_float();
+        std::shared_ptr<Array> unary_ss_float();
 
         std::shared_ptr<Array> sq();
 
@@ -242,6 +291,8 @@ namespace xv::core
         std::shared_ptr<Array> reshape(const std::vector<uint64_t> &view);
 
         std::shared_ptr<Array> broadcast(const std::vector<uint64_t> &view);
+
+        std::shared_ptr<Array> matmul_broadcast(const std::vector<uint64_t> &view);
 
         std::shared_ptr<Array> broadcast_to(const std::vector<uint64_t> &view);
 

@@ -35,6 +35,7 @@ if(APPLE)
         backend/metal/mtl_copy.h
         backend/metal/mtl_unary.h
         backend/metal/mtl_binary.h
+        backend/metal/mtl_matmul.h
     )
     SET(MTL_SRC_FILES
         graph/mtl_graph.cpp
@@ -43,6 +44,7 @@ if(APPLE)
         backend/metal/mtl_copy.cpp
         backend/metal/mtl_unary.cpp
         backend/metal/mtl_binary.cpp
+        backend/metal/mtl_matmul.cpp
     )
     add_subdirectory(backend/metal)
     pybind11_add_module(${PROJECT_NAME} bind.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})

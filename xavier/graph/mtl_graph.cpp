@@ -46,7 +46,18 @@ namespace xv::graph
         auto lhs = binary_op->get_lhs();
         auto rhs = binary_op->get_rhs();
         arr->alloc();
-        if (lhs->is_contiguous() && rhs->is_contiguous())
+        if (binary_op->get_name() == OpName::MATMUL)
+        {
+            if (lhs->get_shape().get_ndim() == 2)
+            {
+                matmul2d(lhs, rhs, arr, *ctx);
+            }
+            else
+            {
+                // TODO: handle the case when array has 3 dimensions or more
+            }
+        }
+        else if (lhs->is_contiguous() && rhs->is_contiguous())
         {
             binary_ss(name, lhs, rhs, arr, *ctx);
         }

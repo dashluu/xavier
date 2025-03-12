@@ -13,11 +13,6 @@ namespace xv::core
         return get_name_str() + ", lhs: " + std::to_string(lhs->get_id()) + ", rhs: " + std::to_string(rhs->get_id());
     }
 
-    const std::string MatmulOp::str() const
-    {
-        return get_name_str() + ", lhs: " + std::to_string(lhs->get_id()) + ", rhs: " + std::to_string(rhs->get_id());
-    }
-
     const std::string TransformOp::str() const
     {
         return get_name_str() + ", operand: " + std::to_string(operand->get_id());
@@ -79,8 +74,8 @@ namespace xv::core
     {
         // z = x**2
         // dx += dz * 2x
-        auto grad = arr->grad;
-        // backward_helper(arr, grad->mul(operand->mul(2.0f)));
+        operand->init_grad();
+        operand->grad = operand->grad->mul(arr->grad->mul(2));
     }
 
     void ExpOp::backward(std::shared_ptr<Array> arr) const

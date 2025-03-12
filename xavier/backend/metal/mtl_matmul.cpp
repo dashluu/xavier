@@ -7,10 +7,7 @@ void xv::backend::metal::matmul2d(std::shared_ptr<Array> lhs, std::shared_ptr<Ar
     auto encoder = cmd_buff->computeCommandEncoder();
     auto device = ctx.get_device();
     // Offset
-    uint32_t offset[] = {
-        static_cast<uint32_t>(lhs->get_shape().get_offset()),
-        static_cast<uint32_t>(rhs->get_shape().get_offset()),
-        static_cast<uint32_t>(output->get_shape().get_offset())};
+    uint32_t offset[] = {static_cast<uint32_t>(lhs->get_shape().get_offset()), static_cast<uint32_t>(rhs->get_shape().get_offset())};
     auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset, sizeof(offset), MTL::ResourceStorageModeShared, nullptr));
     encoder->setBuffer(offset_buff.get(), 0, 0);
     // lhs view

@@ -50,7 +50,6 @@ namespace xv::core
         SELF_UNARY,
         BINARY,
         SELF_BINARY,
-        MATMUL,
         TRANSFORM,
         REDUCE,
         MOVE
@@ -311,17 +310,10 @@ namespace xv::core
         GeqOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::GEQ, lhs, rhs) {}
     };
 
-    struct MatmulOp : public Op
+    struct MatmulOp : public BinaryOp
     {
-    protected:
-        std::shared_ptr<Array> lhs;
-        std::shared_ptr<Array> rhs;
-
     public:
-        MatmulOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : Op(OpName::MATMUL, OpType::MATMUL), lhs(lhs), rhs(rhs) {}
-        std::shared_ptr<Array> get_lhs() const { return lhs; }
-        std::shared_ptr<Array> get_rhs() const { return rhs; }
-        const std::string str() const override;
+        MatmulOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::MATMUL, lhs, rhs) {}
         void backward(std::shared_ptr<Array> arr) const override;
     };
 

@@ -14,10 +14,11 @@ using namespace xv::core;
 using namespace xv::graph;
 
 void init_xv_module(py::module_ &);
-std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device);
-std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, const py::object &c, const Device &device);
+std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device, bool constant);
+std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, const py::object &c, const Device &device, bool constant);
+std::shared_ptr<Array> mul(std::shared_ptr<Array> arr, const py::object &obj);
 bool is_buff_contiguous(py::buffer_info &buff_info);
-std::shared_ptr<Array> array_from_buffer(py::buffer &buff, const Device &device);
+std::shared_ptr<Array> array_from_buffer(py::buffer &buff, const Device &device, bool constant);
 py::buffer_info array_to_buffer(Array &arr);
 template <class T>
 std::vector<T> vslice(const std::vector<T> &v, const py::object &obj);

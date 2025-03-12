@@ -3,11 +3,11 @@ from python.xavier import Array, MTLGraph, MTLContext
 import numpy as np
 
 
-def randn(shape):
+def randn(shape) -> np.ndarray:
     return np.random.randn(*shape).astype(np.float32)
 
 
-def nonzero_randn(shape):
+def nonzero_randn(shape) -> np.ndarray:
     arr = randn(shape)
     # Replace zeros with small random values
     zero_mask = arr == 0
@@ -15,7 +15,7 @@ def nonzero_randn(shape):
     return arr
 
 
-def pos_randn(shape):
+def pos_randn(shape) -> np.ndarray:
     arr = nonzero_randn(shape)
     return np.abs(arr)
 
@@ -287,3 +287,67 @@ class TestScalar:
             return x1
 
         self.binary_inplace("idiv", idiv, numpy_idiv, gen=nonzero_randn)
+
+    def test_const_mul_left(self):
+        """Test multiplication with constant on the left side (c * arr)"""
+        ctx = MTLContext(TestScalar.lib)
+        print("const mul left:")
+
+        # Test cases: [(constant, shape)]
+        test_cases = [
+            (2.0, [3, 4]),  # Basic 2D
+            (-0.5, [2, 3, 4]),  # 3D with negative constant
+            (1.5, [1, 2, 3, 4]),  # 4D
+            (0.0, [5]),  # Zero constant
+            (3.14, [1]),  # Scalar array
+        ]
+
+        for const, shape in test_cases:
+            print(f"\nTesting const {const} * shape {shape}")
+            np1 = randn(shape)
+            arr1 = Array.from_buffer(np1).reshape(shape)
+
+            # Xavier implementation
+            arr2 = const * arr1  # Constant multiplication
+            g = MTLGraph(arr2, ctx)
+            g.compile()
+            g.forward()
+
+            # NumPy comparison
+            np2 = const * np1
+            np_result = np.frombuffer(arr2, dtype=np.float32)
+
+            assert tuple(arr2.shape().view()) == np2.shape
+            assert np.allclose(np_result, np2.flatten(), atol=1e-3, rtol=0)
+
+    def test_const_mul_right(self):
+        """Test multiplication with constant on the right side (arr * c)"""
+        ctx = MTLContext(TestScalar.lib)
+        print("const mul right:")
+
+        # Test cases: [(shape, constant)]
+        test_cases = [
+            ([3, 4], 2.0),  # Basic 2D
+            ([2, 3, 4], -0.5),  # 3D with negative constant
+            ([1, 2, 3, 4], 1.5),  # 4D
+            ([5], 0.0),  # Zero constant
+            ([1], 3.14),  # Scalar array
+        ]
+
+        for shape, const in test_cases:
+            print(f"\nTesting shape {shape} * const {const}")
+            np1 = randn(shape)
+            arr1 = Array.from_buffer(np1).reshape(shape)
+
+            # Xavier implementation
+            arr2 = arr1 * const  # Constant multiplication
+            g = MTLGraph(arr2, ctx)
+            g.compile()
+            g.forward()
+
+            # NumPy comparison
+            np2 = np1 * const
+            np_result = np.frombuffer(arr2, dtype=np.float32)
+
+            assert tuple(arr2.shape().view()) == np2.shape
+            assert np.allclose(np_result, np2.flatten(), atol=1e-3, rtol=0)

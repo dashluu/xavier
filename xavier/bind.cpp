@@ -24,6 +24,8 @@ void init_xv_module(py::module_ &m)
         .def("broadcast", &Shape::broadcast, "rhs"_a)
         .def("broadcastable", &Shape::broadcastable, "rhs"_a)
         .def("broadcastable_to", &Shape::broadcastable_to, "target"_a)
+        .def("matmul_broadcastable", &Shape::matmul_broadcastable, "rhs"_a)
+        .def("matmul_broadcast", &Shape::matmul_broadcast, "rhs"_a, "output_result"_a = true)
         .def("remove", &Shape::remove, "dim"_a)
         .def("permute", &Shape::permute, "order"_a)
         .def("__eq__", &Shape::operator==, "shape"_a)
@@ -89,16 +91,21 @@ void init_xv_module(py::module_ &m)
         .def("as_contiguous", &Array::as_contiguous)
         .def("__getitem__", [](Array &arr, const py::object &obj)
              { return arr.slice(get_arr_ranges(arr, obj)); }, "obj"_a)
-        .def_static("arange", &Array::arange, "Creates a new array containing an algebraic sequence of integers.", "view"_a, "start"_a, "step"_a, "dtype"_a = f32, "device"_a = device0)
-        .def_static("full", [](const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device)
-                    { return full(view, c, dtype, device); }, "Creates a new array containing the same value.", "view"_a, "c"_a, "dtype"_a = f32, "device"_a = device0)
-        .def_static("full_like", [](std::shared_ptr<Array> arr, const py::object &c, const Device &device)
-                    { return full_like(arr, c, device); }, "Creates a new array containing the same value that has the same shape and data type as the given array.", "arr"_a, "c"_a, "device"_a = device0)
-        .def_static("zeros_like", &Array::zeros_like, "Creates a new array similar to the given array containing zeros.", "arr"_a, "device"_a = device0)
-        .def_static("ones_like", &Array::ones_like, "Creates a new array similar to the given array containing ones.", "arr"_a, "device"_a = device0)
+        .def_static("arange", &Array::arange, "Creates a new array containing an algebraic sequence of integers.", "view"_a, "start"_a, "step"_a, "dtype"_a = f32, "device"_a = device0, "constant"_a = false)
+        .def_static("full", [](const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device, bool constant)
+                    { return full(view, c, dtype, device, constant); }, "Creates a new array containing the same value.", "view"_a, "c"_a, "dtype"_a = f32, "device"_a = device0, "constant"_a = false)
+        .def_static("zeros", &Array::zeros, "Creates a new array containing zeros.", "view"_a, "dtype"_a = f32, "device"_a = device0, "constant"_a = false)
+        .def_static("ones", &Array::ones, "Creates a new array containing ones.", "view"_a, "dtype"_a = f32, "device"_a = device0, "constant"_a = false)
+        .def_static("full_like", [](std::shared_ptr<Array> arr, const py::object &c, const Device &device, bool constant)
+                    { return full_like(arr, c, device, constant); }, "Creates a new array containing the same value that has the same shape and data type as the given array.", "arr"_a, "c"_a, "device"_a = device0, "constant"_a = false)
+        .def_static("zeros_like", &Array::zeros_like, "Creates a new array similar to the given array containing zeros.", "arr"_a, "device"_a = device0, "constant"_a = false)
+        .def_static("ones_like", &Array::ones_like, "Creates a new array similar to the given array containing ones.", "arr"_a, "device"_a = device0, "constant"_a = false)
         .def("__add__", &Array::add, "rhs"_a)
         .def("__sub__", &Array::sub, "rhs"_a)
-        .def("__mul__", &Array::mul, "rhs"_a)
+        .def("__mul__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
+             { return mul(lhs, rhs); }, "rhs"_a)
+        .def("__rmul__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
+             { return mul(lhs, rhs); }, "rhs"_a)
         .def("__truediv__", &Array::div, "rhs"_a)
         .def("__iadd__", &Array::self_add, "rhs"_a)
         .def("__isub__", &Array::self_sub, "rhs"_a)
@@ -116,7 +123,7 @@ void init_xv_module(py::module_ &m)
         .def("recip", &Array::recip)
         .def("sq", &Array::sq)
         .def("sqrt", &Array::sqrt)
-        .def_static("from_buffer", &array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = device0);
+        .def_static("from_buffer", &array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = device0, "constant"_a = false);
 
     py::class_<Graph, std::unique_ptr<Graph, py::nodelete>>(m, "Graph")
         .def("root", &Graph::get_root)
@@ -133,38 +140,71 @@ void init_xv_module(py::module_ &m)
 #endif
 }
 
-std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device)
+std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device, bool constant)
 {
     if (py::isinstance<py::float_>(c))
     {
         if (float_dtypes.contains(dtype))
         {
-            return Array::full(view, std::bit_cast<int>(c.cast<float>()), dtype, device);
+            return Array::full(view, c.cast<float>(), dtype, device, constant);
         }
-        return Array::full(view, static_cast<int>(c.cast<float>()), dtype, device);
+        return Array::full(view, static_cast<int>(c.cast<float>()), dtype, device, constant);
     }
     else if (py::isinstance<py::int_>(c) || py::isinstance<py::bool_>(c))
     {
-        return Array::full(view, c.cast<int>(), dtype, device);
+        return Array::full(view, c.cast<int>(), dtype, device, constant);
     }
     throw PybindInvalidArgumentType(get_pyclass(c), "float, int, bool");
 }
 
-std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, const py::object &c, const Device &device)
+std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, const py::object &c, const Device &device, bool constant)
 {
     if (py::isinstance<py::float_>(c))
     {
         if (float_dtypes.contains(arr->get_dtype()))
         {
-            return Array::full_like(arr, std::bit_cast<int>(c.cast<float>()), device);
+            return Array::full_like(arr, c.cast<float>(), device, constant);
         }
-        return Array::full_like(arr, static_cast<int>(c.cast<float>()), device);
+        return Array::full_like(arr, static_cast<int>(c.cast<float>()), device, constant);
     }
     else if (py::isinstance<py::int_>(c) || py::isinstance<py::bool_>(c))
     {
-        return Array::full_like(arr, c.cast<int>(), device);
+        return Array::full_like(arr, c.cast<int>(), device, constant);
     }
     throw PybindInvalidArgumentType(get_pyclass(c), "float, int, bool");
+}
+
+std::shared_ptr<Array> mul(std::shared_ptr<Array> arr, const py::object &obj)
+{
+    if (py::isinstance<py::float_>(obj))
+    {
+        if (int_dtypes.contains(arr->get_dtype()))
+        {
+            return arr->mul(static_cast<int>(obj.cast<float>()));
+        }
+        else if (float_dtypes.contains(arr->get_dtype()))
+        {
+            return arr->mul(obj.cast<float>());
+        }
+        throw IncompatDtypesForOp("mul", arr->get_dtype().get_name(), get_pyclass(obj));
+    }
+    else if (py::isinstance<py::int_>(obj))
+    {
+        if (int_dtypes.contains(arr->get_dtype()))
+        {
+            return arr->mul(obj.cast<int>());
+        }
+        else if (float_dtypes.contains(arr->get_dtype()))
+        {
+            return arr->mul(static_cast<float>(obj.cast<int>()));
+        }
+        throw IncompatDtypesForOp("mul", arr->get_dtype().get_name(), get_pyclass(obj));
+    }
+    else if (py::isinstance<Array>(obj))
+    {
+        return arr->mul(obj.cast<std::shared_ptr<Array>>());
+    }
+    throw PybindInvalidArgumentType(get_pyclass(obj), "float, int, Array");
 }
 
 bool is_buff_contiguous(py::buffer_info &buff_info)
@@ -180,7 +220,7 @@ bool is_buff_contiguous(py::buffer_info &buff_info)
     return buff_info.strides == contiguous_stride;
 }
 
-std::shared_ptr<Array> array_from_buffer(py::buffer &buff, const Device &device)
+std::shared_ptr<Array> array_from_buffer(py::buffer &buff, const Device &device, bool constant)
 {
     auto buff_info = buff.request();
     if (!is_buff_contiguous(buff_info))
@@ -191,7 +231,7 @@ std::shared_ptr<Array> array_from_buffer(py::buffer &buff, const Device &device)
     uint64_t nbytes = buff_info.size * buff_info.itemsize;
     Shape shape(0, {numel}, {1});
     uint8_t *ptr = static_cast<uint8_t *>(buff_info.ptr);
-    return Array::from_buff(ptr, nbytes, shape, descriptors_to_dtypes.at(buff_info.format), device);
+    return Array::from_buff(ptr, nbytes, shape, descriptors_to_dtypes.at(buff_info.format), device, constant);
 }
 
 py::buffer_info array_to_buffer(Array &arr)

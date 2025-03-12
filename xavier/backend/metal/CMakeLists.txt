@@ -27,6 +27,7 @@ build_kernel(binary utils.h)
 build_kernel(initializers)
 build_kernel(unary)
 build_kernel(copy utils.h)
+build_kernel(matmul)
 
 message(STATUS "Kernel AIR Files: ${KERNEL_AIR}")
 

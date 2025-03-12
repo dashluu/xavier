@@ -1,7 +1,7 @@
-#include "metal.h"
+#include "utils.h"
 
 template <class T, class R>
-void matmul2d(
+[[kernel]] void matmul2d(
     constant const uint *offset [[buffer(0)]],
     constant const uint *lhs_shape [[buffer(1)]],
     constant const uint *rhs_shape [[buffer(2)]],
@@ -24,7 +24,7 @@ void matmul2d(
 }
 
 template <class T, class R>
-void matmul3d(
+[[kernel]] void matmul3d(
     constant const uint *offset [[buffer(0)]],
     constant const uint *lhs_shape [[buffer(1)]],
     constant const uint *rhs_shape [[buffer(2)]],
@@ -47,5 +47,7 @@ void matmul3d(
     }
 }
 
-template [[host_name("matmul2d_f32")]] [[kernel]] decltype(matmul2d<op, float, float>) matmul2d<op, float, float>;
-template [[host_name("matmul2d_i32")]] [[kernel]] decltype(matmul2d<op, int, int>) matmul2d<op, int, int>;
+template [[host_name("matmul2d_f32")]] [[kernel]] decltype(matmul2d<float, float>) matmul2d<float, float>;
+template [[host_name("matmul2d_i32")]] [[kernel]] decltype(matmul2d<int, int>) matmul2d<int, int>;
+template [[host_name("matmul3d_f32")]] [[kernel]] decltype(matmul3d<float, float>) matmul3d<float, float>;
+template [[host_name("matmul3d_i32")]] [[kernel]] decltype(matmul3d<int, int>) matmul3d<int, int>;
