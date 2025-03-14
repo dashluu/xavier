@@ -111,6 +111,7 @@ void init_xv_module(py::module_ &m)
         .def("__isub__", &Array::self_sub, "rhs"_a)
         .def("__imul__", &Array::self_mul, "rhs"_a)
         .def("__itruediv__", &Array::self_div, "rhs"_a)
+        .def("__matmul__", &Array::matmul, "rhs"_a)
         .def("__eq__", &Array::eq, "rhs"_a)
         .def("__ne__", &Array::neq, "rhs"_a)
         .def("__gt__", &Array::gt, "rhs"_a)
@@ -144,11 +145,7 @@ std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object 
 {
     if (py::isinstance<py::float_>(c))
     {
-        if (float_dtypes.contains(dtype))
-        {
-            return Array::full(view, c.cast<float>(), dtype, device, constant);
-        }
-        return Array::full(view, static_cast<int>(c.cast<float>()), dtype, device, constant);
+        return Array::full(view, c.cast<float>(), dtype, device, constant);
     }
     else if (py::isinstance<py::int_>(c) || py::isinstance<py::bool_>(c))
     {
@@ -161,11 +158,7 @@ std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, const py::object &c
 {
     if (py::isinstance<py::float_>(c))
     {
-        if (float_dtypes.contains(arr->get_dtype()))
-        {
-            return Array::full_like(arr, c.cast<float>(), device, constant);
-        }
-        return Array::full_like(arr, static_cast<int>(c.cast<float>()), device, constant);
+        return Array::full_like(arr, c.cast<float>(), device, constant);
     }
     else if (py::isinstance<py::int_>(c) || py::isinstance<py::bool_>(c))
     {
@@ -178,27 +171,11 @@ std::shared_ptr<Array> mul(std::shared_ptr<Array> arr, const py::object &obj)
 {
     if (py::isinstance<py::float_>(obj))
     {
-        if (int_dtypes.contains(arr->get_dtype()))
-        {
-            return arr->mul(static_cast<int>(obj.cast<float>()));
-        }
-        else if (float_dtypes.contains(arr->get_dtype()))
-        {
-            return arr->mul(obj.cast<float>());
-        }
-        throw IncompatDtypesForOp("mul", arr->get_dtype().get_name(), get_pyclass(obj));
+        return arr->mul(obj.cast<float>());
     }
     else if (py::isinstance<py::int_>(obj))
     {
-        if (int_dtypes.contains(arr->get_dtype()))
-        {
-            return arr->mul(obj.cast<int>());
-        }
-        else if (float_dtypes.contains(arr->get_dtype()))
-        {
-            return arr->mul(static_cast<float>(obj.cast<int>()));
-        }
-        throw IncompatDtypesForOp("mul", arr->get_dtype().get_name(), get_pyclass(obj));
+        return arr->mul(obj.cast<int>());
     }
     else if (py::isinstance<Array>(obj))
     {

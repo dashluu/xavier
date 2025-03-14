@@ -45,6 +45,7 @@ namespace xv::core
         bool constant;
 
         void check_ranges(const std::vector<Range> &ranges) const;
+        std::shared_ptr<Array> matmul_broadcast(const std::vector<uint64_t> &view);
 
     public:
         std::shared_ptr<Array> grad = nullptr;
@@ -160,36 +161,16 @@ namespace xv::core
 
         static std::shared_ptr<Array> ones_like(std::shared_ptr<Array> arr, const Device &device = device0, bool constant = false)
         {
-            if (float_dtypes.contains(arr->get_dtype()))
-            {
-                // TODO: this is for 32-bit fp, we might have to deal 16-bit or 8-bit
-                return full_like(arr, 1.0f, device, constant);
-            }
             return full_like(arr, 1, device, constant);
         }
 
         std::shared_ptr<Array> slice(const std::vector<Range> &ranges);
 
-        static std::shared_ptr<Array> arange(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
-        {
-            auto op = std::make_shared<ArangeOp>(view, start, step, dtype);
-            auto arr = std::make_shared<Array>(Shape(view), dtype, device, constant);
-            arr->op = op;
-            return arr;
-        }
+        static std::shared_ptr<Array> arange(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
-        static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, int c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
-        {
-            auto op = std::make_shared<FullOp>(view, c, dtype);
-            auto arr = std::make_shared<Array>(Shape(view), dtype, device, constant);
-            arr->op = op;
-            return arr;
-        }
+        static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, int c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
-        static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, float c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
-        {
-            return full(view, std::bit_cast<int>(c), dtype, device, constant);
-        }
+        static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, float c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
         // Saves memory by storing only one constant value and broadcasts later if needed
         static std::shared_ptr<Array> full(int c, const Dtype &dtype = f32, const Device &device = device0)
@@ -211,21 +192,10 @@ namespace xv::core
 
         static std::shared_ptr<Array> ones(const std::vector<uint64_t> &view, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
         {
-            if (float_dtypes.contains(dtype))
-            {
-                // TODO: this is for 32-bit fp, we might have to deal 16-bit or 8-bit
-                return full(view, 1.0f, dtype, device, constant);
-            }
             return full(view, 1, dtype, device, constant);
         }
 
-        static std::shared_ptr<Array> from_buff(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
-        {
-            auto op = std::make_shared<BuffOp>();
-            auto arr = std::make_shared<Array>(ptr, nbytes, shape, dtype, device, constant);
-            arr->op = op;
-            return arr;
-        }
+        static std::shared_ptr<Array> from_buff(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
         template <class O>
         std::shared_ptr<Array> binary_ss(std::shared_ptr<Array> rhs);
@@ -291,8 +261,6 @@ namespace xv::core
         std::shared_ptr<Array> reshape(const std::vector<uint64_t> &view);
 
         std::shared_ptr<Array> broadcast(const std::vector<uint64_t> &view);
-
-        std::shared_ptr<Array> matmul_broadcast(const std::vector<uint64_t> &view);
 
         std::shared_ptr<Array> broadcast_to(const std::vector<uint64_t> &view);
 

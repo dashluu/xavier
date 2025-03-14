@@ -135,7 +135,7 @@ class TestShape:
 
         for lhs_shape, rhs_shape, expected in test_cases:
             shape = Shape(np.zeros(lhs_shape).shape)
-            result = shape.matmul_compat(rhs_shape)
+            result = shape.matmul_broadcastable(rhs_shape)
             assert result == expected, f"Failed: {lhs_shape} @ {rhs_shape}, expected {expected}, got {result}"
             print(f"Shape {lhs_shape} @ {rhs_shape}: {'✓' if result == expected else '✗'}")
 

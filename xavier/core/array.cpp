@@ -171,6 +171,46 @@ namespace xv::core
         return arr;
     }
 
+    std::shared_ptr<Array> Array::arange(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype, const Device &device, bool constant)
+    {
+        auto op = std::make_shared<ArangeOp>(view, start, step, dtype);
+        auto arr = std::make_shared<Array>(Shape(view), dtype, device, constant);
+        arr->op = op;
+        return arr;
+    }
+
+    std::shared_ptr<Array> Array::full(const std::vector<uint64_t> &view, int c, const Dtype &dtype, const Device &device, bool constant)
+    {
+        std::shared_ptr<Op> op;
+        if (dtype == f32)
+        {
+            op = std::make_shared<FullOp>(view, std::bit_cast<int>(static_cast<float>(c)), dtype);
+        }
+        else
+        {
+            op = std::make_shared<FullOp>(view, c, dtype);
+        }
+        auto arr = std::make_shared<Array>(Shape(view), dtype, device, constant);
+        arr->op = op;
+        return arr;
+    }
+
+    std::shared_ptr<Array> Array::full(const std::vector<uint64_t> &view, float c, const Dtype &dtype, const Device &device, bool constant)
+    {
+        std::shared_ptr<Op> op;
+        if (dtype == f32)
+        {
+            op = std::make_shared<FullOp>(view, std::bit_cast<int>(c), dtype);
+        }
+        else
+        {
+            op = std::make_shared<FullOp>(view, static_cast<int>(c), dtype);
+        }
+        auto arr = std::make_shared<Array>(Shape(view), dtype, device, constant);
+        arr->op = op;
+        return arr;
+    }
+
     template <class O>
     std::shared_ptr<Array> Array::binary_ss(std::shared_ptr<Array> rhs)
     {
@@ -274,6 +314,14 @@ namespace xv::core
         return arr;
     }
 
+    std::shared_ptr<Array> Array::from_buff(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype, const Device &device, bool constant)
+    {
+        auto op = std::make_shared<BuffOp>();
+        auto arr = std::make_shared<Array>(ptr, nbytes, shape, dtype, device, constant);
+        arr->op = op;
+        return arr;
+    }
+
     std::shared_ptr<Array> Array::add(std::shared_ptr<Array> rhs) { return binary_ss<AddOp>(rhs); }
 
     std::shared_ptr<Array> Array::self_add(std::shared_ptr<Array> rhs) { return self_binary_ss<SelfAddOp>(rhs); }
@@ -366,11 +414,12 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::matmul_broadcast(const std::vector<uint64_t> &view)
     {
-        if (shape.get_view() == view)
+        auto broadcasted_view = shape.matmul_broadcast(view, false);
+        if (shape == broadcasted_view)
         {
             return shared_from_this();
         }
-        auto arr = std::make_shared<Array>(shape.matmul_broadcast(view, false), dtype, device);
+        auto arr = std::make_shared<Array>(broadcasted_view, dtype, device);
         arr->op = std::make_shared<BroadcastOp>(shared_from_this(), view);
         return arr;
     }

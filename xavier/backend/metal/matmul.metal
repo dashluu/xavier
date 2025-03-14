@@ -10,16 +10,22 @@ template <class T, class R>
     device R *output [[buffer(5)]],
     uint2 id [[thread_position_in_grid]])
 {
-    auto row_dim = lhs_shape[0];
-    auto col_dim = rhs_shape[1];
-    auto inner_dim = lhs_shape[1];
-    if (id.x < col_dim && id.y < row_dim) {
-        auto index = offset[2] + id.y * col_dim + id.x;
+    const uint row = id.y;
+    const uint col = id.x;
+    const uint M = lhs_shape[0];
+    const uint N = rhs_shape[1];
+    const uint K = lhs_shape[1];
+    if (row < M && col < N) {
+        // Calculate output index
+        const uint out_idx = row * N + col;
+        // Matrix multiplication
         R sum = 0;
-        for (int i = 0; i < inner_dim; i++) {
-            sum += lhs[offset[0] + id.y * inner_dim + i] * rhs[offset[1] + col_dim * i + id.x];
+        for (uint k = 0; k < K; k++) {
+            const uint lhs_idx = offset[0] + row * K + k;
+            const uint rhs_idx = offset[1] + k * N + col;
+            sum += lhs[lhs_idx] * rhs[rhs_idx];
         }
-        output[index] = sum;
+        output[out_idx] = sum;
     }
 }
 
@@ -33,17 +39,27 @@ template <class T, class R>
     device R *output [[buffer(5)]],
     uint3 id [[thread_position_in_grid]])
 {
-    auto batch_dim = lhs_shape[0];
-    auto row_dim = lhs_shape[1];
-    auto col_dim = rhs_shape[2];
-    auto inner_dim = lhs_shape[2];
-    if (id.x < col_dim && id.y < row_dim && id.z < batch_dim) {
-        auto index = offset[2] + id.z * batch_dim + id.y * col_dim + id.x;
+    const uint batch = id.z;
+    const uint row = id.y;
+    const uint col = id.x;
+    // Get dimensions
+    const uint B = lhs_shape[0];  // Batch size
+    const uint M = lhs_shape[1];  // Rows in each matrix
+    const uint N = rhs_shape[2];  // Cols in each matrix
+    const uint K = lhs_shape[2];  // Inner dimension
+    if (col < N && row < M && batch < B) {
+        // Calculate output index
+        // [batch, row, col] -> batch * (M * N) + row * N + col
+        const uint out_idx = batch * M * N + row * N + col;
         R sum = 0;
-        for (int i = 0; i < inner_dim; i++) {
-            sum += lhs[offset[0] + id.z * batch_dim + id.y * inner_dim + i] * rhs[offset[1] + id.z * batch_dim + col_dim * i + id.x];
+        for (int i = 0; i < K; i++) {
+            // [batch, row, k] -> batch * (M * K) + row * K + k
+            const uint lhs_idx = offset[0] + batch * M * K + row * K + i;
+            // [batch, k, col] -> batch * (K * N) + k * N + col
+            const uint rhs_idx = offset[1] + batch * K * N + N * i + col;
+            sum += lhs[lhs_idx] * rhs[rhs_idx];
         }
-        output[index] = sum;
+        output[out_idx] = sum;
     }
 }
 

@@ -329,6 +329,8 @@ namespace xv::core
     {
     public:
         SqrtOp(std::shared_ptr<Array> operand) : UnaryOp(OpName::SQRT, operand) {}
+
+        void backward(std::shared_ptr<Array> arr) const override;
     };
 
     struct NegOp : public UnaryOp

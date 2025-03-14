@@ -16,7 +16,7 @@ template <class T>
     device T *output [[buffer(2)]],
     uint id [[thread_position_in_grid]])
 {
-    output[id] = *start + id * *step;
+    output[id] = *start + static_cast<int>(id) * *step;
 }
 
 #define initializer_all(opname, op) \
