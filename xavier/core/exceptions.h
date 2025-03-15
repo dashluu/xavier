@@ -38,4 +38,10 @@ namespace xv::core
     public:
         PybindInvalidArgumentType(const std::string curr_type, const std::string &expected_type) : std::invalid_argument("Expected an object of type " + expected_type + " but received an object of type " + curr_type + ".") {}
     };
+
+    class CannotUpdateConstArray : public std::runtime_error
+    {
+    public:
+        CannotUpdateConstArray(const std::string &id) : std::runtime_error("Cannot update array " + id + " since it is a constant.") {}
+    };
 }

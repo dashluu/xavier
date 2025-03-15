@@ -68,27 +68,26 @@ void init_xv_module(py::module_ &m)
         .def(py::init<const Shape &, const Dtype &, const Device &>(), "shape"_a, "dtype"_a = f32, "device"_a = device0)
         .def_buffer([](Array &arr) -> py::buffer_info
                     { return array_to_buffer(arr); })
-        .def("id", &Array::get_id)
-        .def("shape", &Array::get_shape)
-        .def("dtype", &Array::get_dtype)
-        .def("device", &Array::get_device)
-        .def("op", &Array::get_op)
-        .def_readonly("grad", &Array::grad)
+        .def("id", &Array::get_id, "Returns the id of the array.")
+        .def("shape", &Array::get_shape, "Returns the shape of the array.")
+        .def("dtype", &Array::get_dtype, "Returns the data type of the array.")
+        .def("device", &Array::get_device, "Returns the device that the array is allocated on.")
+        .def_readonly("grad", &Array::grad, "Accesses the gradient of the array.")
         .def("access_", &Array::access_, "Accesses the kth element in the array.", "k"_a)
-        .def("is_contiguous", &Array::is_contiguous)
-        .def("numel", &Array::get_numel)
-        .def("ndim", &Array::get_ndim)
-        .def("itemsize", &Array::get_itemsize)
-        .def("nbytes", &Array::get_nbytes)
+        .def("is_contiguous", &Array::is_contiguous, "Checks if the array is contiguous.")
+        .def("numel", &Array::get_numel, "Returns the number of elements in the array.")
+        .def("ndim", &Array::get_ndim, "Returns the number of dimensions in the array.")
+        .def("itemsize", &Array::get_itemsize, "Returns the size of each element in the array in bytes.")
+        .def("nbytes", &Array::get_nbytes, "Returns the total size of the array in bytes.")
         .def("__str__", &Array::str)
         .def("__repr__", &Array::str)
         .def("__len__", [](const Array &arr)
              { return arr.get_shape()[0]; })
         .def("reshape", &Array::reshape, "Reshapes the array to the given view in-place.", "view"_a)
-        .def("copy", &Array::copy)
-        .def("broadcast", &Array::broadcast)
-        .def("broadcast_to", &Array::broadcast_to)
-        .def("as_contiguous", &Array::as_contiguous)
+        .def("copy", &Array::copy, "Copies data of the current array to a new array.")
+        .def("broadcast", &Array::broadcast, "Broadcasts the array based on the given view", "view"_a)
+        .def("broadcast_to", &Array::broadcast_to, "Broadcasts the array to the given view", "view"_a)
+        .def("as_contiguous", &Array::as_contiguous, "Creates a new contiguous array with the same as elements as the current array if the current array is not contiguous, otherwise, returns the current array.")
         .def("__getitem__", [](Array &arr, const py::object &obj)
              { return arr.slice(get_arr_ranges(arr, obj)); }, "obj"_a)
         .def_static("arange", &Array::arange, "Creates a new array containing an algebraic sequence of integers.", "view"_a, "start"_a, "step"_a, "dtype"_a = f32, "device"_a = device0, "constant"_a = false)
@@ -118,12 +117,14 @@ void init_xv_module(py::module_ &m)
         .def("__ge__", &Array::geq, "rhs"_a)
         .def("__lt__", &Array::lt, "rhs"_a)
         .def("__le__", &Array::leq, "rhs"_a)
-        .def("exp", &Array::exp)
-        .def("log", &Array::log)
-        .def("__neg__", &Array::neg)
-        .def("recip", &Array::recip)
-        .def("sq", &Array::sq)
-        .def("sqrt", &Array::sqrt)
+        .def("exp", &Array::exp, "Element-wise exponential function", "in_place"_a = false)
+        .def("log", &Array::log, "Element-wise natural logarithm function", "in_place"_a = false)
+        .def("__neg__", [](std::shared_ptr<Array> arr)
+             { return arr->neg(); })
+        .def("neg", &Array::neg, "Element-wise negation", "in_place"_a = false)
+        .def("recip", &Array::recip, "Element-wise reciprocal", "in_place"_a = false)
+        .def("sq", &Array::sq, "Element-wise square", "in_place"_a = false)
+        .def("sqrt", &Array::sqrt, "Element-wise square root", "in_place"_a = false)
         .def_static("from_buffer", &array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = device0, "constant"_a = false);
 
     py::class_<Graph, std::unique_ptr<Graph, py::nodelete>>(m, "Graph")
@@ -139,6 +140,74 @@ void init_xv_module(py::module_ &m)
     py::class_<MTLContext, std::shared_ptr<MTLContext>>(m, "MTLContext")
         .def(py::init<const std::string &>(), "lib_path"_a);
 #endif
+
+    m.def("add", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->add(rhs); }); }, "Element-wise addition", "lhs"_a, "rhs"_a);
+
+    m.def("sub", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->sub(rhs); }); }, "Element-wise subtraction", "lhs"_a, "rhs"_a);
+
+    m.def("mul", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->mul(rhs); }); }, "Element-wise multiplication", "lhs"_a, "rhs"_a);
+
+    m.def("div", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->div(rhs); }); }, "Element-wise division", "lhs"_a, "rhs"_a);
+
+    m.def("matmul", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->matmul(rhs); }); }, "Matrix multiplication", "lhs"_a, "rhs"_a);
+
+    m.def("eq", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->eq(rhs); }); }, "Element-wise equality", "lhs"_a, "rhs"_a);
+
+    m.def("neq", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->neq(rhs); }); }, "Element-wise inequality", "lhs"_a, "rhs"_a);
+
+    m.def("lt", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->lt(rhs); }); }, "Element-wise less than", "lhs"_a, "rhs"_a);
+
+    m.def("gt", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->gt(rhs); }); }, "Element-wise greater than", "lhs"_a, "rhs"_a);
+
+    m.def("leq", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->leq(rhs); }); }, "Element-wise less than or equal to", "lhs"_a, "rhs"_a);
+
+    m.def("geq", [](const py::object &lhs, const py::object &rhs)
+          { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
+                          { return lhs->geq(rhs); }); }, "Element-wise greater than or equal to", "lhs"_a, "rhs"_a);
+
+    m.def("exp", [](const py::object &arr, bool in_place)
+          { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
+                         { return arr->exp(in_place); }, in_place); }, "Element-wise exponential function", "arr"_a, "in_place"_a = false);
+
+    m.def("log", [](const py::object &arr, bool in_place)
+          { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
+                         { return arr->log(in_place); }, in_place); }, "Element-wise natural logarithm function", "arr"_a, "in_place"_a = false);
+
+    m.def("neg", [](const py::object &arr, bool in_place)
+          { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
+                         { return arr->neg(in_place); }, in_place); }, "Element-wise negation", "arr"_a, "in_place"_a = false);
+
+    m.def("recip", [](const py::object &arr, bool in_place)
+          { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
+                         { return arr->recip(in_place); }, in_place); }, "Element-wise reciprocal", "arr"_a, "in_place"_a = false);
+
+    m.def("sq", [](const py::object &arr, bool in_place)
+          { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
+                         { return arr->sq(in_place); }, in_place); }, "Element-wise square", "arr"_a, "in_place"_a = false);
+
+    m.def("sqrt", [](const py::object &arr, bool in_place)
+          { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
+                         { return arr->sqrt(in_place); }, in_place); }, "Element-wise square root", "arr"_a, "in_place"_a = false);
 }
 
 std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device, bool constant)
@@ -182,6 +251,18 @@ std::shared_ptr<Array> mul(std::shared_ptr<Array> arr, const py::object &obj)
         return arr->mul(obj.cast<std::shared_ptr<Array>>());
     }
     throw PybindInvalidArgumentType(get_pyclass(obj), "float, int, Array");
+}
+
+std::shared_ptr<Array> unary(const py::object &obj, const std::function<std::shared_ptr<Array>(std::shared_ptr<Array>, bool)> &f, bool in_place)
+{
+    return f(obj_to_arr(obj), in_place);
+}
+
+std::shared_ptr<Array> binary(const py::object &obj1, const py::object &obj2, const std::function<std::shared_ptr<Array>(std::shared_ptr<Array>, std::shared_ptr<Array>)> &f)
+{
+    auto arr1 = obj_to_arr(obj1);
+    auto arr2 = obj_to_arr(obj2);
+    return f(arr1, arr2);
 }
 
 bool is_buff_contiguous(py::buffer_info &buff_info)
@@ -231,28 +312,30 @@ std::vector<T> vslice(const std::vector<T> &v, const py::object &obj)
 {
     std::vector<T> result;
     auto len = v.size();
-    // obj can be an int or a slice
+    // obj must be an int or a slice
     if (py::isinstance<py::int_>(obj))
     {
         auto idx = map_idx(len, obj.cast<int64_t>());
         result.push_back(v[idx]);
+        return result;
     }
-    else
+    else if (py::isinstance<py::slice>(obj))
     {
         auto range = slice_to_range(len, obj);
         for (uint64_t i = range.start; i < range.stop; i += range.step)
         {
             result.push_back(v[i]);
         }
+        return result;
     }
-    return result;
+    throw PybindInvalidArgumentType(get_pyclass(obj), "int, slice");
 }
 
 std::vector<Range> get_arr_ranges(const Array &arr, const py::object &obj)
 {
     std::vector<Range> ranges;
     auto &shape = arr.get_shape();
-    // obj can be an int, a slice, or a tuple of ints or slices
+    // obj can be an int, a slice, or a sequence of ints or slices
     if (py::isinstance<py::int_>(obj))
     {
         auto idx = map_idx(shape[0], obj.cast<int64_t>());
@@ -261,6 +344,7 @@ std::vector<Range> get_arr_ranges(const Array &arr, const py::object &obj)
         {
             ranges.emplace_back(0, shape[i], 1);
         }
+        return ranges;
     }
     else if (py::isinstance<py::slice>(obj))
     {
@@ -269,20 +353,20 @@ std::vector<Range> get_arr_ranges(const Array &arr, const py::object &obj)
         {
             ranges.emplace_back(0, shape[i], 1);
         }
+        return ranges;
     }
-    else
+    else if (py::isinstance<py::sequence>(obj) && !py::isinstance<py::str>(obj))
     {
-        // TODO: make sure obj is a tuple of ints or slices
-        auto tuple = obj.cast<py::tuple>();
-        if (tuple.size() > shape.get_ndim())
+        // Object is a sequence but not a string
+        auto sequence = obj.cast<py::sequence>();
+        if (sequence.size() > shape.get_ndim())
         {
-            throw std::invalid_argument("The number of ranges exceeds the number of dimensions: " +
-                                        std::to_string(tuple.size()) + " and " + std::to_string(shape.get_ndim()) + ".");
+            throw std::invalid_argument("The number of ranges exceeds the number of dimensions: " + std::to_string(sequence.size()) + " and " + std::to_string(shape.get_ndim()) + ".");
         }
-        for (int i = 0; i < tuple.size(); i++)
+        for (int i = 0; i < sequence.size(); i++)
         {
-            auto elm = tuple[i];
-            // elm is a tuple of ints or slices
+            auto elm = sequence[i];
+            // elm must be a sequence of ints or slices
             if (py::isinstance<py::int_>(elm))
             {
                 auto idx = map_idx(shape[i], elm.cast<int64_t>());
@@ -293,12 +377,13 @@ std::vector<Range> get_arr_ranges(const Array &arr, const py::object &obj)
                 ranges.push_back(slice_to_range(shape[i], elm));
             }
         }
-        for (int i = tuple.size(); i < shape.get_ndim(); i++)
+        for (int i = sequence.size(); i < shape.get_ndim(); i++)
         {
             ranges.emplace_back(0, shape[i], 1);
         }
+        return ranges;
     }
-    return ranges;
+    throw PybindInvalidArgumentType(get_pyclass(obj), "int, slice, list, tuple");
 }
 
 uint64_t map_idx(int64_t len, int64_t idx)
@@ -312,9 +397,34 @@ uint64_t map_idx(int64_t len, int64_t idx)
 
 Range slice_to_range(int64_t len, const py::object &obj)
 {
+    if (!py::isinstance<py::slice>(obj))
+    {
+        throw PybindInvalidArgumentType(get_pyclass(obj), "slice");
+    }
     auto slice = obj.cast<py::slice>();
     auto start = slice.attr("start").is_none() ? 0 : map_idx(len, slice.attr("start").cast<int64_t>());
     auto stop = slice.attr("stop").is_none() ? len : map_idx(len, slice.attr("stop").cast<int64_t>());
     auto step = slice.attr("step").is_none() ? 1 : slice.attr("step").cast<int64_t>();
     return Range(start, stop, step);
+}
+
+std::shared_ptr<Array> obj_to_arr(const py::object &obj)
+{
+    if (py::isinstance<Array>(obj))
+    {
+        return obj.cast<std::shared_ptr<Array>>();
+    }
+    else if (py::isinstance<py::float_>(obj))
+    {
+        return Array::full(obj.cast<float>(), f32);
+    }
+    else if (py::isinstance<py::int_>(obj))
+    {
+        return Array::full(obj.cast<int>(), i32);
+    }
+    else if (py::isinstance<py::bool_>(obj))
+    {
+        return Array::full(obj.cast<int>(), b8);
+    }
+    throw PybindInvalidArgumentType(get_pyclass(obj), "float, int, bool, Array");
 }

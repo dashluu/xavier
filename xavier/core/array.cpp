@@ -214,7 +214,7 @@ namespace xv::core
     template <class O>
     std::shared_ptr<Array> Array::binary_ss(std::shared_ptr<Array> rhs)
     {
-        auto dummy_op = std::make_shared<O>(nullptr, nullptr);
+        auto dummy_op = std::make_shared<O>(nullptr, nullptr, false);
         auto &rhs_view = rhs->shape.get_view();
         if (!shape.broadcastable(rhs_view))
         {
@@ -231,7 +231,7 @@ namespace xv::core
         auto broadcasted_lhs = broadcast(rhs_view);
         auto broadcasted_rhs = rhs->broadcast(shape.get_view());
         auto arr = std::make_shared<Array>(Shape(broadcasted_lhs->shape.get_view()), dtype, device);
-        arr->op = std::make_shared<O>(broadcasted_lhs, broadcasted_rhs);
+        arr->op = std::make_shared<O>(broadcasted_lhs, broadcasted_rhs, false);
         return arr;
     }
 
@@ -242,7 +242,7 @@ namespace xv::core
         {
             throw std::runtime_error("Cannot update array " + std::to_string(id) + " since it is a constant.");
         }
-        auto dummy_op = std::make_shared<O>(nullptr, nullptr);
+        auto dummy_op = std::make_shared<O>(nullptr, nullptr, true);
         auto &rhs_shape = rhs->shape;
         auto &rhs_view = rhs_shape.get_view();
         if (!rhs_shape.broadcastable_to(shape.get_view()))
@@ -259,7 +259,7 @@ namespace xv::core
         }
         auto broadcasted_rhs = rhs->broadcast_to(shape.get_view());
         auto arr = std::make_shared<Array>(shape, dtype, device);
-        arr->op = std::make_shared<O>(shared_from_this(), broadcasted_rhs);
+        arr->op = std::make_shared<O>(shared_from_this(), broadcasted_rhs, true);
         return arr;
     }
 
@@ -288,29 +288,44 @@ namespace xv::core
     }
 
     template <class O>
-    std::shared_ptr<Array> Array::unary_ss()
+    std::shared_ptr<Array> Array::unary_ss(bool in_place)
     {
-        auto dummy_op = std::make_shared<O>(nullptr);
+        auto dummy_op = std::make_shared<O>(nullptr, in_place);
+        if (in_place && constant)
+        {
+            throw CannotUpdateConstArray(std::to_string(id));
+        }
         if (!unary_dtypes.contains(dtype))
         {
             throw IncompatDtypeForOp(dummy_op->get_name_str(), dtype.str());
         }
         auto arr = std::make_shared<Array>(Shape(shape.get_view()), dtype, device);
-        arr->op = std::make_shared<O>(shared_from_this());
+        arr->op = std::make_shared<O>(shared_from_this(), in_place);
         return arr;
     }
 
     template <class O>
-    std::shared_ptr<Array> Array::unary_ss_float()
+    std::shared_ptr<Array> Array::unary_ss_float(bool in_place)
     {
-        auto dummy_op = std::make_shared<O>(nullptr);
+        auto dummy_op = std::make_shared<O>(nullptr, in_place);
+        if (in_place)
+        {
+            if (constant)
+            {
+                throw CannotUpdateConstArray(std::to_string(id));
+            }
+            else if (dtype != f32)
+            {
+                throw std::runtime_error("Array " + std::to_string(id) + " must be a float array for " + dummy_op->get_name_str() + " operation.");
+            }
+        }
         auto result_dtype = unary_float_dtypes.find(dtype);
         if (result_dtype == unary_float_dtypes.end())
         {
             throw IncompatDtypeForOp(dummy_op->get_name_str(), dtype.str());
         }
         auto arr = std::make_shared<Array>(Shape(shape.get_view()), result_dtype->second, device);
-        arr->op = std::make_shared<O>(shared_from_this());
+        arr->op = std::make_shared<O>(shared_from_this(), in_place);
         return arr;
     }
 
@@ -324,19 +339,19 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::add(std::shared_ptr<Array> rhs) { return binary_ss<AddOp>(rhs); }
 
-    std::shared_ptr<Array> Array::self_add(std::shared_ptr<Array> rhs) { return self_binary_ss<SelfAddOp>(rhs); }
+    std::shared_ptr<Array> Array::self_add(std::shared_ptr<Array> rhs) { return self_binary_ss<AddOp>(rhs); }
 
     std::shared_ptr<Array> Array::sub(std::shared_ptr<Array> rhs) { return binary_ss<SubOp>(rhs); }
 
-    std::shared_ptr<Array> Array::self_sub(std::shared_ptr<Array> rhs) { return self_binary_ss<SelfSubOp>(rhs); }
+    std::shared_ptr<Array> Array::self_sub(std::shared_ptr<Array> rhs) { return self_binary_ss<SubOp>(rhs); }
 
     std::shared_ptr<Array> Array::mul(std::shared_ptr<Array> rhs) { return binary_ss<MulOp>(rhs); }
 
-    std::shared_ptr<Array> Array::self_mul(std::shared_ptr<Array> rhs) { return self_binary_ss<SelfMulOp>(rhs); }
+    std::shared_ptr<Array> Array::self_mul(std::shared_ptr<Array> rhs) { return self_binary_ss<MulOp>(rhs); }
 
     std::shared_ptr<Array> Array::div(std::shared_ptr<Array> rhs) { return binary_ss<DivOp>(rhs); }
 
-    std::shared_ptr<Array> Array::self_div(std::shared_ptr<Array> rhs) { return self_binary_ss<SelfDivOp>(rhs); }
+    std::shared_ptr<Array> Array::self_div(std::shared_ptr<Array> rhs) { return self_binary_ss<DivOp>(rhs); }
 
     std::shared_ptr<Array> Array::matmul(std::shared_ptr<Array> rhs)
     {
@@ -375,17 +390,17 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::geq(std::shared_ptr<Array> rhs) { return cmp<GeqOp>(rhs); }
 
-    std::shared_ptr<Array> Array::sq() { return unary_ss<SqOp>(); }
+    std::shared_ptr<Array> Array::sq(bool in_place) { return unary_ss<SqOp>(in_place); }
 
-    std::shared_ptr<Array> Array::sqrt() { return unary_ss_float<SqrtOp>(); }
+    std::shared_ptr<Array> Array::sqrt(bool in_place) { return unary_ss_float<SqrtOp>(in_place); }
 
-    std::shared_ptr<Array> Array::exp() { return unary_ss_float<ExpOp>(); }
+    std::shared_ptr<Array> Array::exp(bool in_place) { return unary_ss_float<ExpOp>(in_place); }
 
-    std::shared_ptr<Array> Array::log() { return unary_ss_float<LogOp>(); }
+    std::shared_ptr<Array> Array::log(bool in_place) { return unary_ss_float<LogOp>(in_place); }
 
-    std::shared_ptr<Array> Array::neg() { return unary_ss<NegOp>(); }
+    std::shared_ptr<Array> Array::neg(bool in_place) { return unary_ss<NegOp>(in_place); }
 
-    std::shared_ptr<Array> Array::recip() { return unary_ss_float<RecipOp>(); }
+    std::shared_ptr<Array> Array::recip(bool in_place) { return unary_ss_float<RecipOp>(in_place); }
 
     std::shared_ptr<Array> Array::reshape(const std::vector<uint64_t> &view)
     {

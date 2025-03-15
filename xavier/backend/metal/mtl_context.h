@@ -8,6 +8,7 @@ namespace xv::backend::metal
     {
     private:
         static std::vector<std::string> num_unary_ops;
+        static std::vector<std::string> self_float_unary_ops;
         static std::vector<std::string> num_binary_ops;
         // TODO: move this to num_binary_ops later
         static std::vector<std::string> matmul_ops;

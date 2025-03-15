@@ -34,7 +34,7 @@ namespace xv::backend::metal
         // Input buffer
         auto in_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(input->get_buff_ptr(), input->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(in_buff.get(), 0, 1);
-        auto kernel_name = name + "_" + input->get_dtype().str();
+        auto kernel_name = "self_" + name + "_" + input->get_dtype().str();
         ss_dispatch(ctx, cmd_buff, encoder, kernel_name, input->get_numel());
     }
 
@@ -112,7 +112,7 @@ namespace xv::backend::metal
         encoder->setBuffer(in_buff.get(), 0, 4);
 
         // Dispatch
-        auto kernel_name = "sparse_" + name + "_" + input->get_dtype().str();
+        auto kernel_name = "sparse_self_" + name + "_" + input->get_dtype().str();
         ss_dispatch(ctx, cmd_buff, encoder, kernel_name, input->get_numel());
     }
 }

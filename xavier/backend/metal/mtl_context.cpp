@@ -2,7 +2,8 @@
 
 namespace xv::backend::metal
 {
-    std::vector<std::string> MTLContext::num_unary_ops = {"exp", "log", "neg", "recip", "sq", "sqrt"};
+    std::vector<std::string> MTLContext::num_unary_ops = {"exp", "log", "neg", "self_neg", "recip", "sq", "self_sq", "sqrt"};
+    std::vector<std::string> MTLContext::self_float_unary_ops = {"self_exp", "self_log", "self_recip", "self_sqrt"};
     std::vector<std::string> MTLContext::num_binary_ops = {"add", "self_add", "sub", "self_sub", "mul", "self_mul", "div", "self_div", "eq", "neq", "lt", "gt", "leq", "geq"};
     std::vector<std::string> MTLContext::matmul_ops = {"matmul2d", "matmul3d"};
 
@@ -39,6 +40,8 @@ namespace xv::backend::metal
     {
         init_kernels(num_unary_ops, num_dtypes, true);
         init_kernels(num_unary_ops, num_dtypes, false);
+        init_kernels(self_float_unary_ops, float_dtypes, true);
+        init_kernels(self_float_unary_ops, float_dtypes, false);
     }
 
     void MTLContext::init_binary_kernels()

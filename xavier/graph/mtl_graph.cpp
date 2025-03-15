@@ -29,14 +29,31 @@ namespace xv::graph
     {
         auto unary_op = std::static_pointer_cast<UnaryOp>(arr->get_op());
         auto operand = unary_op->get_operand();
-        arr->alloc();
         if (operand->is_contiguous())
         {
-            unary_ss(name, operand, arr, *ctx);
+            if (unary_op->is_in_place())
+            {
+                arr->alloc(*operand->get_buff());
+                self_unary_ss(name, operand, *ctx);
+            }
+            else
+            {
+                arr->alloc();
+                unary_ss(name, operand, arr, *ctx);
+            }
         }
         else
         {
-            sparse_unary_ss(name, operand, arr, *ctx);
+            if (unary_op->is_in_place())
+            {
+                arr->alloc(*operand->get_buff());
+                sparse_self_unary_ss(name, operand, *ctx);
+            }
+            else
+            {
+                arr->alloc();
+                sparse_unary_ss(name, operand, arr, *ctx);
+            }
         }
     }
 
@@ -45,9 +62,9 @@ namespace xv::graph
         auto binary_op = std::static_pointer_cast<BinaryOp>(arr->get_op());
         auto lhs = binary_op->get_lhs();
         auto rhs = binary_op->get_rhs();
-        arr->alloc();
         if (binary_op->get_name() == OpName::MATMUL)
         {
+            arr->alloc();
             if (lhs->get_shape().get_ndim() == 2)
             {
                 matmul2d(lhs, rhs, arr, *ctx);
@@ -59,27 +76,29 @@ namespace xv::graph
         }
         else if (lhs->is_contiguous() && rhs->is_contiguous())
         {
-            binary_ss(name, lhs, rhs, arr, *ctx);
+            if (binary_op->is_in_place())
+            {
+                arr->alloc(*lhs->get_buff());
+                self_binary_ss(name, lhs, rhs, *ctx);
+            }
+            else
+            {
+                arr->alloc();
+                binary_ss(name, lhs, rhs, arr, *ctx);
+            }
         }
         else
         {
-            sparse_binary_ss(name, lhs, rhs, arr, *ctx);
-        }
-    }
-
-    void MTLGraph::call_self_binary(const std::string &name, std::shared_ptr<Array> arr)
-    {
-        auto binary_op = std::static_pointer_cast<SelfBinaryOp>(arr->get_op());
-        auto lhs = binary_op->get_lhs();
-        auto rhs = binary_op->get_rhs();
-        arr->alloc(*lhs->get_buff());
-        if (lhs->is_contiguous() && rhs->is_contiguous())
-        {
-            self_binary_ss(name, lhs, rhs, *ctx);
-        }
-        else
-        {
-            sparse_self_binary_ss(name, lhs, rhs, *ctx);
+            if (binary_op->is_in_place())
+            {
+                arr->alloc(*lhs->get_buff());
+                sparse_self_binary_ss(name, lhs, rhs, *ctx);
+            }
+            else
+            {
+                arr->alloc();
+                sparse_binary_ss(name, lhs, rhs, arr, *ctx);
+            }
         }
     }
 
@@ -170,16 +189,6 @@ namespace xv::graph
             order.push_back(arr);
             break;
         }
-        case OpType::SELF_BINARY:
-        {
-            auto binary_op = std::static_pointer_cast<SelfBinaryOp>(arr->get_op());
-            auto lhs = binary_op->get_lhs();
-            auto rhs = binary_op->get_rhs();
-            toposort(lhs, order);
-            toposort(rhs, order);
-            order.push_back(arr);
-            break;
-        }
         case OpType::TRANSFORM:
         {
             auto transform_op = std::static_pointer_cast<TransformOp>(arr->get_op());
@@ -216,11 +225,6 @@ namespace xv::graph
         case OpType::BINARY:
         {
             call_binary(op->get_name_str(), arr);
-            break;
-        }
-        case OpType::SELF_BINARY:
-        {
-            call_self_binary(op->get_name_str(), arr);
             break;
         }
         case OpType::TRANSFORM:

@@ -45,7 +45,23 @@ namespace xv::core
         bool constant;
 
         void check_ranges(const std::vector<Range> &ranges) const;
+
         std::shared_ptr<Array> matmul_broadcast(const std::vector<uint64_t> &view);
+
+        template <class O>
+        std::shared_ptr<Array> unary_ss(bool in_place);
+
+        template <class O>
+        std::shared_ptr<Array> unary_ss_float(bool in_place);
+
+        template <class O>
+        std::shared_ptr<Array> binary_ss(std::shared_ptr<Array> rhs);
+
+        template <class O>
+        std::shared_ptr<Array> self_binary_ss(std::shared_ptr<Array> rhs);
+
+        template <class O>
+        std::shared_ptr<Array> cmp(std::shared_ptr<Array> rhs);
 
     public:
         std::shared_ptr<Array> grad = nullptr;
@@ -197,15 +213,6 @@ namespace xv::core
 
         static std::shared_ptr<Array> from_buff(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
-        template <class O>
-        std::shared_ptr<Array> binary_ss(std::shared_ptr<Array> rhs);
-
-        template <class O>
-        std::shared_ptr<Array> self_binary_ss(std::shared_ptr<Array> rhs);
-
-        template <class O>
-        std::shared_ptr<Array> cmp(std::shared_ptr<Array> rhs);
-
         std::shared_ptr<Array> add(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> self_add(std::shared_ptr<Array> rhs);
@@ -240,23 +247,17 @@ namespace xv::core
 
         std::shared_ptr<Array> geq(std::shared_ptr<Array> rhs);
 
-        template <class O>
-        std::shared_ptr<Array> unary_ss();
+        std::shared_ptr<Array> sq(bool in_place = false);
 
-        template <class O>
-        std::shared_ptr<Array> unary_ss_float();
+        std::shared_ptr<Array> sqrt(bool in_place = false);
 
-        std::shared_ptr<Array> sq();
+        std::shared_ptr<Array> exp(bool in_place = false);
 
-        std::shared_ptr<Array> sqrt();
+        std::shared_ptr<Array> log(bool in_place = false);
 
-        std::shared_ptr<Array> exp();
+        std::shared_ptr<Array> neg(bool in_place = false);
 
-        std::shared_ptr<Array> log();
-
-        std::shared_ptr<Array> neg();
-
-        std::shared_ptr<Array> recip();
+        std::shared_ptr<Array> recip(bool in_place = false);
 
         std::shared_ptr<Array> reshape(const std::vector<uint64_t> &view);
 
