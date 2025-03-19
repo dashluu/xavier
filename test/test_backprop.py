@@ -44,13 +44,13 @@ class TestBackprop:
         t7.sum().backward()
         t8 = torch.frombuffer(arr7, dtype=torch.float32)
         assert torch.allclose(t8, t7.flatten(), atol=1e-3, rtol=0)
-        t9 = torch.frombuffer(arr3.grad, dtype=torch.float32)
+        t9 = torch.frombuffer(arr3.cum_grad, dtype=torch.float32)
         assert torch.allclose(t9, t3.grad.flatten(), atol=1e-3, rtol=0)
-        compare_grads(arr3.grad, t3.grad, "arr3")
-        compare_grads(arr4.grad, t4.grad, "arr4")
-        compare_grads(arr5.grad, t5.grad, "arr5")
-        compare_grads(arr6.grad, t6.grad, "arr6")
-        compare_grads(arr7.grad, t7.grad, "arr7")
+        compare_grads(arr3.cum_grad, t3.grad, "arr3")
+        compare_grads(arr4.cum_grad, t4.grad, "arr4")
+        compare_grads(arr5.cum_grad, t5.grad, "arr5")
+        compare_grads(arr6.cum_grad, t6.grad, "arr6")
+        compare_grads(arr7.cum_grad, t7.grad, "arr7")
 
     def test_backprop_v2(self):
         ctx = MTLContext(TestBackprop.lib)
@@ -83,10 +83,10 @@ class TestBackprop:
         t5.sum().backward()
 
         # Compare gradients
-        compare_grads(arr1.grad, t1.grad, "input")
-        compare_grads(arr2.grad, t2.grad, "exp")
-        compare_grads(arr3.grad, t3.grad, "mul")
-        compare_grads(arr4.grad, t4.grad, "log")
+        compare_grads(arr1.cum_grad, t1.grad, "input")
+        compare_grads(arr2.cum_grad, t2.grad, "exp")
+        compare_grads(arr3.cum_grad, t3.grad, "mul")
+        compare_grads(arr4.cum_grad, t4.grad, "log")
 
     def test_backprop_v3(self):
         ctx = MTLContext(TestBackprop.lib)
@@ -140,12 +140,12 @@ class TestBackprop:
         tresult.sum().backward()
 
         # Compare gradients
-        compare_grads(arr1.grad, t1.grad, "input1")
-        compare_grads(arr2.grad, t2.grad, "input2")
-        compare_grads(b1_1.grad, tb1_1.grad, "log")
-        compare_grads(b1_2.grad, tb1_2.grad, "exp")
-        compare_grads(branch1.grad, tbranch1.grad, "branch1")
-        compare_grads(branch2.grad, tbranch2.grad, "branch2")
+        compare_grads(arr1.cum_grad, t1.grad, "input1")
+        compare_grads(arr2.cum_grad, t2.grad, "input2")
+        compare_grads(b1_1.cum_grad, tb1_1.grad, "log")
+        compare_grads(b1_2.cum_grad, tb1_2.grad, "exp")
+        compare_grads(branch1.cum_grad, tbranch1.grad, "branch1")
+        compare_grads(branch2.cum_grad, tbranch2.grad, "branch2")
 
     def test_backprop_v4(self):
         ctx = MTLContext(TestBackprop.lib)
@@ -186,12 +186,12 @@ class TestBackprop:
         tresult.sum().backward()
 
         # Compare gradients
-        compare_grads(arr1.grad, t1.grad, "input1")
-        compare_grads(arr2.grad, t2.grad, "input2")
-        compare_grads(div1.grad, tdiv1.grad, "div")
-        compare_grads(exp1.grad, texp1.grad, "exp")
-        compare_grads(rec1.grad, trec1.grad, "recip")
-        compare_grads(mul1.grad, tmul1.grad, "mul")
+        compare_grads(arr1.cum_grad, t1.grad, "input1")
+        compare_grads(arr2.cum_grad, t2.grad, "input2")
+        compare_grads(div1.cum_grad, tdiv1.grad, "div")
+        compare_grads(exp1.cum_grad, texp1.grad, "exp")
+        compare_grads(rec1.cum_grad, trec1.grad, "recip")
+        compare_grads(mul1.cum_grad, tmul1.grad, "mul")
 
     def test_backprop_v5(self):
         ctx = MTLContext(TestBackprop.lib)
@@ -242,12 +242,12 @@ class TestBackprop:
         tresult.sum().backward()
 
         # Compare gradients
-        compare_grads(arr1.grad, t1.grad, "input")
-        compare_grads(sq1.grad, tsq1.grad, "square1")
-        compare_grads(sqrt1.grad, tsqrt1.grad, "sqrt1")
-        compare_grads(sq2.grad, tsq2.grad, "square2")
-        compare_grads(sqrt2.grad, tsqrt2.grad, "sqrt2")
-        compare_grads(div1.grad, tdiv1.grad, "div")
+        compare_grads(arr1.cum_grad, t1.grad, "input")
+        compare_grads(sq1.cum_grad, tsq1.grad, "square1")
+        compare_grads(sqrt1.cum_grad, tsqrt1.grad, "sqrt1")
+        compare_grads(sq2.cum_grad, tsq2.grad, "square2")
+        compare_grads(sqrt2.cum_grad, tsqrt2.grad, "sqrt2")
+        compare_grads(div1.cum_grad, tdiv1.grad, "div")
 
     def test_backprop_twice(self):
         ctx = MTLContext(TestBackprop.lib)
@@ -317,17 +317,17 @@ class TestBackprop:
 
         # Compare first backward pass gradients
         print("\nChecking first backward pass:")
-        compare_grads(arr1.grad, t1.grad, "input1")
-        compare_grads(arr2.grad, t2.grad, "input2")
-        compare_grads(sq1.grad, tsq1.grad, "square1")
-        compare_grads(sqrt1.grad, tsqrt1.grad, "sqrt1")
-        compare_grads(div1.grad, tdiv1.grad, "div")
-        compare_grads(exp1.grad, texp1.grad, "exp")
-        compare_grads(mul1.grad, tmul1.grad, "mul1")
-        compare_grads(log1.grad, tlog1.grad, "log")
-        compare_grads(sqrt2.grad, tsqrt2.grad, "sqrt2")
-        compare_grads(mul2.grad, tmul2.grad, "mul2")
-        compare_grads(sq2.grad, tsq2.grad, "square2")
+        compare_grads(arr1.cum_grad, t1.grad, "input1")
+        compare_grads(arr2.cum_grad, t2.grad, "input2")
+        compare_grads(sq1.cum_grad, tsq1.grad, "square1")
+        compare_grads(sqrt1.cum_grad, tsqrt1.grad, "sqrt1")
+        compare_grads(div1.cum_grad, tdiv1.grad, "div")
+        compare_grads(exp1.cum_grad, texp1.grad, "exp")
+        compare_grads(mul1.cum_grad, tmul1.grad, "mul1")
+        compare_grads(log1.cum_grad, tlog1.grad, "log")
+        compare_grads(sqrt2.cum_grad, tsqrt2.grad, "sqrt2")
+        compare_grads(mul2.cum_grad, tmul2.grad, "mul2")
+        compare_grads(sq2.cum_grad, tsq2.grad, "square2")
 
         # Modify the result slightly and run backward again
         # TODO: uncomment this after implementing backprop for broadcasting
@@ -345,14 +345,14 @@ class TestBackprop:
 
         # Compare second backward pass gradients
         print("\nChecking second backward pass:")
-        compare_grads(arr1.grad, t1.grad, "input1 (2nd pass)")
-        # compare_grads(arr2.grad, t2.grad, "input2 (2nd pass)")
-        # compare_grads(sq1.grad, tsq1.grad, "square1 (2nd pass)")
-        # compare_grads(sqrt1.grad, tsqrt1.grad, "sqrt1 (2nd pass)")
-        # compare_grads(div1.grad, tdiv1.grad, "div (2nd pass)")
-        # compare_grads(exp1.grad, texp1.grad, "exp (2nd pass)")
-        # compare_grads(mul1.grad, tmul1.grad, "mul1 (2nd pass)")
-        # compare_grads(log1.grad, tlog1.grad, "log (2nd pass)")
-        # compare_grads(sqrt2.grad, tsqrt2.grad, "sqrt2 (2nd pass)")
-        # compare_grads(mul2.grad, tmul2.grad, "mul2 (2nd pass)")
-        # compare_grads(sq2.grad, tsq2.grad, "square2 (2nd pass)")
+        compare_grads(arr1.cum_grad, t1.grad, "input1 (2nd pass)")
+        compare_grads(arr2.cum_grad, t2.grad, "input2 (2nd pass)")
+        compare_grads(sq1.cum_grad, tsq1.grad, "square1 (2nd pass)")
+        compare_grads(sqrt1.cum_grad, tsqrt1.grad, "sqrt1 (2nd pass)")
+        compare_grads(div1.cum_grad, tdiv1.grad, "div (2nd pass)")
+        compare_grads(exp1.cum_grad, texp1.grad, "exp (2nd pass)")
+        compare_grads(mul1.cum_grad, tmul1.grad, "mul1 (2nd pass)")
+        compare_grads(log1.cum_grad, tlog1.grad, "log (2nd pass)")
+        compare_grads(sqrt2.cum_grad, tsqrt2.grad, "sqrt2 (2nd pass)")
+        compare_grads(mul2.cum_grad, tmul2.grad, "mul2 (2nd pass)")
+        compare_grads(sq2.cum_grad, tsq2.grad, "square2 (2nd pass)")

@@ -29,15 +29,20 @@ namespace xv::core
         {
             // x += y
             // dy += dx
-            lhs->grad = arr->grad;
+            lhs->cum_grad = arr->cum_grad;
         }
         else
         {
+            // z = x + y
+            // dx += dz
+            // dy += dz
             lhs->init_grad();
-            lhs->grad = lhs->grad->self_add(arr->grad);
+            lhs->grad = arr->grad;
+            lhs->update_grad();
         }
         rhs->init_grad();
-        rhs->grad = rhs->grad->self_add(arr->grad);
+        rhs->grad = arr->grad;
+        rhs->update_grad();
     }
 
     void SubOp::backward(std::shared_ptr<Array> arr) const
@@ -46,15 +51,20 @@ namespace xv::core
         {
             // x -= y
             // dy -= dx
-            lhs->grad = arr->grad;
+            lhs->cum_grad = arr->cum_grad;
         }
         else
         {
+            // z = x + y
+            // dx += dz
+            // dy -= dz
             lhs->init_grad();
-            lhs->grad = lhs->grad->self_add(arr->grad);
+            lhs->grad = arr->grad;
+            lhs->update_grad();
         }
         rhs->init_grad();
-        rhs->grad = rhs->grad->self_sub(arr->grad);
+        rhs->grad = arr->grad->neg();
+        rhs->update_grad();
     }
 
     void MulOp::backward(std::shared_ptr<Array> arr) const
@@ -63,7 +73,7 @@ namespace xv::core
         {
             // x *= y
             // dy += dx*x
-            lhs->grad = arr->grad;
+            lhs->cum_grad = arr->cum_grad;
         }
         else
         {
@@ -71,10 +81,12 @@ namespace xv::core
             // dx += dz*y
             // dy += dz*x
             lhs->init_grad();
-            lhs->grad = lhs->grad->self_add(arr->grad->mul(rhs));
+            lhs->grad = arr->grad->mul(rhs);
+            lhs->update_grad();
         }
         rhs->init_grad();
-        rhs->grad = rhs->grad->self_add(arr->grad->mul(lhs));
+        rhs->grad = arr->grad->mul(lhs);
+        rhs->update_grad();
     }
 
     void DivOp::backward(std::shared_ptr<Array> arr) const
@@ -83,7 +95,7 @@ namespace xv::core
         {
             // x /= y
             // dy += dx * (-x / y**2)
-            lhs->grad = arr->grad;
+            lhs->cum_grad = arr->cum_grad;
         }
         else
         {
@@ -91,10 +103,12 @@ namespace xv::core
             // dx += dz * (1/y)
             // dy += dz * (-x / y**2)
             lhs->init_grad();
-            lhs->grad = lhs->grad->self_add(arr->grad->div(rhs));
+            lhs->grad = arr->grad->div(rhs);
+            lhs->update_grad();
         }
         rhs->init_grad();
-        rhs->grad = rhs->grad->self_sub(arr->grad->mul(arr->div(rhs)));
+        rhs->grad = arr->grad->mul(lhs->neg())->div(rhs->sq());
+        rhs->update_grad();
     }
 
     void MatmulOp::backward(std::shared_ptr<Array> arr) const
@@ -106,14 +120,15 @@ namespace xv::core
         if (in_place)
         {
             // x **= 2
-            operand->grad = arr->grad;
+            operand->cum_grad = arr->cum_grad;
         }
         else
         {
             // z = x**2
             // dx += dz * 2x
             operand->init_grad();
-            operand->grad = operand->grad->self_add(arr->grad->mul(operand->mul(2)));
+            operand->grad = arr->grad->mul(operand->mul(2));
+            operand->update_grad();
         }
     }
 
@@ -122,7 +137,7 @@ namespace xv::core
         if (in_place)
         {
             // x = sqrt(x)
-            operand->grad = arr->grad;
+            operand->cum_grad = arr->cum_grad;
         }
         else
         {
@@ -130,7 +145,8 @@ namespace xv::core
             // dx += dz / (2 * sqrt(x))
             // dx += dz / 2z
             operand->init_grad();
-            operand->grad = operand->grad->self_add(arr->grad->div(arr->mul(2)));
+            operand->grad = arr->grad->div(arr->mul(2));
+            operand->update_grad();
         }
     }
 
@@ -139,7 +155,7 @@ namespace xv::core
         if (in_place)
         {
             // x = e**x
-            operand->grad = arr->grad;
+            operand->cum_grad = arr->cum_grad;
         }
         else
         {
@@ -147,7 +163,8 @@ namespace xv::core
             // dx += dz * e**x
             // dx += dz * z
             operand->init_grad();
-            operand->grad = operand->grad->self_add(arr->grad->mul(arr));
+            operand->grad = arr->grad->mul(arr);
+            operand->update_grad();
         }
     }
 
@@ -156,14 +173,15 @@ namespace xv::core
         if (in_place)
         {
             // x = ln(x)
-            operand->grad = arr->grad;
+            operand->cum_grad = arr->cum_grad;
         }
         else
         {
             // z = ln(x)
             // dx += dz / x
             operand->init_grad();
-            operand->grad = operand->grad->self_add(arr->grad->div(operand));
+            operand->grad = arr->grad->div(operand);
+            operand->update_grad();
         }
     }
 
@@ -172,15 +190,15 @@ namespace xv::core
         if (in_place)
         {
             // x = -x
-            operand->grad = arr->grad;
+            operand->cum_grad = arr->cum_grad;
         }
         else
         {
             // z = -x
             // dx += -dz
-            // dx -= dz
             operand->init_grad();
-            operand->grad = operand->grad->self_sub(arr->grad);
+            operand->grad = arr->grad->neg();
+            operand->update_grad();
         }
     }
 
@@ -189,15 +207,16 @@ namespace xv::core
         if (in_place)
         {
             // x = 1/x
-            operand->grad = arr->grad;
+            operand->cum_grad = arr->cum_grad;
         }
         else
         {
             // z = 1/x
             // dx += dz * -1/x**2
-            // dx -= dz * z**2
+            // dx += dz * -z**2
             operand->init_grad();
-            operand->grad = operand->grad->self_sub(arr->grad->mul(arr->sq()));
+            operand->grad = arr->grad->mul(arr->sq()->neg());
+            operand->update_grad();
         }
     }
 }

@@ -64,6 +64,7 @@ namespace xv::core
         std::shared_ptr<Array> cmp(std::shared_ptr<Array> rhs);
 
     public:
+        std::shared_ptr<Array> cum_grad = nullptr;
         std::shared_ptr<Array> grad = nullptr;
 
         Array(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : shape(shape), dtype(dtype), device(device), constant(constant)
@@ -106,15 +107,17 @@ namespace xv::core
         void init_grad()
         {
             // This method only initializes the gradient array without allocating any new buffer for the data
-            if (grad == nullptr)
+            if (cum_grad == nullptr)
             {
                 if (!float_dtypes.contains(dtype))
                 {
                     throw std::runtime_error("Only arrays of floating-point types can have gradients but array " + std::to_string(id) + " has type " + dtype.str());
                 }
-                grad = Array::zeros(shape.get_view(), unary_float_dtypes.at(dtype), device);
+                cum_grad = Array::zeros(shape.get_view(), unary_float_dtypes.at(dtype), device);
             }
         }
+
+        void update_grad() { cum_grad = cum_grad->self_add(grad); }
 
         Array(const Array &arr) : shape(arr.shape), dtype(arr.dtype), device(arr.device), buff(arr.buff)
         {

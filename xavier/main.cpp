@@ -49,20 +49,20 @@ int main()
               << std::endl;
     std::cout << "Backward:" << std::endl;
     graph.backward();
-    std::cout << "x3's grad:\n"
-              << x3->grad->str() << std::endl
+    std::cout << "x3's cum_grad:\n"
+              << x3->cum_grad->str() << std::endl
               << std::endl;
-    std::cout << "x4's grad:\n"
-              << x4->grad->str() << std::endl
+    std::cout << "x4's cum_grad:\n"
+              << x4->cum_grad->str() << std::endl
               << std::endl;
-    std::cout << "x5's grad:\n"
-              << x5->grad->str() << std::endl
+    std::cout << "x5's cum_grad:\n"
+              << x5->cum_grad->str() << std::endl
               << std::endl;
-    std::cout << "x6's grad:\n"
-              << x6->grad->str() << std::endl
+    std::cout << "x6's cum_grad:\n"
+              << x6->cum_grad->str() << std::endl
               << std::endl;
-    std::cout << "x7's grad:\n"
-              << x7->grad->str() << std::endl
+    std::cout << "x7's cum_grad:\n"
+              << x7->cum_grad->str() << std::endl
               << std::endl;
     return 0;
 }
