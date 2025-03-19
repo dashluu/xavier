@@ -108,7 +108,11 @@ namespace xv::core
             // This method only initializes the gradient array without allocating any new buffer for the data
             if (grad == nullptr)
             {
-                grad = Array::zeros_like(shared_from_this(), device);
+                if (!float_dtypes.contains(dtype))
+                {
+                    throw std::runtime_error("Only arrays of floating-point types can have gradients but array " + std::to_string(id) + " has type " + dtype.str());
+                }
+                grad = Array::zeros(shape.get_view(), unary_float_dtypes.at(dtype), device);
             }
         }
 

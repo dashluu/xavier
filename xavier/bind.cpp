@@ -73,6 +73,8 @@ void init_xv_module(py::module_ &m)
         .def("dtype", &Array::get_dtype, "Returns the data type of the array.")
         .def("device", &Array::get_device, "Returns the device that the array is allocated on.")
         .def_readonly("grad", &Array::grad, "Accesses the gradient of the array.")
+        .def("ptr", [](const Array &arr)
+             { return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(arr.get_ptr())); }, "Returns a pointer to the data of the array")
         .def("access_", &Array::access_, "Accesses the kth element in the array.", "k"_a)
         .def("is_contiguous", &Array::is_contiguous, "Checks if the array is contiguous.")
         .def("numel", &Array::get_numel, "Returns the number of elements in the array.")
@@ -102,21 +104,27 @@ void init_xv_module(py::module_ &m)
         .def("__add__", &Array::add, "rhs"_a)
         .def("__sub__", &Array::sub, "rhs"_a)
         .def("__mul__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
-             { return mul(lhs, rhs); }, "rhs"_a)
+             { return lhs->mul(obj_to_arr(rhs, lhs->get_device())); }, "rhs"_a)
         .def("__rmul__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
-             { return mul(lhs, rhs); }, "rhs"_a)
+             { return lhs->mul(obj_to_arr(rhs, lhs->get_device())); }, "rhs"_a)
         .def("__truediv__", &Array::div, "rhs"_a)
         .def("__iadd__", &Array::self_add, "rhs"_a)
         .def("__isub__", &Array::self_sub, "rhs"_a)
         .def("__imul__", &Array::self_mul, "rhs"_a)
         .def("__itruediv__", &Array::self_div, "rhs"_a)
         .def("__matmul__", &Array::matmul, "rhs"_a)
-        .def("__eq__", &Array::eq, "rhs"_a)
-        .def("__ne__", &Array::neq, "rhs"_a)
-        .def("__gt__", &Array::gt, "rhs"_a)
-        .def("__ge__", &Array::geq, "rhs"_a)
-        .def("__lt__", &Array::lt, "rhs"_a)
-        .def("__le__", &Array::leq, "rhs"_a)
+        .def("__eq__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
+             { return lhs->eq(obj_to_arr(rhs, lhs->get_device())); }, "rhs"_a)
+        .def("__ne__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
+             { return lhs->neq(obj_to_arr(rhs, lhs->get_device())); }, "rhs"_a)
+        .def("__gt__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
+             { return lhs->gt(obj_to_arr(rhs, lhs->get_device())); }, "rhs"_a)
+        .def("__ge__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
+             { return lhs->geq(obj_to_arr(rhs, lhs->get_device())); }, "rhs"_a)
+        .def("__lt__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
+             { return lhs->lt(obj_to_arr(rhs, lhs->get_device())); }, "rhs"_a)
+        .def("__le__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
+             { return lhs->leq(obj_to_arr(rhs, lhs->get_device())); }, "rhs"_a)
         .def("exp", &Array::exp, "Element-wise exponential function", "in_place"_a = false)
         .def("log", &Array::log, "Element-wise natural logarithm function", "in_place"_a = false)
         .def("__neg__", [](std::shared_ptr<Array> arr)
@@ -236,32 +244,25 @@ std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, const py::object &c
     throw PybindInvalidArgumentType(get_pyclass(c), "float, int, bool");
 }
 
-std::shared_ptr<Array> mul(std::shared_ptr<Array> arr, const py::object &obj)
-{
-    if (py::isinstance<py::float_>(obj))
-    {
-        return arr->mul(obj.cast<float>());
-    }
-    else if (py::isinstance<py::int_>(obj))
-    {
-        return arr->mul(obj.cast<int>());
-    }
-    else if (py::isinstance<Array>(obj))
-    {
-        return arr->mul(obj.cast<std::shared_ptr<Array>>());
-    }
-    throw PybindInvalidArgumentType(get_pyclass(obj), "float, int, Array");
-}
-
 std::shared_ptr<Array> unary(const py::object &obj, const std::function<std::shared_ptr<Array>(std::shared_ptr<Array>, bool)> &f, bool in_place)
 {
-    return f(obj_to_arr(obj), in_place);
+    return f(obj_to_arr(obj, device0), in_place);
 }
 
 std::shared_ptr<Array> binary(const py::object &obj1, const py::object &obj2, const std::function<std::shared_ptr<Array>(std::shared_ptr<Array>, std::shared_ptr<Array>)> &f)
 {
-    auto arr1 = obj_to_arr(obj1);
-    auto arr2 = obj_to_arr(obj2);
+    std::shared_ptr<Array> arr1;
+    std::shared_ptr<Array> arr2;
+    if (is_scalar(obj1))
+    {
+        arr2 = obj_to_arr(obj2, device0);
+        arr1 = obj_to_arr(obj1, arr2->get_device());
+    }
+    else
+    {
+        arr1 = obj_to_arr(obj1, device0);
+        arr2 = obj_to_arr(obj2, arr1->get_device());
+    }
     return f(arr1, arr2);
 }
 
@@ -408,7 +409,7 @@ Range slice_to_range(int64_t len, const py::object &obj)
     return Range(start, stop, step);
 }
 
-std::shared_ptr<Array> obj_to_arr(const py::object &obj)
+std::shared_ptr<Array> obj_to_arr(const py::object &obj, const Device &device_if_scalar)
 {
     if (py::isinstance<Array>(obj))
     {
@@ -416,15 +417,20 @@ std::shared_ptr<Array> obj_to_arr(const py::object &obj)
     }
     else if (py::isinstance<py::float_>(obj))
     {
-        return Array::full(obj.cast<float>(), f32);
+        return Array::full(obj.cast<float>(), f32, device_if_scalar);
     }
     else if (py::isinstance<py::int_>(obj))
     {
-        return Array::full(obj.cast<int>(), i32);
+        return Array::full(obj.cast<int>(), i32, device_if_scalar);
     }
     else if (py::isinstance<py::bool_>(obj))
     {
-        return Array::full(obj.cast<int>(), b8);
+        return Array::full(obj.cast<int>(), b8, device_if_scalar);
     }
     throw PybindInvalidArgumentType(get_pyclass(obj), "float, int, bool, Array");
+}
+
+bool is_scalar(const py::object &obj)
+{
+    return py::isinstance<py::float_>(obj) || py::isinstance<py::int_>(obj) || py::isinstance<py::bool_>(obj);
 }

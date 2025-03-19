@@ -29,31 +29,21 @@ namespace xv::graph
     {
         auto unary_op = std::static_pointer_cast<UnaryOp>(arr->get_op());
         auto operand = unary_op->get_operand();
-        if (operand->is_contiguous())
+        if (unary_op->is_in_place())
         {
-            if (unary_op->is_in_place())
-            {
-                arr->alloc(*operand->get_buff());
-                self_unary_ss(name, operand, *ctx);
-            }
-            else
-            {
-                arr->alloc();
-                unary_ss(name, operand, arr, *ctx);
-            }
+            arr->alloc(*operand->get_buff());
         }
         else
         {
-            if (unary_op->is_in_place())
-            {
-                arr->alloc(*operand->get_buff());
-                sparse_self_unary_ss(name, operand, *ctx);
-            }
-            else
-            {
-                arr->alloc();
-                sparse_unary_ss(name, operand, arr, *ctx);
-            }
+            arr->alloc();
+        }
+        if (operand->is_contiguous())
+        {
+            unary_ss(name, operand, arr, *ctx);
+        }
+        else
+        {
+            sparse_unary_ss(name, operand, arr, *ctx);
         }
     }
 
@@ -74,29 +64,23 @@ namespace xv::graph
                 // TODO: handle the case when array has 3 dimensions or more
             }
         }
-        else if (lhs->is_contiguous() && rhs->is_contiguous())
-        {
-            if (binary_op->is_in_place())
-            {
-                arr->alloc(*lhs->get_buff());
-                self_binary_ss(name, lhs, rhs, *ctx);
-            }
-            else
-            {
-                arr->alloc();
-                binary_ss(name, lhs, rhs, arr, *ctx);
-            }
-        }
         else
         {
             if (binary_op->is_in_place())
             {
+                // Share memory with lhs
                 arr->alloc(*lhs->get_buff());
-                sparse_self_binary_ss(name, lhs, rhs, *ctx);
             }
             else
             {
                 arr->alloc();
+            }
+            if (lhs->is_contiguous() && rhs->is_contiguous())
+            {
+                binary_ss(name, lhs, rhs, arr, *ctx);
+            }
+            else
+            {
                 sparse_binary_ss(name, lhs, rhs, arr, *ctx);
             }
         }
@@ -271,7 +255,11 @@ namespace xv::graph
         }
         for (auto &arr : fw_order)
         {
-            call(arr);
+            if (arr->get_op()->get_type() != OpType::INITIALIZER || (arr->get_op()->get_type() == OpType::INITIALIZER && arr->get_buff() == nullptr))
+            {
+                // Call initializers only once
+                call(arr);
+            }
         }
     }
 
@@ -283,7 +271,11 @@ namespace xv::graph
         }
         for (auto &arr : bw_order)
         {
-            call(arr);
+            if (arr->get_op()->get_type() != OpType::INITIALIZER || (arr->get_op()->get_type() == OpType::INITIALIZER && arr->get_buff() == nullptr))
+            {
+                // Call initializers only once
+                call(arr);
+            }
         }
     }
 

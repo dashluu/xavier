@@ -16,7 +16,6 @@ using namespace xv::graph;
 void init_xv_module(py::module_ &);
 std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device, bool constant);
 std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, const py::object &c, const Device &device, bool constant);
-std::shared_ptr<Array> mul(std::shared_ptr<Array> arr, const py::object &obj);
 std::shared_ptr<Array> unary(const py::object &obj, const std::function<std::shared_ptr<Array>(std::shared_ptr<Array>, bool)> &f, bool in_place);
 std::shared_ptr<Array> binary(const py::object &obj1, const py::object &obj2, const std::function<std::shared_ptr<Array>(std::shared_ptr<Array>, std::shared_ptr<Array>)> &f);
 bool is_buff_contiguous(py::buffer_info &buff_info);
@@ -28,7 +27,10 @@ std::vector<Range> get_arr_ranges(const Array &arr, const py::object &obj);
 uint64_t map_idx(int64_t len, int64_t idx);
 Range slice_to_range(int64_t len, const py::object &obj);
 std::string get_pyclass(const py::object &obj) { return obj.attr("__class__").cast<py::str>().cast<std::string>(); }
-std::shared_ptr<Array> obj_to_arr(const py::object &obj);
+// This does not mean array will be constructed on this device
+// It means that if the object is a scalar, the array corresponding to that scalar will be constructed on this device
+std::shared_ptr<Array> obj_to_arr(const py::object &obj, const Device &device_if_scalar);
+bool is_scalar(const py::object &obj);
 
 inline auto f32_fmt = py::format_descriptor<float>::format();
 inline auto i16_fmt = py::format_descriptor<int16_t>::format();

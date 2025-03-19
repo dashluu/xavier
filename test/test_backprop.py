@@ -192,3 +192,167 @@ class TestBackprop:
         compare_grads(exp1.grad, texp1.grad, "exp")
         compare_grads(rec1.grad, trec1.grad, "recip")
         compare_grads(mul1.grad, tmul1.grad, "mul")
+
+    def test_backprop_v5(self):
+        ctx = MTLContext(TestBackprop.lib)
+        print("Testing square and sqrt operations:")
+
+        shape = [3, 4, 2]
+        np1 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)
+
+        # Xavier implementation: sqrt(x^2) + x^2/sqrt(x)
+        arr1 = Array.from_buffer(np1).reshape(shape)
+
+        # Branch 1: sqrt(x^2)
+        sq1 = arr1.sq()
+        sqrt1 = sq1.sqrt()
+
+        # Branch 2: x^2/sqrt(x)
+        sq2 = arr1.sq()
+        sqrt2 = arr1.sqrt()
+        div1 = sq2 / sqrt2
+
+        # Combine branches
+        result = sqrt1 + div1
+
+        g = MTLGraph(result, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        t1 = torch.from_numpy(np1).requires_grad_(True)
+
+        # Branch 1: sqrt(x^2)
+        tsq1 = t1 * t1
+        tsq1.retain_grad()
+        tsqrt1 = torch.sqrt(tsq1)
+        tsqrt1.retain_grad()
+
+        # Branch 2: x^2/sqrt(x)
+        tsq2 = t1 * t1
+        tsq2.retain_grad()
+        tsqrt2 = torch.sqrt(t1)
+        tsqrt2.retain_grad()
+        tdiv1 = tsq2 / tsqrt2
+        tdiv1.retain_grad()
+
+        # Combine branches
+        tresult = tsqrt1 + tdiv1
+        tresult.sum().backward()
+
+        # Compare gradients
+        compare_grads(arr1.grad, t1.grad, "input")
+        compare_grads(sq1.grad, tsq1.grad, "square1")
+        compare_grads(sqrt1.grad, tsqrt1.grad, "sqrt1")
+        compare_grads(sq2.grad, tsq2.grad, "square2")
+        compare_grads(sqrt2.grad, tsqrt2.grad, "sqrt2")
+        compare_grads(div1.grad, tdiv1.grad, "div")
+
+    def test_backprop_twice(self):
+        ctx = MTLContext(TestBackprop.lib)
+        print("Testing double backpropagation with complex operations:")
+
+        shape = [2, 3, 4]
+        np1 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)
+        np2 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)
+
+        # Xavier implementation
+        # f(x1, x2) = log(sqrt(x1^2) * exp(x2/x1)) + (x1 * sqrt(x2))^2
+        arr1 = Array.from_buffer(np1).reshape(shape)
+        arr2 = Array.from_buffer(np2).reshape(shape)
+
+        # Branch 1: log(sqrt(x1^2) * exp(x2/x1))
+        sq1 = arr1.sq()
+        sqrt1 = sq1.sqrt()
+        div1 = arr2 / arr1
+        exp1 = div1.exp()
+        mul1 = sqrt1 * exp1
+        log1 = mul1.log()
+
+        # Branch 2: (x1 * sqrt(x2))^2
+        sqrt2 = arr2.sqrt()
+        mul2 = arr1 * sqrt2
+        sq2 = mul2.sq()
+
+        # Combine branches
+        result = log1 + sq2
+
+        # First backward pass
+        g = MTLGraph(result, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        t1 = torch.from_numpy(np1).requires_grad_(True)
+        t2 = torch.from_numpy(np2).requires_grad_(True)
+
+        # Branch 1
+        tsq1 = t1 * t1
+        tsq1.retain_grad()
+        tsqrt1 = torch.sqrt(tsq1)
+        tsqrt1.retain_grad()
+        tdiv1 = t2 / t1
+        tdiv1.retain_grad()
+        texp1 = torch.exp(tdiv1)
+        texp1.retain_grad()
+        tmul1 = tsqrt1 * texp1
+        tmul1.retain_grad()
+        tlog1 = torch.log(tmul1)
+        tlog1.retain_grad()
+
+        # Branch 2
+        tsqrt2 = torch.sqrt(t2)
+        tsqrt2.retain_grad()
+        tmul2 = t1 * tsqrt2
+        tmul2.retain_grad()
+        tsq2 = tmul2 * tmul2
+        tsq2.retain_grad()
+
+        # Combine branches
+        tresult = tlog1 + tsq2
+        tsum = tresult.sum()
+        tsum.backward(retain_graph=True)
+
+        # Compare first backward pass gradients
+        print("\nChecking first backward pass:")
+        compare_grads(arr1.grad, t1.grad, "input1")
+        compare_grads(arr2.grad, t2.grad, "input2")
+        compare_grads(sq1.grad, tsq1.grad, "square1")
+        compare_grads(sqrt1.grad, tsqrt1.grad, "sqrt1")
+        compare_grads(div1.grad, tdiv1.grad, "div")
+        compare_grads(exp1.grad, texp1.grad, "exp")
+        compare_grads(mul1.grad, tmul1.grad, "mul1")
+        compare_grads(log1.grad, tlog1.grad, "log")
+        compare_grads(sqrt2.grad, tsqrt2.grad, "sqrt2")
+        compare_grads(mul2.grad, tmul2.grad, "mul2")
+        compare_grads(sq2.grad, tsq2.grad, "square2")
+
+        # Modify the result slightly and run backward again
+        # TODO: uncomment this after implementing backprop for broadcasting
+        # result = result * 2.0
+        # g = MTLGraph(result, ctx)
+        # g.compile()
+        # g.forward()
+        g.backward()
+
+        # PyTorch second pass
+        # TODO: uncomment this after implementing backprop for broadcasting
+        # tresult = tresult * 2.0
+        tresult.grad = None
+        tsum.backward()
+
+        # Compare second backward pass gradients
+        print("\nChecking second backward pass:")
+        compare_grads(arr1.grad, t1.grad, "input1 (2nd pass)")
+        # compare_grads(arr2.grad, t2.grad, "input2 (2nd pass)")
+        # compare_grads(sq1.grad, tsq1.grad, "square1 (2nd pass)")
+        # compare_grads(sqrt1.grad, tsqrt1.grad, "sqrt1 (2nd pass)")
+        # compare_grads(div1.grad, tdiv1.grad, "div (2nd pass)")
+        # compare_grads(exp1.grad, texp1.grad, "exp (2nd pass)")
+        # compare_grads(mul1.grad, tmul1.grad, "mul1 (2nd pass)")
+        # compare_grads(log1.grad, tlog1.grad, "log (2nd pass)")
+        # compare_grads(sqrt2.grad, tsqrt2.grad, "sqrt2 (2nd pass)")
+        # compare_grads(mul2.grad, tmul2.grad, "mul2 (2nd pass)")
+        # compare_grads(sq2.grad, tsq2.grad, "square2 (2nd pass)")
