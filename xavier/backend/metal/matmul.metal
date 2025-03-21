@@ -1,36 +1,7 @@
 #include "utils.h"
 
 template <class T, class R>
-[[kernel]] void matmul2d(
-    constant const uint *offset [[buffer(0)]],
-    constant const uint *lhs_shape [[buffer(1)]],
-    constant const uint *rhs_shape [[buffer(2)]],
-    device T *lhs [[buffer(3)]],
-    device T *rhs [[buffer(4)]],
-    device R *output [[buffer(5)]],
-    uint2 id [[thread_position_in_grid]])
-{
-    const uint row = id.y;
-    const uint col = id.x;
-    const uint M = lhs_shape[0];
-    const uint N = rhs_shape[1];
-    const uint K = lhs_shape[1];
-    if (row < M && col < N) {
-        // Calculate output index
-        const uint out_idx = row * N + col;
-        // Matrix multiplication
-        R sum = 0;
-        for (uint k = 0; k < K; k++) {
-            const uint lhs_idx = offset[0] + row * K + k;
-            const uint rhs_idx = offset[1] + k * N + col;
-            sum += lhs[lhs_idx] * rhs[rhs_idx];
-        }
-        output[out_idx] = sum;
-    }
-}
-
-template <class T, class R>
-[[kernel]] void matmul3d(
+[[kernel]] void matmul(
     constant const uint *offset [[buffer(0)]],
     constant const uint *lhs_shape [[buffer(1)]],
     constant const uint *rhs_shape [[buffer(2)]],
@@ -63,7 +34,5 @@ template <class T, class R>
     }
 }
 
-template [[host_name("matmul2d_f32")]] [[kernel]] decltype(matmul2d<float, float>) matmul2d<float, float>;
-template [[host_name("matmul2d_i32")]] [[kernel]] decltype(matmul2d<int, int>) matmul2d<int, int>;
-template [[host_name("matmul3d_f32")]] [[kernel]] decltype(matmul3d<float, float>) matmul3d<float, float>;
-template [[host_name("matmul3d_i32")]] [[kernel]] decltype(matmul3d<int, int>) matmul3d<int, int>;
+template [[host_name("matmul_f32")]] [[kernel]] decltype(matmul<float, float>) matmul<float, float>;
+template [[host_name("matmul_i32")]] [[kernel]] decltype(matmul<int, int>) matmul<int, int>;

@@ -9,8 +9,6 @@ namespace xv::backend::metal
     private:
         static std::vector<std::string> num_unary_ops;
         static std::vector<std::string> num_binary_ops;
-        // TODO: move this to num_binary_ops later
-        static std::vector<std::string> matmul_ops;
         NS::SharedPtr<NS::AutoreleasePool> pool;
         NS::SharedPtr<MTL::Device> device;
         NS::SharedPtr<MTL::Library> lib;

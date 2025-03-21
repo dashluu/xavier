@@ -216,36 +216,6 @@ namespace xv::core
             return s;
         }
 
-        Shape matmul_broadcast(const std::vector<uint64_t> &rhs, bool output_result = true) const
-        {
-            if (!matmul_broadcastable(rhs))
-            {
-                throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") to (" + numstr(rhs) + ").");
-            }
-            auto v1 = view;
-            auto v2 = rhs;
-            if (output_result)
-            {
-                v1[v1.size() - 2] = v2[v2.size() - 1];
-            }
-            auto ndim = std::max(v1.size(), v2.size());
-            auto diff1 = ndim - v1.size();
-            auto diff2 = ndim - v2.size();
-            v1.insert(v1.begin(), diff1, 1);
-            v2.insert(v2.begin(), diff2, 1);
-            auto s = Shape(offset, v1);
-            std::fill_n(s.stride.begin(), diff1, 0);
-            for (int i = 0; i < ndim - 2; i++)
-            {
-                if (v1[i] < v2[i])
-                {
-                    s.view[i] = v2[i];
-                    s.stride[i] = 0;
-                }
-            }
-            return s;
-        }
-
         Shape reshape(const std::vector<uint64_t> &target)
         {
             // TODO: fix this

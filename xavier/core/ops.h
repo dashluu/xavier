@@ -30,13 +30,12 @@ namespace xv::core
         RECIP,
         RESHAPE,
         PERMUTE,
-        TRANSPOSE,
         BROADCAST,
         SQUEEZE,
         UNSQUEEZE,
         INTERPRET,
         SLICE,
-        MOVE
+        COPY
     };
 
     enum class OpType
@@ -76,10 +75,9 @@ namespace xv::core
         {OpName::UNSQUEEZE, "unsqueeze"},
         {OpName::RESHAPE, "reshape"},
         {OpName::PERMUTE, "permute"},
-        {OpName::TRANSPOSE, "transpose"},
         {OpName::INTERPRET, "interpret"},
         {OpName::SLICE, "slice"},
-        {OpName::MOVE, "move"}};
+        {OpName::COPY, "copy"}};
 
     struct Op : public std::enable_shared_from_this<Op>, public IStr
     {
@@ -330,6 +328,7 @@ namespace xv::core
         ReshapeOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view) : TransformOp(OpName::RESHAPE, operand), view(view) {}
         const std::vector<uint64_t> &get_view() { return view; }
         const std::string str() const override { return TransformOp::str() + ", view: (" + numstr(view) + ")"; }
+        void backward(std::shared_ptr<Array> arr) const override;
     };
 
     struct SliceOp : public TransformOp
@@ -346,6 +345,19 @@ namespace xv::core
                                                                    { return range.str(); }) +
                    ")";
         }
+        void backward(std::shared_ptr<Array> arr) const override;
+    };
+
+    struct PermuteOp : public TransformOp
+    {
+    private:
+        std::vector<uint64_t> order;
+
+    public:
+        PermuteOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &order) : TransformOp(OpName::PERMUTE, operand), order(order) {}
+        const std::vector<uint64_t> &get_perm() { return order; }
+        const std::string str() const override { return TransformOp::str() + ", permutation: (" + numstr(order) + ")"; }
+        void backward(std::shared_ptr<Array> arr) const override;
     };
 
     struct BroadcastOp : public TransformOp
@@ -362,13 +374,13 @@ namespace xv::core
         }
     };
 
-    struct MoveOp : public Op
+    struct CopyOp : public Op
     {
     private:
         std::shared_ptr<Array> operand;
 
     public:
-        MoveOp(std::shared_ptr<Array> operand) : Op(OpName::MOVE, OpType::MOVE), operand(operand) {}
+        CopyOp(std::shared_ptr<Array> operand) : Op(OpName::COPY, OpType::MOVE), operand(operand) {}
         std::shared_ptr<Array> get_operand() const { return operand; }
         const std::string str() const override;
     };

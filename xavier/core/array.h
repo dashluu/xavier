@@ -46,8 +46,6 @@ namespace xv::core
 
         void check_ranges(const std::vector<Range> &ranges) const;
 
-        std::shared_ptr<Array> matmul_broadcast(const std::vector<uint64_t> &view);
-
         template <class O>
         std::shared_ptr<Array> unary_ss(bool in_place);
 
@@ -273,6 +271,12 @@ namespace xv::core
         std::shared_ptr<Array> broadcast_to(const std::vector<uint64_t> &view);
 
         std::shared_ptr<Array> copy();
+
+        std::shared_ptr<Array> permute(const std::vector<uint64_t> &order);
+
+        std::shared_ptr<Array> T();
+
+        std::shared_ptr<Array> flatten(uint64_t start_dim, uint64_t end_dim);
 
         std::shared_ptr<Array> as_contiguous() { return is_contiguous() ? shared_from_this() : copy(); }
     };

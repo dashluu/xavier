@@ -2,11 +2,11 @@ from python.xavier import Array, MTLGraph, MTLContext
 import numpy as np
 
 
-class TestSlice:
+class TestTransform:
     lib = "./xavier/build/backend/metal/kernels.metallib"
 
     def test_slice_v1(self):
-        ctx = MTLContext(TestSlice.lib)
+        ctx = MTLContext(TestTransform.lib)
         print("slice 1:")
         s = [np.random.randint(1, 50) for _ in range(3)]
         a = np.random.randn(*s).astype(np.float32)
@@ -20,7 +20,7 @@ class TestSlice:
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
     def test_slice_v2(self):
-        ctx = MTLContext(TestSlice.lib)
+        ctx = MTLContext(TestTransform.lib)
         print("slice 2:")
         s = [np.random.randint(4, 50) for _ in range(4)]
         a = np.random.randn(*s).astype(np.float32)
@@ -34,7 +34,7 @@ class TestSlice:
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
     def test_slice_v3(self):
-        ctx = MTLContext(TestSlice.lib)
+        ctx = MTLContext(TestTransform.lib)
         print("slice 3:")
         s = [np.random.randint(4, 50) for _ in range(4)]
         a = np.random.randn(*s).astype(np.float32)
@@ -48,7 +48,7 @@ class TestSlice:
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
     def test_slice_v4(self):
-        ctx = MTLContext(TestSlice.lib)
+        ctx = MTLContext(TestTransform.lib)
         print("slice 4:")
         s = [np.random.randint(10, 50) for _ in range(4)]
         a = np.random.randn(*s).astype(np.float32)

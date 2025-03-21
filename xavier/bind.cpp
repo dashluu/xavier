@@ -25,7 +25,6 @@ void init_xv_module(py::module_ &m)
         .def("broadcastable", &Shape::broadcastable, "rhs"_a)
         .def("broadcastable_to", &Shape::broadcastable_to, "target"_a)
         .def("matmul_broadcastable", &Shape::matmul_broadcastable, "rhs"_a)
-        .def("matmul_broadcast", &Shape::matmul_broadcast, "rhs"_a, "output_result"_a = true)
         .def("remove", &Shape::remove, "dim"_a)
         .def("permute", &Shape::permute, "order"_a)
         .def("__eq__", &Shape::operator==, "shape"_a)
@@ -75,7 +74,7 @@ void init_xv_module(py::module_ &m)
         .def_readonly("cum_grad", &Array::cum_grad, "Accesses the cumulated gradient of the array.")
         .def_readonly("grad", &Array::grad, "Accesses the gradient of the array.")
         .def("ptr", [](const Array &arr)
-             { return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(arr.get_ptr())); }, "Returns a pointer to the data of the array")
+             { return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(arr.get_ptr())); }, "Returns a pointer to the data of the array.")
         .def("access_", &Array::access_, "Accesses the kth element in the array.", "k"_a)
         .def("is_contiguous", &Array::is_contiguous, "Checks if the array is contiguous.")
         .def("numel", &Array::get_numel, "Returns the number of elements in the array.")
@@ -88,8 +87,8 @@ void init_xv_module(py::module_ &m)
              { return arr.get_shape()[0]; })
         .def("reshape", &Array::reshape, "Reshapes the array to the given view in-place.", "view"_a)
         .def("copy", &Array::copy, "Copies data of the current array to a new array.")
-        .def("broadcast", &Array::broadcast, "Broadcasts the array based on the given view", "view"_a)
-        .def("broadcast_to", &Array::broadcast_to, "Broadcasts the array to the given view", "view"_a)
+        .def("broadcast", &Array::broadcast, "Broadcasts the array based on the given view.", "view"_a)
+        .def("broadcast_to", &Array::broadcast_to, "Broadcasts the array to the given view.", "view"_a)
         .def("as_contiguous", &Array::as_contiguous, "Creates a new contiguous array with the same as elements as the current array if the current array is not contiguous, otherwise, returns the current array.")
         .def("__getitem__", [](Array &arr, const py::object &obj)
              { return arr.slice(get_arr_ranges(arr, obj)); }, "obj"_a)
@@ -126,14 +125,18 @@ void init_xv_module(py::module_ &m)
              { return lhs->lt(obj_to_arr(rhs, lhs->get_device())); }, "rhs"_a)
         .def("__le__", [](std::shared_ptr<Array> lhs, const py::object &rhs)
              { return lhs->leq(obj_to_arr(rhs, lhs->get_device())); }, "rhs"_a)
-        .def("exp", &Array::exp, "Element-wise exponential function", "in_place"_a = false)
-        .def("log", &Array::log, "Element-wise natural logarithm function", "in_place"_a = false)
+        .def("exp", &Array::exp, "Element-wise exponential function.", "in_place"_a = false)
+        .def("log", &Array::log, "Element-wise natural logarithm function.", "in_place"_a = false)
         .def("__neg__", [](std::shared_ptr<Array> arr)
              { return arr->neg(); })
-        .def("neg", &Array::neg, "Element-wise negation", "in_place"_a = false)
-        .def("recip", &Array::recip, "Element-wise reciprocal", "in_place"_a = false)
-        .def("sq", &Array::sq, "Element-wise square", "in_place"_a = false)
-        .def("sqrt", &Array::sqrt, "Element-wise square root", "in_place"_a = false)
+        .def("neg", &Array::neg, "Element-wise negation.", "in_place"_a = false)
+        .def("recip", &Array::recip, "Element-wise reciprocal.", "in_place"_a = false)
+        .def("sq", &Array::sq, "Element-wise square.", "in_place"_a = false)
+        .def("sqrt", &Array::sqrt, "Element-wise square root.", "in_place"_a = false)
+        .def("permute", &Array::permute, "Permutes the dimensions of the array according to the given order.", "order"_a)
+        .def("T", &Array::T, "Transposes the array.")
+        .def("flatten", [](std::shared_ptr<Array> arr, int64_t start_dim, int64_t end_dim)
+             { return arr->flatten(map_idx(arr->get_ndim(), start_dim), map_idx(arr->get_ndim(), end_dim)); }, "Flattens the array.", "start_dim"_a = 0, "end_dim"_a = -1)
         .def_static("from_buffer", &array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = device0, "constant"_a = false);
 
     py::class_<Graph, std::unique_ptr<Graph, py::nodelete>>(m, "Graph")
@@ -152,71 +155,71 @@ void init_xv_module(py::module_ &m)
 
     m.def("add", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->add(rhs); }); }, "Element-wise addition", "lhs"_a, "rhs"_a);
+                          { return lhs->add(rhs); }); }, "Element-wise addition.", "lhs"_a, "rhs"_a);
 
     m.def("sub", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->sub(rhs); }); }, "Element-wise subtraction", "lhs"_a, "rhs"_a);
+                          { return lhs->sub(rhs); }); }, "Element-wise subtraction.", "lhs"_a, "rhs"_a);
 
     m.def("mul", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->mul(rhs); }); }, "Element-wise multiplication", "lhs"_a, "rhs"_a);
+                          { return lhs->mul(rhs); }); }, "Element-wise multiplication.", "lhs"_a, "rhs"_a);
 
     m.def("div", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->div(rhs); }); }, "Element-wise division", "lhs"_a, "rhs"_a);
+                          { return lhs->div(rhs); }); }, "Element-wise division.", "lhs"_a, "rhs"_a);
 
     m.def("matmul", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->matmul(rhs); }); }, "Matrix multiplication", "lhs"_a, "rhs"_a);
+                          { return lhs->matmul(rhs); }); }, "Matrix multiplication.", "lhs"_a, "rhs"_a);
 
     m.def("eq", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->eq(rhs); }); }, "Element-wise equality", "lhs"_a, "rhs"_a);
+                          { return lhs->eq(rhs); }); }, "Element-wise equality.", "lhs"_a, "rhs"_a);
 
     m.def("neq", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->neq(rhs); }); }, "Element-wise inequality", "lhs"_a, "rhs"_a);
+                          { return lhs->neq(rhs); }); }, "Element-wise inequality.", "lhs"_a, "rhs"_a);
 
     m.def("lt", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->lt(rhs); }); }, "Element-wise less than", "lhs"_a, "rhs"_a);
+                          { return lhs->lt(rhs); }); }, "Element-wise less than.", "lhs"_a, "rhs"_a);
 
     m.def("gt", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->gt(rhs); }); }, "Element-wise greater than", "lhs"_a, "rhs"_a);
+                          { return lhs->gt(rhs); }); }, "Element-wise greater than.", "lhs"_a, "rhs"_a);
 
     m.def("leq", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->leq(rhs); }); }, "Element-wise less than or equal to", "lhs"_a, "rhs"_a);
+                          { return lhs->leq(rhs); }); }, "Element-wise less than or equal to.", "lhs"_a, "rhs"_a);
 
     m.def("geq", [](const py::object &lhs, const py::object &rhs)
           { return binary(lhs, rhs, [](std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs)
-                          { return lhs->geq(rhs); }); }, "Element-wise greater than or equal to", "lhs"_a, "rhs"_a);
+                          { return lhs->geq(rhs); }); }, "Element-wise greater than or equal to.", "lhs"_a, "rhs"_a);
 
     m.def("exp", [](const py::object &arr, bool in_place)
           { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
-                         { return arr->exp(in_place); }, in_place); }, "Element-wise exponential function", "arr"_a, "in_place"_a = false);
+                         { return arr->exp(in_place); }, in_place); }, "Element-wise exponential function.", "arr"_a, "in_place"_a = false);
 
     m.def("log", [](const py::object &arr, bool in_place)
           { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
-                         { return arr->log(in_place); }, in_place); }, "Element-wise natural logarithm function", "arr"_a, "in_place"_a = false);
+                         { return arr->log(in_place); }, in_place); }, "Element-wise natural logarithm function.", "arr"_a, "in_place"_a = false);
 
     m.def("neg", [](const py::object &arr, bool in_place)
           { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
-                         { return arr->neg(in_place); }, in_place); }, "Element-wise negation", "arr"_a, "in_place"_a = false);
+                         { return arr->neg(in_place); }, in_place); }, "Element-wise negation.", "arr"_a, "in_place"_a = false);
 
     m.def("recip", [](const py::object &arr, bool in_place)
           { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
-                         { return arr->recip(in_place); }, in_place); }, "Element-wise reciprocal", "arr"_a, "in_place"_a = false);
+                         { return arr->recip(in_place); }, in_place); }, "Element-wise reciprocal.", "arr"_a, "in_place"_a = false);
 
     m.def("sq", [](const py::object &arr, bool in_place)
           { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
-                         { return arr->sq(in_place); }, in_place); }, "Element-wise square", "arr"_a, "in_place"_a = false);
+                         { return arr->sq(in_place); }, in_place); }, "Element-wise square.", "arr"_a, "in_place"_a = false);
 
     m.def("sqrt", [](const py::object &arr, bool in_place)
           { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
-                         { return arr->sqrt(in_place); }, in_place); }, "Element-wise square root", "arr"_a, "in_place"_a = false);
+                         { return arr->sqrt(in_place); }, in_place); }, "Element-wise square root.", "arr"_a, "in_place"_a = false);
 }
 
 std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device, bool constant)
@@ -390,6 +393,7 @@ std::vector<Range> get_arr_ranges(const Array &arr, const py::object &obj)
 
 uint64_t map_idx(int64_t len, int64_t idx)
 {
+    // TODO: len should be an unsigned?
     if (idx < -len || idx >= len)
     {
         throw std::out_of_range("Index out of range: " + std::to_string(idx) + " not in [-" + std::to_string(len) + ", " + std::to_string(len) + ")");

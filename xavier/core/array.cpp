@@ -38,11 +38,11 @@ namespace xv::core
 
     void Array::check_ranges(const std::vector<Range> &ranges) const
     {
-        if (ranges.size() != shape.get_ndim())
+        if (ranges.size() != get_ndim())
         {
             throw std::invalid_argument("The number of ranges does not match the number of dimensions: " +
                                         std::to_string(ranges.size()) + " and " +
-                                        std::to_string(shape.get_ndim()) + ".");
+                                        std::to_string(get_ndim()) + ".");
         }
         for (int i = 0; i < ranges.size(); i++)
         {
@@ -76,10 +76,10 @@ namespace xv::core
         {
             return get_ptr() + k * get_itemsize();
         }
-        std::vector<uint64_t> idx(shape.get_ndim());
+        std::vector<uint64_t> idx(get_ndim());
         uint carry = k;
         uint tmp;
-        for (int i = shape.get_ndim() - 1; i >= 0; i--)
+        for (int i = get_ndim() - 1; i >= 0; i--)
         {
             tmp = carry;
             idx[i] = tmp % shape[i];
@@ -100,13 +100,13 @@ namespace xv::core
         iter->start();
         bool flag = iter->has_next();
         std::string s = "";
-        for (int i = 0; i < shape.get_ndim(); i++)
+        for (int i = 0; i < get_ndim(); i++)
         {
             s += "[";
         }
         if (!flag)
         {
-            for (int i = 0; i < shape.get_ndim(); i++)
+            for (int i = 0; i < get_ndim(); i++)
             {
                 s += "]";
             }
@@ -157,8 +157,8 @@ namespace xv::core
         {
             offset += ranges[i].start * stride1[i];
         }
-        std::vector<uint64_t> view(shape.get_ndim());
-        std::vector<int64_t> stride2(shape.get_ndim());
+        std::vector<uint64_t> view(get_ndim());
+        std::vector<int64_t> stride2(get_ndim());
         for (int i = 0; i < ranges.size(); i++)
         {
             auto &range = ranges[i];
@@ -356,10 +356,10 @@ namespace xv::core
     std::shared_ptr<Array> Array::matmul(std::shared_ptr<Array> rhs)
     {
         auto dummy_op = std::make_shared<MatmulOp>(nullptr, nullptr);
-        auto &rhs_view = rhs->shape.get_view();
-        if (!shape.matmul_broadcastable(rhs_view))
+        auto &rview = rhs->shape.get_view();
+        if (!shape.matmul_broadcastable(rview))
         {
-            throw IncompatShapesForOp(dummy_op->get_name_str(), numstr(shape.get_view()), numstr(rhs_view));
+            throw IncompatShapesForOp(dummy_op->get_name_str(), numstr(shape.get_view()), numstr(rview));
         }
         if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
@@ -369,12 +369,39 @@ namespace xv::core
         {
             throw IncompatDevicesForOp(dummy_op->get_name_str(), device.str(), rhs->device.str());
         }
-        auto broadcasted_lhs = matmul_broadcast(rhs_view);
-        auto broadcasted_rhs = rhs->matmul_broadcast(shape.get_view());
-        auto result_view = broadcasted_lhs->shape.get_view();
-        result_view[result_view.size() - 1] = rhs_view[rhs_view.size() - 1];
-        auto arr = std::make_shared<Array>(Shape(result_view), dtype, device);
-        arr->op = std::make_shared<MatmulOp>(broadcasted_lhs, broadcasted_rhs);
+        auto broadcasted_lview = shape.get_view();
+        auto broadcasted_rview = rview;
+        auto ndim = std::max(broadcasted_lview.size(), broadcasted_rview.size());
+        broadcasted_lview.insert(broadcasted_lview.begin(), ndim - broadcasted_lview.size(), 1);
+        broadcasted_rview.insert(broadcasted_rview.begin(), ndim - broadcasted_rview.size(), 1);
+        for (int i = 0; i < ndim - 2; i++)
+        {
+            auto shared_dim = std::max(broadcasted_lview[i], broadcasted_rview[i]);
+            broadcasted_lview[i] = shared_dim;
+            broadcasted_rview[i] = shared_dim;
+        }
+        auto batch = std::accumulate(
+            broadcasted_lview.begin(),
+            std::prev(broadcasted_lview.end(), 2),
+            1ULL,
+            std::multiplies<uint64_t>());
+        std::vector<uint64_t> mm_lview = {
+            batch,
+            broadcasted_lview[broadcasted_lview.size() - 2],
+            broadcasted_lview[broadcasted_lview.size() - 1]};
+        std::vector<uint64_t> mm_rview = {
+            batch,
+            broadcasted_rview[broadcasted_rview.size() - 2],
+            broadcasted_rview[broadcasted_rview.size() - 1]};
+        auto mm_lhs = broadcast(broadcasted_lview)->reshape(mm_lview);
+        auto mm_rhs = rhs->broadcast(broadcasted_rview)->reshape(mm_rview);
+        auto view = mm_lhs->shape.get_view();
+        view[view.size() - 1] = rview[rview.size() - 1];
+        auto arr = std::make_shared<Array>(Shape(view), dtype, device);
+        arr->op = std::make_shared<MatmulOp>(mm_lhs, mm_rhs);
+        auto reshaped_view = broadcasted_lview;
+        reshaped_view[reshaped_view.size() - 1] = rview[rview.size() - 1];
+        arr = arr->reshape(reshaped_view);
         return arr;
     }
 
@@ -427,18 +454,6 @@ namespace xv::core
         return arr;
     }
 
-    std::shared_ptr<Array> Array::matmul_broadcast(const std::vector<uint64_t> &view)
-    {
-        auto broadcasted_view = shape.matmul_broadcast(view, false);
-        if (shape == broadcasted_view)
-        {
-            return shared_from_this();
-        }
-        auto arr = std::make_shared<Array>(broadcasted_view, dtype, device);
-        arr->op = std::make_shared<BroadcastOp>(shared_from_this(), view);
-        return arr;
-    }
-
     std::shared_ptr<Array> Array::broadcast_to(const std::vector<uint64_t> &view)
     {
         if (shape.get_view() == view)
@@ -453,7 +468,46 @@ namespace xv::core
     std::shared_ptr<Array> Array::copy()
     {
         auto arr = std::make_shared<Array>(Shape(shape.get_view()), dtype, device);
-        arr->op = std::make_shared<MoveOp>(shared_from_this());
+        arr->op = std::make_shared<CopyOp>(shared_from_this());
         return arr;
+    }
+
+    std::shared_ptr<Array> Array::permute(const std::vector<uint64_t> &order)
+    {
+        auto arr = std::make_shared<Array>(shape.permute(order), dtype, device);
+        arr->op = std::make_shared<PermuteOp>(shared_from_this(), order);
+        return arr;
+    }
+
+    std::shared_ptr<Array> Array::T()
+    {
+        std::vector<uint64_t> order(get_ndim());
+        // Fill with [n-1, n-2, ..., 0]
+        std::generate(order.begin(), order.end(), [n = order.size() - 1]() mutable
+                      { return n--; });
+        return permute(order);
+    }
+
+    std::shared_ptr<Array> Array::flatten(uint64_t start_dim, uint64_t end_dim)
+    {
+        if (start_dim > end_dim)
+        {
+            throw std::invalid_argument("The start dimension must be smaller than the end dimension.");
+        }
+        if (start_dim >= get_ndim())
+        {
+            throw std::invalid_argument("The start dimension must be smaller than the number of dimensions.");
+        }
+        if (end_dim >= get_ndim())
+        {
+            throw std::invalid_argument("The end dimension must be smaller than or equal to the number of dimensions.");
+        }
+        std::vector<uint64_t> view = shape.get_view();
+        auto prod = std::accumulate(view.begin() + start_dim, view.begin() + end_dim + 1, 1ULL, std::multiplies<uint64_t>());
+        // Erase from start_dim + 1 to end_dim + 1
+        view.erase(view.begin() + start_dim + 1, view.begin() + end_dim + 1);
+        // Update view at start_dim
+        view[start_dim] = prod;
+        return reshape(view);
     }
 }

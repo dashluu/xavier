@@ -18,7 +18,7 @@ namespace xv::core
         return get_name_str() + ", operand: " + std::to_string(operand->get_id());
     }
 
-    const std::string MoveOp::str() const
+    const std::string CopyOp::str() const
     {
         return get_name_str() + ", operand: " + std::to_string(operand->get_id());
     }
@@ -218,5 +218,21 @@ namespace xv::core
             operand->grad = arr->grad->mul(arr->sq()->neg());
             operand->update_grad();
         }
+    }
+
+    void ReshapeOp::backward(std::shared_ptr<Array> arr) const
+    {
+        // Copy first and then reshape for efficiency
+        operand->cum_grad = arr->cum_grad->copy()->reshape(operand->get_shape().get_view());
+    }
+
+    void SliceOp::backward(std::shared_ptr<Array> arr) const
+    {
+        // Slice first and then copy for efficiency
+        operand->cum_grad = arr->cum_grad->slice(ranges)->copy();
+    }
+
+    void PermuteOp::backward(std::shared_ptr<Array> arr) const
+    {
     }
 }

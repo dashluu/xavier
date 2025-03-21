@@ -4,7 +4,6 @@ namespace xv::backend::metal
 {
     std::vector<std::string> MTLContext::num_unary_ops = {"exp", "log", "neg", "recip", "sq", "sqrt"};
     std::vector<std::string> MTLContext::num_binary_ops = {"add", "sub", "mul", "div", "eq", "neq", "lt", "gt", "leq", "geq"};
-    std::vector<std::string> MTLContext::matmul_ops = {"matmul2d", "matmul3d"};
 
     void MTLContext::init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, bool sparse)
     {
@@ -45,7 +44,7 @@ namespace xv::backend::metal
     {
         init_kernels(num_binary_ops, num_dtypes, true);
         init_kernels(num_binary_ops, num_dtypes, false);
-        init_kernels(matmul_ops, num_dtypes, false);
+        init_kernels("matmul", num_dtypes, false);
     }
 
     void MTLContext::init_util_kernels()

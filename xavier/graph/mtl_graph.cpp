@@ -55,14 +55,7 @@ namespace xv::graph
         if (binary_op->get_name() == OpName::MATMUL)
         {
             arr->alloc();
-            if (lhs->get_shape().get_ndim() == 2)
-            {
-                matmul2d(lhs, rhs, arr, *ctx);
-            }
-            else
-            {
-                // TODO: handle the case when array has 3 dimensions or more
-            }
+            matmul(lhs, rhs, arr, *ctx);
         }
         else
         {
@@ -182,8 +175,8 @@ namespace xv::graph
             break;
         }
         default:
-            // Move operation
-            auto move_op = std::static_pointer_cast<MoveOp>(arr->get_op());
+            // Move operations
+            auto move_op = std::static_pointer_cast<CopyOp>(arr->get_op());
             auto operand = move_op->get_operand();
             toposort(operand, order);
             order.push_back(arr);
