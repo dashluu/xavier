@@ -29,7 +29,7 @@ namespace xv::core
         {
             // x += y
             // dy += dx
-            lhs->cum_grad = arr->cum_grad;
+            lhs->grad = arr->grad;
         }
         else
         {
@@ -37,12 +37,10 @@ namespace xv::core
             // dx += dz
             // dy += dz
             lhs->init_grad();
-            lhs->grad = arr->grad;
-            lhs->update_grad();
+            lhs->update_grad(arr->grad);
         }
         rhs->init_grad();
-        rhs->grad = arr->grad;
-        rhs->update_grad();
+        rhs->update_grad(arr->grad);
     }
 
     void SubOp::backward(std::shared_ptr<Array> arr) const
@@ -51,7 +49,7 @@ namespace xv::core
         {
             // x -= y
             // dy -= dx
-            lhs->cum_grad = arr->cum_grad;
+            lhs->grad = arr->grad;
         }
         else
         {
@@ -59,12 +57,10 @@ namespace xv::core
             // dx += dz
             // dy -= dz
             lhs->init_grad();
-            lhs->grad = arr->grad;
-            lhs->update_grad();
+            lhs->update_grad(arr->grad);
         }
         rhs->init_grad();
-        rhs->grad = arr->grad->neg();
-        rhs->update_grad();
+        rhs->update_grad(arr->grad, true);
     }
 
     void MulOp::backward(std::shared_ptr<Array> arr) const
@@ -72,8 +68,7 @@ namespace xv::core
         if (in_place)
         {
             // x *= y
-            // dy += dx*x
-            lhs->cum_grad = arr->cum_grad;
+            lhs->grad = arr->grad;
         }
         else
         {
@@ -81,12 +76,10 @@ namespace xv::core
             // dx += dz*y
             // dy += dz*x
             lhs->init_grad();
-            lhs->grad = arr->grad->mul(rhs);
-            lhs->update_grad();
+            lhs->update_grad(arr->grad->mul(rhs));
         }
         rhs->init_grad();
-        rhs->grad = arr->grad->mul(lhs);
-        rhs->update_grad();
+        rhs->update_grad(arr->grad->mul(lhs));
     }
 
     void DivOp::backward(std::shared_ptr<Array> arr) const
@@ -94,21 +87,19 @@ namespace xv::core
         if (in_place)
         {
             // x /= y
-            // dy += dx * (-x / y**2)
-            lhs->cum_grad = arr->cum_grad;
+            lhs->grad = arr->grad;
         }
         else
         {
             // z = x/y
             // dx += dz * (1/y)
             // dy += dz * (-x / y**2)
+            // dy -= dz * (z / y)
             lhs->init_grad();
-            lhs->grad = arr->grad->div(rhs);
-            lhs->update_grad();
+            lhs->update_grad(arr->grad->div(rhs));
         }
         rhs->init_grad();
-        rhs->grad = arr->grad->mul(lhs->neg())->div(rhs->sq());
-        rhs->update_grad();
+        rhs->update_grad(arr->grad->mul(arr->div(rhs)), true);
     }
 
     void MatmulOp::backward(std::shared_ptr<Array> arr) const
@@ -120,15 +111,14 @@ namespace xv::core
         if (in_place)
         {
             // x **= 2
-            operand->cum_grad = arr->cum_grad;
+            operand->grad = arr->grad;
         }
         else
         {
             // z = x**2
             // dx += dz * 2x
             operand->init_grad();
-            operand->grad = arr->grad->mul(operand->mul(2));
-            operand->update_grad();
+            operand->update_grad(arr->grad->mul(operand->mul(2)));
         }
     }
 
@@ -137,7 +127,7 @@ namespace xv::core
         if (in_place)
         {
             // x = sqrt(x)
-            operand->cum_grad = arr->cum_grad;
+            operand->grad = arr->grad;
         }
         else
         {
@@ -145,8 +135,7 @@ namespace xv::core
             // dx += dz / (2 * sqrt(x))
             // dx += dz / 2z
             operand->init_grad();
-            operand->grad = arr->grad->div(arr->mul(2));
-            operand->update_grad();
+            operand->update_grad(arr->grad->div(arr->mul(2)));
         }
     }
 
@@ -155,7 +144,7 @@ namespace xv::core
         if (in_place)
         {
             // x = e**x
-            operand->cum_grad = arr->cum_grad;
+            operand->grad = arr->grad;
         }
         else
         {
@@ -163,8 +152,7 @@ namespace xv::core
             // dx += dz * e**x
             // dx += dz * z
             operand->init_grad();
-            operand->grad = arr->grad->mul(arr);
-            operand->update_grad();
+            operand->update_grad(arr->grad->mul(arr));
         }
     }
 
@@ -173,15 +161,14 @@ namespace xv::core
         if (in_place)
         {
             // x = ln(x)
-            operand->cum_grad = arr->cum_grad;
+            operand->grad = arr->grad;
         }
         else
         {
             // z = ln(x)
             // dx += dz / x
             operand->init_grad();
-            operand->grad = arr->grad->div(operand);
-            operand->update_grad();
+            operand->update_grad(arr->grad->div(operand));
         }
     }
 
@@ -190,15 +177,15 @@ namespace xv::core
         if (in_place)
         {
             // x = -x
-            operand->cum_grad = arr->cum_grad;
+            operand->grad = arr->grad;
         }
         else
         {
             // z = -x
             // dx += -dz
+            // dx -= dz
             operand->init_grad();
-            operand->grad = arr->grad->neg();
-            operand->update_grad();
+            operand->update_grad(arr->grad, true);
         }
     }
 
@@ -207,29 +194,36 @@ namespace xv::core
         if (in_place)
         {
             // x = 1/x
-            operand->cum_grad = arr->cum_grad;
+            operand->grad = arr->grad;
         }
         else
         {
             // z = 1/x
             // dx += dz * -1/x**2
             // dx += dz * -z**2
+            // dx -= dz * z**2
             operand->init_grad();
-            operand->grad = arr->grad->mul(arr->sq()->neg());
-            operand->update_grad();
+            operand->update_grad(arr->grad->mul(arr->sq()), true);
         }
     }
 
     void ReshapeOp::backward(std::shared_ptr<Array> arr) const
     {
         // Copy first and then reshape for efficiency
-        operand->cum_grad = arr->cum_grad->copy()->reshape(operand->get_shape().get_view());
+        operand->init_grad();
+        operand->update_grad(arr->grad->copy()->reshape(operand->get_shape().get_view()));
     }
 
     void SliceOp::backward(std::shared_ptr<Array> arr) const
     {
-        // Slice first and then copy for efficiency
-        operand->cum_grad = arr->cum_grad->slice(ranges)->copy();
+        operand->init_grad();
+        operand->update_grad(arr->grad->unslice(operand->get_shape(), ranges));
+    }
+
+    void UnsliceOp::backward(std::shared_ptr<Array> arr) const
+    {
+        operand->init_grad();
+        operand->update_grad(arr->grad->slice(ranges));
     }
 
     void PermuteOp::backward(std::shared_ptr<Array> arr) const

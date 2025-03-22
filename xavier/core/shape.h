@@ -11,6 +11,40 @@ namespace xv::core
         std::vector<uint64_t> view;
         std::vector<int64_t> stride;
 
+        void check_ranges(const std::vector<Range> &ranges) const
+        {
+            if (ranges.size() != get_ndim())
+            {
+                throw std::invalid_argument("The number of ranges does not match the number of dimensions: " +
+                                            std::to_string(ranges.size()) + " and " +
+                                            std::to_string(get_ndim()) + ".");
+            }
+            for (int i = 0; i < ranges.size(); i++)
+            {
+                auto &range = ranges[i];
+                if (range.start >= view[i])
+                {
+                    throw std::invalid_argument("Invalid starting point for range: " + std::to_string(range.start));
+                }
+                if (range.stop > view[i])
+                {
+                    throw std::invalid_argument("Invalid stopping point for range: " + std::to_string(range.stop));
+                }
+                if (range.step == 0)
+                {
+                    throw std::invalid_argument("Step cannot be zero.");
+                }
+                if (range.start < range.stop && range.step < 0)
+                {
+                    throw std::invalid_argument("Step must be positive if start < stop: " + std::to_string(range.start) + " < " + std::to_string(range.stop));
+                }
+                if (range.start > range.stop && range.step > 0)
+                {
+                    throw std::invalid_argument("Step must be negative if start > stop: " + std::to_string(range.start) + " > " + std::to_string(range.stop));
+                }
+            }
+        }
+
     public:
         Shape() : Shape(0, {1}, {1}) {}
 
@@ -263,6 +297,26 @@ namespace xv::core
                 s[i] = stride[order[i]];
             }
             return Shape(offset, v, s);
+        }
+
+        Shape slice(const std::vector<Range> &ranges) const
+        {
+            check_ranges(ranges);
+            auto o = offset;
+            for (int i = 0; i < ranges.size(); i++)
+            {
+                o += ranges[i].start * stride[i];
+            }
+            std::vector<uint64_t> v(get_ndim());
+            std::vector<int64_t> s(get_ndim());
+            for (int i = 0; i < ranges.size(); i++)
+            {
+                auto &range = ranges[i];
+                auto d = range.start <= range.stop ? range.stop - range.start : range.start - range.stop;
+                v[i] = static_cast<uint64_t>(ceil(static_cast<double>(d) / std::abs(range.step)));
+                s[i] = stride[i] * range.step;
+            }
+            return Shape(o, v, s);
         }
 
         bool operator==(const Shape &shape) const { return view == shape.view; }

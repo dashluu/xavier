@@ -7,10 +7,10 @@ import torch
 ctx = MTLContext("./xavier/build/backend/metal/kernels.metallib")
 shape = [4, 4]
 np1 = np.random.randn(*shape).astype(np.float32)
-arr1 = Array.from_buffer(np1).reshape(shape)
-# Create non-contiguous array using slicing
-arr2 = arr1[::2]
-arr3 = arr2.exp()
+np2 = np.random.randn(*shape).astype(np.float32)
+arr1 = Array.full(shape, 2)
+arr2 = Array.full(shape, 3)
+arr3 = arr1 + arr2
 g = MTLGraph(arr3, ctx)
 g.compile()
 g.forward()

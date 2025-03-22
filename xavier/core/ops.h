@@ -35,6 +35,7 @@ namespace xv::core
         UNSQUEEZE,
         INTERPRET,
         SLICE,
+        UNSLICE,
         COPY
     };
 
@@ -77,6 +78,7 @@ namespace xv::core
         {OpName::PERMUTE, "permute"},
         {OpName::INTERPRET, "interpret"},
         {OpName::SLICE, "slice"},
+        {OpName::UNSLICE, "unslice"},
         {OpName::COPY, "copy"}};
 
     struct Op : public std::enable_shared_from_this<Op>, public IStr
@@ -344,6 +346,25 @@ namespace xv::core
             return TransformOp::str() + ", ranges:(" + vstr<Range>(ranges, [](Range range)
                                                                    { return range.str(); }) +
                    ")";
+        }
+        void backward(std::shared_ptr<Array> arr) const override;
+    };
+
+    struct UnsliceOp : public TransformOp
+    {
+    private:
+        Shape orig_shape;
+        std::vector<Range> ranges;
+
+    public:
+        UnsliceOp(std::shared_ptr<Array> operand, const Shape &orig_shape, const std::vector<Range> &ranges) : TransformOp(OpName::UNSLICE, operand), orig_shape(orig_shape), ranges(ranges) {}
+        const Shape &get_shape() { return orig_shape; }
+        const std::vector<Range> &get_ranges() { return ranges; }
+        const std::string str() const override
+        {
+            return TransformOp::str() + ", ranges:(" + vstr<Range>(ranges, [](Range range)
+                                                                   { return range.str(); }) +
+                   "), original shape: (" + orig_shape.str() + ")";
         }
         void backward(std::shared_ptr<Array> arr) const override;
     };

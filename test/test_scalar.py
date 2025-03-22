@@ -135,12 +135,14 @@ class TestScalar:
 
         # Apply inplace operation
         arr1 = op1(arr1, arr2)  # arr1 += arr2, etc.
+        arr1 = op1(arr1, arr2)  # Second time to make sure it's updated.
         g = MTLGraph(arr1, ctx)  # Use arr1 since it was modified in-place
         g.compile()
         g.forward()
 
         # Compare with NumPy
         np1_copy: np.ndarray = op2(np1_copy, np2)  # np1_copy += np2, etc.
+        np1_copy: np.ndarray = op2(np1_copy, np2)  # Second time
         np_result = np.frombuffer(arr1, dtype=np.float32)
         assert tuple(arr1.shape().view()) == np1_copy.shape
         assert np.allclose(np_result, np1_copy.flatten(), atol=1e-3, rtol=0)

@@ -36,40 +36,6 @@ namespace xv::core
         }
     }
 
-    void Array::check_ranges(const std::vector<Range> &ranges) const
-    {
-        if (ranges.size() != get_ndim())
-        {
-            throw std::invalid_argument("The number of ranges does not match the number of dimensions: " +
-                                        std::to_string(ranges.size()) + " and " +
-                                        std::to_string(get_ndim()) + ".");
-        }
-        for (int i = 0; i < ranges.size(); i++)
-        {
-            auto &range = ranges[i];
-            if (range.start >= shape[i])
-            {
-                throw std::invalid_argument("Invalid starting point for range: " + std::to_string(range.start));
-            }
-            if (range.stop > shape[i])
-            {
-                throw std::invalid_argument("Invalid stopping point for range: " + std::to_string(range.stop));
-            }
-            if (range.step == 0)
-            {
-                throw std::invalid_argument("Step cannot be zero.");
-            }
-            if (range.start < range.stop && range.step < 0)
-            {
-                throw std::invalid_argument("Step must be positive if start < stop: " + std::to_string(range.start) + " < " + std::to_string(range.stop));
-            }
-            if (range.start > range.stop && range.step > 0)
-            {
-                throw std::invalid_argument("Step must be negative if start > stop: " + std::to_string(range.start) + " > " + std::to_string(range.stop));
-            }
-        }
-    }
-
     uint8_t *Array::access_(uint64_t k) const
     {
         if (is_contiguous())
@@ -150,24 +116,20 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::slice(const std::vector<Range> &ranges)
     {
-        check_ranges(ranges);
-        const auto &stride1 = shape.get_stride();
-        auto offset = shape.get_offset();
-        for (int i = 0; i < ranges.size(); i++)
-        {
-            offset += ranges[i].start * stride1[i];
-        }
-        std::vector<uint64_t> view(get_ndim());
-        std::vector<int64_t> stride2(get_ndim());
-        for (int i = 0; i < ranges.size(); i++)
-        {
-            auto &range = ranges[i];
-            auto d = range.start <= range.stop ? range.stop - range.start : range.start - range.stop;
-            view[i] = static_cast<uint64_t>(ceil(static_cast<double>(d) / std::abs(range.step)));
-            stride2[i] = stride1[i] * range.step;
-        }
-        auto arr = std::make_shared<Array>(Shape(offset, view, stride2), dtype, device);
+        auto arr = std::make_shared<Array>(shape.slice(ranges), dtype, device);
         arr->op = std::make_shared<SliceOp>(shared_from_this(), ranges);
+        return arr;
+    }
+
+    std::shared_ptr<Array> Array::unslice(const Shape &orig_shape, const std::vector<Range> &ranges)
+    {
+        Shape sliced_shape = orig_shape.slice(ranges);
+        if (sliced_shape != shape)
+        {
+            throw std::invalid_argument("Cannot unslice because the sliced shape " + sliced_shape.str() + " does not match the current shape " + shape.str() + " of array " + std::to_string(id) + ".");
+        }
+        auto arr = std::make_shared<Array>(orig_shape, dtype, device, true);
+        arr->op = std::make_shared<UnsliceOp>(shared_from_this(), orig_shape, ranges);
         return arr;
     }
 

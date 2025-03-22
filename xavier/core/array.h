@@ -44,8 +44,6 @@ namespace xv::core
         std::shared_ptr<Op> op = nullptr;
         bool constant;
 
-        void check_ranges(const std::vector<Range> &ranges) const;
-
         template <class O>
         std::shared_ptr<Array> unary_ss(bool in_place);
 
@@ -62,7 +60,6 @@ namespace xv::core
         std::shared_ptr<Array> cmp(std::shared_ptr<Array> rhs);
 
     public:
-        std::shared_ptr<Array> cum_grad = nullptr;
         std::shared_ptr<Array> grad = nullptr;
 
         Array(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : shape(shape), dtype(dtype), device(device), constant(constant)
@@ -105,17 +102,17 @@ namespace xv::core
         void init_grad()
         {
             // This method only initializes the gradient array without allocating any new buffer for the data
-            if (cum_grad == nullptr)
+            if (grad == nullptr)
             {
                 if (!float_dtypes.contains(dtype))
                 {
                     throw std::runtime_error("Only arrays of floating-point types can have gradients but array " + std::to_string(id) + " has type " + dtype.str());
                 }
-                cum_grad = Array::zeros(shape.get_view(), unary_float_dtypes.at(dtype), device);
+                grad = Array::zeros(shape.get_view(), unary_float_dtypes.at(dtype), device);
             }
         }
 
-        void update_grad() { cum_grad = cum_grad->self_add(grad); }
+        void update_grad(std::shared_ptr<Array> grad, bool sub = false) { this->grad = sub ? this->grad->self_sub(grad) : this->grad->self_add(grad); }
 
         Array(const Array &arr) : shape(arr.shape), dtype(arr.dtype), device(arr.device), buff(arr.buff)
         {
@@ -186,6 +183,9 @@ namespace xv::core
         }
 
         std::shared_ptr<Array> slice(const std::vector<Range> &ranges);
+
+        // Unslice operation yields constant array(for efficiency)
+        std::shared_ptr<Array> unslice(const Shape &orig_shape, const std::vector<Range> &ranges);
 
         static std::shared_ptr<Array> arange(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 

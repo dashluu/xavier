@@ -223,8 +223,7 @@ namespace xv::graph
         {
             toposort(root, fw_order);
             // Seed root for now
-            root->cum_grad = Array::ones_like(root, root->get_device());
-            root->grad = root->cum_grad;
+            root->grad = Array::ones_like(root, root->get_device());
             // Initializes the gradient array first without allocating buffers
             for (auto &arr : std::views::reverse(fw_order))
             {
@@ -233,9 +232,10 @@ namespace xv::graph
             // Order the gradient arrays
             for (auto &arr : std::views::reverse(fw_order))
             {
-                if (arr->cum_grad != nullptr)
+                // grad is null when backward is not implemented for op
+                if (arr->grad != nullptr)
                 {
-                    toposort(arr->cum_grad, bw_order);
+                    toposort(arr->grad, bw_order);
                 }
             }
         }
@@ -265,11 +265,7 @@ namespace xv::graph
         }
         for (auto &arr : bw_order)
         {
-            if (arr->get_op()->get_type() != OpType::INITIALIZER || (arr->get_op()->get_type() == OpType::INITIALIZER && arr->get_buff() == nullptr))
-            {
-                // Call initializers only once
-                call(arr);
-            }
+            call(arr);
         }
     }
 
