@@ -59,6 +59,8 @@ namespace xv::core
         template <class O>
         std::shared_ptr<Array> cmp(std::shared_ptr<Array> rhs);
 
+        void check_dims(uint64_t start_dim, uint64_t end_dim) const;
+
     public:
         std::shared_ptr<Array> grad = nullptr;
 
@@ -218,6 +220,8 @@ namespace xv::core
 
         static std::shared_ptr<Array> from_buff(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
+        static std::shared_ptr<Array> from_numpy(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
+
         std::shared_ptr<Array> add(std::shared_ptr<Array> rhs);
 
         std::shared_ptr<Array> self_add(std::shared_ptr<Array> rhs);
@@ -274,7 +278,21 @@ namespace xv::core
 
         std::shared_ptr<Array> permute(const std::vector<uint64_t> &order);
 
-        std::shared_ptr<Array> T();
+        /**
+         * @brief Transposes the dimensions of the array between `start_dim` and `end_dim`.
+         *
+         * This function rearranges the dimensions of the array such that the dimensions
+         * between `start_dim` and `end_dim` (inclusive) are reversed, while the other
+         * dimensions remain in their original order. It uses the `permute` function to
+         * achieve the reordering.
+         *
+         * @param start_dim The starting dimension index for the transpose operation.
+         * @param end_dim The ending dimension index for the transpose operation.
+         * @return A new Array object with the transposed dimensions.
+         * @throws std::invalid_argument if `start_dim` or `end_dim` are out of bounds or
+         *         if `start_dim` is greater than `end_dim`.
+         */
+        std::shared_ptr<Array> T(uint64_t start_dim, uint64_t end_dim);
 
         std::shared_ptr<Array> flatten(uint64_t start_dim, uint64_t end_dim);
 

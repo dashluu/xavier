@@ -5,15 +5,22 @@ import numpy as np
 import torch
 
 ctx = MTLContext("./xavier/build/backend/metal/kernels.metallib")
-shape = [4, 4]
-np1 = np.random.randn(*shape).astype(np.float32)
-np2 = np.random.randn(*shape).astype(np.float32)
-arr1 = Array.full(shape, 2)
-arr2 = Array.full(shape, 3)
-arr3 = arr1 + arr2
+shape1 = [2, 3]
+shape2 = [3, 4]
+np1 = np.random.randn(*shape1).astype(np.float32)
+np2 = np.random.randn(*shape2).astype(np.float32)
+np3 = np1 @ np2
+arr1 = Array.from_numpy(np1)
+arr2 = Array.from_numpy(np2)
+arr3 = arr1 @ arr2
 g = MTLGraph(arr3, ctx)
 g.compile()
 g.forward()
+np4 = arr3.to_numpy()
+print(np1)
+print(np2)
+print(np3)
+print(np4)
 # s1 = [2, 2, 3]
 # s2 = [2, 3, 4]
 # np1 = np.random.randn(*s1).astype(np.float32)

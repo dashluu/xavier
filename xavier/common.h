@@ -41,7 +41,7 @@ namespace xv::core
     }
 
     template <class T>
-    inline const std::string numstr(const std::vector<T> &v)
+    inline const std::string vnumstr(const std::vector<T> &v)
     {
         return vstr<T>(v, [](T a)
                        { return std::to_string(a); });

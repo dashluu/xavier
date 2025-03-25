@@ -15,8 +15,8 @@ namespace xv::backend::metal
         NS::SharedPtr<MTL::CommandQueue> cmd_queue;
         std::unordered_map<std::string, std::shared_ptr<MTLKernel>> kernels;
 
-        void init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, bool sparse);
-        void init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes, bool sparse);
+        void init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, const std::string &mode = "");
+        void init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes, const std::string &mode = "");
         void init_initializer_kernels();
         void init_unary_kernels();
         void init_binary_kernels();

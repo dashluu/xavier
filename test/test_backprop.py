@@ -18,8 +18,8 @@ class TestBackprop:
         shape = [np.random.randint(1, 100) for _ in range(n)]
         np1 = np.random.randn(*shape).astype(np.float32)
         np2 = np.random.randn(*shape).astype(np.float32)
-        arr1 = Array.from_buffer(np1).reshape(shape)
-        arr2 = Array.from_buffer(np2).reshape(shape)
+        arr1 = Array.from_numpy(np1)
+        arr2 = Array.from_numpy(np2)
         arr3 = arr1 + arr2
         arr4 = arr1 * arr2
         arr5 = arr3 + arr4
@@ -60,7 +60,7 @@ class TestBackprop:
         np1 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)  # Positive values for log
 
         # Xavier implementation: log(exp(x) * x) / x
-        arr1 = Array.from_buffer(np1).reshape(shape)
+        arr1 = Array.from_numpy(np1)
         arr2 = arr1.exp()
         arr3 = arr2 * arr1
         arr4 = arr3.log()
@@ -100,8 +100,8 @@ class TestBackprop:
         # Branch 1: log(x1) * exp(x2)
         # Branch 2: x1 / x2
         # Result: Branch1 + Branch2
-        arr1 = Array.from_buffer(np1).reshape(shape)
-        arr2 = Array.from_buffer(np2).reshape(shape)
+        arr1 = Array.from_numpy(np1)
+        arr2 = Array.from_numpy(np2)
 
         # Branch 1
         b1_1 = arr1.log()
@@ -156,8 +156,8 @@ class TestBackprop:
         np2 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)
 
         # Xavier implementation: log(exp(x1/x2) * recip(x1))
-        arr1 = Array.from_buffer(np1).reshape(shape)
-        arr2 = Array.from_buffer(np2).reshape(shape)
+        arr1 = Array.from_numpy(np1)
+        arr2 = Array.from_numpy(np2)
 
         div1 = arr1 / arr2
         exp1 = div1.exp()
@@ -201,7 +201,7 @@ class TestBackprop:
         np1 = np.random.uniform(0.1, 2.0, size=shape).astype(np.float32)
 
         # Xavier implementation: sqrt(x^2) + x^2/sqrt(x)
-        arr1 = Array.from_buffer(np1).reshape(shape)
+        arr1 = Array.from_numpy(np1)
 
         # Branch 1: sqrt(x^2)
         sq1 = arr1.sq()
@@ -259,8 +259,8 @@ class TestBackprop:
 
         # Xavier implementation
         # f(x1, x2) = log(sqrt(x1^2) * exp(x2/x1)) + (x1 * sqrt(x2))^2
-        arr1 = Array.from_buffer(np1).reshape(shape)
-        arr2 = Array.from_buffer(np2).reshape(shape)
+        arr1 = Array.from_numpy(np1)
+        arr2 = Array.from_numpy(np2)
 
         # Branch 1: log(sqrt(x1^2) * exp(x2/x1))
         sq1 = arr1.sq()

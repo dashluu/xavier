@@ -45,6 +45,32 @@ namespace xv::core
             }
         }
 
+        void check_permute(const std::vector<uint64_t> &order) const
+        {
+            auto n = view.size();
+            if (order.size() != n)
+            {
+                throw std::invalid_argument("The number of dimensions in the order does not match the number of dimensions in the shape: " +
+                                            std::to_string(order.size()) + " and " + std::to_string(n) + ".");
+            }
+            std::vector<bool> flag(n, false);
+            for (auto o : order)
+            {
+                if (o >= n)
+                {
+                    throw std::invalid_argument("The order must be a permutation of the dimensions but got " + vnumstr(order) + ".");
+                }
+                flag[o] = true;
+            }
+            for (auto f : flag)
+            {
+                if (!f)
+                {
+                    throw std::invalid_argument("The order must be a permutation of the dimensions but got " + vnumstr(order) + ".");
+                }
+            }
+        }
+
     public:
         Shape() : Shape(0, {1}, {1}) {}
 
@@ -202,7 +228,7 @@ namespace xv::core
             }
             if (!broadcastable_to(target))
             {
-                throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") to (" + numstr(target) + ").");
+                throw std::invalid_argument("Cannot broadcast shape (" + vnumstr(view) + ") to (" + vnumstr(target) + ").");
             }
             auto v = view;
             auto diff = target.size() - v.size();
@@ -228,7 +254,7 @@ namespace xv::core
             }
             if (!broadcastable(rhs))
             {
-                throw std::invalid_argument("Cannot broadcast shape (" + numstr(view) + ") and (" + numstr(rhs) + ").");
+                throw std::invalid_argument("Cannot broadcast shape (" + vnumstr(view) + ") and (" + vnumstr(rhs) + ").");
             }
             auto v1 = view;
             auto v2 = rhs;
@@ -267,28 +293,8 @@ namespace xv::core
 
         Shape permute(const std::vector<uint64_t> &order) const
         {
+            check_permute(order);
             auto n = view.size();
-            if (order.size() != n)
-            {
-                throw std::invalid_argument("The number of dimensions in the order does not match the number of dimensions in the shape: " +
-                                            std::to_string(order.size()) + " and " + std::to_string(n) + ".");
-            }
-            std::vector<bool> flag(n, false);
-            for (auto o : order)
-            {
-                if (o >= n)
-                {
-                    throw std::invalid_argument("The order must be a permutation of the dimensions but got " + numstr(order) + ".");
-                }
-                flag[o] = true;
-            }
-            for (auto f : flag)
-            {
-                if (!f)
-                {
-                    throw std::invalid_argument("The order must be a permutation of the dimensions but got " + numstr(order) + ".");
-                }
-            }
             std::vector<uint64_t> v(n, 0);
             std::vector<int64_t> s(n, 0);
             for (int i = 0; i < n; i++)
@@ -297,6 +303,44 @@ namespace xv::core
                 s[i] = stride[order[i]];
             }
             return Shape(offset, v, s);
+        }
+
+        std::vector<uint64_t> undo_permute_view(const std::vector<uint64_t> &order) const
+        {
+            /*
+            Example 1:
+            2, 2, 4, 3, 5
+            1, 2, 0, 4, 3
+            2, 4, 2, 5, 3
+            2, 0, 1, 4, 3
+            2, 2, 4, 3, 5
+
+            Example 2:
+            2 3 4
+            2 0 1
+            4 2 3
+            1 2 0
+            2 3 4
+
+            Example 3:
+            2 3 4 5
+            1 3 2 0
+            3 5 4 2
+            3 0 2 1
+            2 3 4 5
+            */
+            check_permute(order);
+            std::vector<uint64_t> reversed_order(order.size());
+            for (int i = 0; i < order.size(); i++)
+            {
+                reversed_order[order[i]] = i;
+            }
+            return reversed_order;
+        }
+
+        Shape undo_permute(const std::vector<uint64_t> &order) const
+        {
+            return permute(undo_permute_view(order));
         }
 
         Shape slice(const std::vector<Range> &ranges) const
@@ -327,7 +371,7 @@ namespace xv::core
 
         const std::string str() const override
         {
-            return "(" + numstr(view) + ")";
+            return "(" + vnumstr(view) + ")";
         }
 
         std::vector<uint64_t>::const_iterator cbegin() const

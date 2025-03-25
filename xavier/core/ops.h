@@ -11,6 +11,7 @@ namespace xv::core
         ARANGE,
         FULL,
         BUFF,
+        NUMPY,
         ADD,
         SUB,
         MUL,
@@ -121,7 +122,7 @@ namespace xv::core
         const Dtype &get_dtype() { return dtype; }
         const std::string str() const override
         {
-            return get_name_str() + ", view: (" + numstr(view) + "), start: " + std::to_string(start) + ", step: " + std::to_string(step);
+            return get_name_str() + ", view: (" + vnumstr(view) + "), start: " + std::to_string(start) + ", step: " + std::to_string(step);
         }
     };
 
@@ -139,7 +140,7 @@ namespace xv::core
         const Dtype &get_dtype() { return dtype; }
         const std::string str() const override
         {
-            auto s = get_name_str() + ", view: (" + numstr(view) + "), value: ";
+            auto s = get_name_str() + ", view: (" + vnumstr(view) + "), value: ";
             if (bool_dtypes.contains(dtype))
             {
                 return s + std::to_string(static_cast<bool>(c));
@@ -156,6 +157,13 @@ namespace xv::core
     {
     public:
         BuffOp() : InitializerOp(OpName::BUFF) {}
+        const std::string str() const override { return get_name_str(); }
+    };
+
+    struct NumpyOp : public InitializerOp
+    {
+    public:
+        NumpyOp() : InitializerOp(OpName::NUMPY) {}
         const std::string str() const override { return get_name_str(); }
     };
 
@@ -329,7 +337,7 @@ namespace xv::core
     public:
         ReshapeOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view) : TransformOp(OpName::RESHAPE, operand), view(view) {}
         const std::vector<uint64_t> &get_view() { return view; }
-        const std::string str() const override { return TransformOp::str() + ", view: (" + numstr(view) + ")"; }
+        const std::string str() const override { return TransformOp::str() + ", view: (" + vnumstr(view) + ")"; }
         void backward(std::shared_ptr<Array> arr) const override;
     };
 
@@ -377,7 +385,7 @@ namespace xv::core
     public:
         PermuteOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &order) : TransformOp(OpName::PERMUTE, operand), order(order) {}
         const std::vector<uint64_t> &get_perm() { return order; }
-        const std::string str() const override { return TransformOp::str() + ", permutation: (" + numstr(order) + ")"; }
+        const std::string str() const override { return TransformOp::str() + ", permutation: (" + vnumstr(order) + ")"; }
         void backward(std::shared_ptr<Array> arr) const override;
     };
 
@@ -391,7 +399,7 @@ namespace xv::core
         const std::vector<uint64_t> &get_view() { return view; }
         const std::string str() const override
         {
-            return TransformOp::str() + ", view: (" + numstr(view) + ")";
+            return TransformOp::str() + ", view: (" + vnumstr(view) + ")";
         }
     };
 

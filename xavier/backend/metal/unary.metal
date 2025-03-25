@@ -62,16 +62,7 @@ template <class Op, class T, class R>
     device R *output [[buffer(2)]],
     uint id [[thread_position_in_grid]])
 {
-    output[id] = Op()(input[*offset + id]);
-}
-
-template <class Op, class T>
-[[kernel]] void self_unary_ss(
-    constant const uint *offset [[buffer(0)]],
-    device T *input [[buffer(1)]],
-    uint id [[thread_position_in_grid]])
-{
-    input[*offset + id] = Op()(input[*offset + id]);
+    output[offset[1] + id] = Op()(input[offset[0] + id]);
 }
 
 template <class Op, class T, class R>
@@ -85,41 +76,22 @@ template <class Op, class T, class R>
     uint id [[thread_position_in_grid]])
 {
     uint idx = access(id, ndim, shape, stride);
-    output[id] = Op()(input[*offset + idx]);
-}
-
-template <class Op, class T>
-[[kernel]] void sparse_self_unary_ss(
-    constant const uint *ndim [[buffer(0)]],
-    constant const uint *offset [[buffer(1)]],
-    constant const uint *shape [[buffer(2)]],
-    constant const int *stride [[buffer(3)]],
-    device T *input [[buffer(4)]],
-    uint id [[thread_position_in_grid]])
-{
-    uint idx = access(id, ndim, shape, stride);
-    input[*offset + idx] = Op()(input[*offset + idx]);
+    output[offset[1] + id] = Op()(input[offset[0] + idx]);
 }
 
 #define unary_float(opname, op) \
 template [[host_name(#opname "_f32")]] [[kernel]] decltype(unary_ss<op, float, float>) unary_ss<op, float, float>;                          \
 template [[host_name(#opname "_i32")]] [[kernel]] decltype(unary_ss<op, int, float>) unary_ss<op, int, float>;                              \
 template [[host_name("sparse_" #opname "_f32")]] [[kernel]] decltype(sparse_unary_ss<op, float, float>) sparse_unary_ss<op, float, float>;  \
-template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_unary_ss<op, int, float>) sparse_unary_ss<op, int, float>;      \
-template [[host_name("self_" #opname "_f32")]] [[kernel]] decltype(self_unary_ss<op, float>) self_unary_ss<op, float>;                      \
-template [[host_name("sparse_self_" #opname "_f32")]] [[kernel]] decltype(sparse_self_unary_ss<op, float>) sparse_self_unary_ss<op, float>;
+template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_unary_ss<op, int, float>) sparse_unary_ss<op, int, float>;
 
 #define unary_all(opname, op) \
 template [[host_name(#opname "_f32")]] [[kernel]] decltype(unary_ss<op, float, float>) unary_ss<op, float, float>;                          \
 template [[host_name(#opname "_i32")]] [[kernel]] decltype(unary_ss<op, int, int>) unary_ss<op, int, int>;                                  \
 template [[host_name("sparse_" #opname "_f32")]] [[kernel]] decltype(sparse_unary_ss<op, float, float>) sparse_unary_ss<op, float, float>;  \
-template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_unary_ss<op, int, int>) sparse_unary_ss<op, int, int>;          \
-template [[host_name("self_" #opname "_f32")]] [[kernel]] decltype(self_unary_ss<op, float>) self_unary_ss<op, float>;                      \
-template [[host_name("self_" #opname "_i32")]] [[kernel]] decltype(self_unary_ss<op, int>) self_unary_ss<op, int>;                          \
-template [[host_name("sparse_self_" #opname "_f32")]] [[kernel]] decltype(sparse_self_unary_ss<op, float>) sparse_self_unary_ss<op, float>; \
-template [[host_name("sparse_self_" #opname "_i32")]] [[kernel]] decltype(sparse_self_unary_ss<op, int>) sparse_self_unary_ss<op, int>;
+template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_unary_ss<op, int, int>) sparse_unary_ss<op, int, int>;
 
-unary_float(exp, Exp)
+unary_all(exp, Exp)
 unary_float(log, Log)
 unary_all(neg, Neg)
 unary_float(recip, Recip)

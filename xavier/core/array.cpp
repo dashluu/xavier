@@ -36,6 +36,22 @@ namespace xv::core
         }
     }
 
+    void Array::check_dims(uint64_t start_dim, uint64_t end_dim) const
+    {
+        if (start_dim > end_dim)
+        {
+            throw std::invalid_argument("The start dimension must be smaller than the end dimension.");
+        }
+        if (start_dim >= get_ndim())
+        {
+            throw std::invalid_argument("The start dimension must be smaller than the number of dimensions.");
+        }
+        if (end_dim >= get_ndim())
+        {
+            throw std::invalid_argument("The end dimension must be smaller than the number of dimensions.");
+        }
+    }
+
     uint8_t *Array::access_(uint64_t k) const
     {
         if (is_contiguous())
@@ -180,7 +196,7 @@ namespace xv::core
         auto &rhs_view = rhs->shape.get_view();
         if (!shape.broadcastable(rhs_view))
         {
-            throw IncompatShapesForOp(dummy_op->get_name_str(), numstr(shape.get_view()), numstr(rhs_view));
+            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(shape.get_view()), vnumstr(rhs_view));
         }
         if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
@@ -209,7 +225,7 @@ namespace xv::core
         auto &rhs_view = rhs_shape.get_view();
         if (!rhs_shape.broadcastable_to(shape.get_view()))
         {
-            throw IncompatShapesForOp(dummy_op->get_name_str(), numstr(shape.get_view()), numstr(rhs_view));
+            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(shape.get_view()), vnumstr(rhs_view));
         }
         if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
@@ -232,7 +248,7 @@ namespace xv::core
         auto &rhs_view = rhs->shape.get_view();
         if (!shape.broadcastable(rhs_view))
         {
-            throw IncompatShapesForOp(dummy_op->get_name_str(), numstr(shape.get_view()), numstr(rhs_view));
+            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(shape.get_view()), vnumstr(rhs_view));
         }
         if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
@@ -299,6 +315,14 @@ namespace xv::core
         return arr;
     }
 
+    std::shared_ptr<Array> Array::from_numpy(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype, const Device &device, bool constant)
+    {
+        auto op = std::make_shared<NumpyOp>();
+        auto arr = std::make_shared<Array>(ptr, nbytes, shape, dtype, device, constant);
+        arr->op = op;
+        return arr;
+    }
+
     std::shared_ptr<Array> Array::add(std::shared_ptr<Array> rhs) { return binary_ss<AddOp>(rhs); }
 
     std::shared_ptr<Array> Array::self_add(std::shared_ptr<Array> rhs) { return self_binary_ss<AddOp>(rhs); }
@@ -321,7 +345,7 @@ namespace xv::core
         auto &rview = rhs->shape.get_view();
         if (!shape.matmul_broadcastable(rview))
         {
-            throw IncompatShapesForOp(dummy_op->get_name_str(), numstr(shape.get_view()), numstr(rview));
+            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(shape.get_view()), vnumstr(rview));
         }
         if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
@@ -355,12 +379,17 @@ namespace xv::core
             batch,
             broadcasted_rview[broadcasted_rview.size() - 2],
             broadcasted_rview[broadcasted_rview.size() - 1]};
+        // Broadcast lhs and rhs to have only 3D
+        // Lhs's shape: B, M, N
         auto mm_lhs = broadcast(broadcasted_lview)->reshape(mm_lview);
+        // Rhs's shape: B, N, K
         auto mm_rhs = rhs->broadcast(broadcasted_rview)->reshape(mm_rview);
+        // Result's shape: B, M, K
         auto view = mm_lhs->shape.get_view();
         view[view.size() - 1] = rview[rview.size() - 1];
         auto arr = std::make_shared<Array>(Shape(view), dtype, device);
         arr->op = std::make_shared<MatmulOp>(mm_lhs, mm_rhs);
+        // Reshape to expected result's shape
         auto reshaped_view = broadcasted_lview;
         reshaped_view[reshaped_view.size() - 1] = rview[rview.size() - 1];
         arr = arr->reshape(reshaped_view);
@@ -383,7 +412,7 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::sqrt(bool in_place) { return unary_ss_float<SqrtOp>(in_place); }
 
-    std::shared_ptr<Array> Array::exp(bool in_place) { return unary_ss_float<ExpOp>(in_place); }
+    std::shared_ptr<Array> Array::exp(bool in_place) { return unary_ss<ExpOp>(in_place); }
 
     std::shared_ptr<Array> Array::log(bool in_place) { return unary_ss_float<LogOp>(in_place); }
 
@@ -393,6 +422,10 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::reshape(const std::vector<uint64_t> &view)
     {
+        if (shape.get_view() == view)
+        {
+            return shared_from_this();
+        }
         Shape::check_view(view);
         uint64_t numel = std::accumulate(view.begin(), view.end(), 1, std::multiplies<uint64_t>());
         if (shape.get_numel() != numel)
@@ -441,29 +474,21 @@ namespace xv::core
         return arr;
     }
 
-    std::shared_ptr<Array> Array::T()
+    std::shared_ptr<Array> Array::T(uint64_t start_dim, uint64_t end_dim)
     {
+        check_dims(start_dim, end_dim);
         std::vector<uint64_t> order(get_ndim());
-        // Fill with [n-1, n-2, ..., 0]
-        std::generate(order.begin(), order.end(), [n = order.size() - 1]() mutable
+        std::iota(order.begin(), order.begin() + start_dim, 0);
+        std::iota(order.begin() + end_dim + 1, order.end(), end_dim + 1);
+        // Fill with decreasing values
+        std::generate(order.begin() + start_dim, order.begin() + end_dim + 1, [n = end_dim]() mutable
                       { return n--; });
         return permute(order);
     }
 
     std::shared_ptr<Array> Array::flatten(uint64_t start_dim, uint64_t end_dim)
     {
-        if (start_dim > end_dim)
-        {
-            throw std::invalid_argument("The start dimension must be smaller than the end dimension.");
-        }
-        if (start_dim >= get_ndim())
-        {
-            throw std::invalid_argument("The start dimension must be smaller than the number of dimensions.");
-        }
-        if (end_dim >= get_ndim())
-        {
-            throw std::invalid_argument("The end dimension must be smaller than or equal to the number of dimensions.");
-        }
+        check_dims(start_dim, end_dim);
         std::vector<uint64_t> view = shape.get_view();
         auto prod = std::accumulate(view.begin() + start_dim, view.begin() + end_dim + 1, 1ULL, std::multiplies<uint64_t>());
         // Erase from start_dim + 1 to end_dim + 1

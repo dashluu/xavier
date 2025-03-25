@@ -9,8 +9,8 @@ namespace xv::backend::metal
         auto encoder = cmd_buff->computeCommandEncoder();
         auto device = ctx.get_device();
         // Offset
-        auto offset = static_cast<uint32_t>(input->get_shape().get_offset());
-        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&offset, sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
+        uint32_t offset[] = {static_cast<uint32_t>(input->get_shape().get_offset()), static_cast<uint32_t>(output->get_shape().get_offset())};
+        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset, sizeof(offset), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(offset_buff.get(), 0, 0);
         // Input and output buffers
         auto in_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(input->get_buff_ptr(), input->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
@@ -34,8 +34,8 @@ namespace xv::backend::metal
         encoder->setBuffer(ndim_buff.get(), 0, 0);
 
         // Offset
-        auto offset = static_cast<uint32_t>(input->get_shape().get_offset());
-        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&offset, sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
+        uint32_t offset[] = {static_cast<uint32_t>(input->get_shape().get_offset()), static_cast<uint32_t>(output->get_shape().get_offset())};
+        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset, sizeof(offset), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(offset_buff.get(), 0, 1);
 
         // View

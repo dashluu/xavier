@@ -55,7 +55,14 @@ namespace xv::graph
         if (binary_op->get_name() == OpName::MATMUL)
         {
             arr->alloc();
-            matmul(lhs, rhs, arr, *ctx);
+            if (lhs->is_contiguous() && rhs->is_contiguous())
+            {
+                matmul(lhs, rhs, arr, *ctx);
+            }
+            else
+            {
+                sparse_matmul(lhs, rhs, arr, *ctx);
+            }
         }
         else
         {
@@ -110,6 +117,13 @@ namespace xv::graph
         {
             auto broadcast_op = std::static_pointer_cast<BroadcastOp>(op);
             auto operand = broadcast_op->get_operand();
+            arr->alloc(*operand->get_buff());
+            break;
+        }
+        case OpName::PERMUTE:
+        {
+            auto permute_op = std::static_pointer_cast<PermuteOp>(op);
+            auto operand = permute_op->get_operand();
             arr->alloc(*operand->get_buff());
             break;
         }

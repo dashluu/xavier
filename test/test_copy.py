@@ -20,7 +20,7 @@ class TestCopy:
         for shape in test_shapes:
             print(f"\nTesting shape: {shape}")
             np1 = np.random.randn(*shape).astype(np.float32)
-            arr1 = Array.from_buffer(np1).reshape(shape)
+            arr1 = Array.from_numpy(np1)
             arr2 = arr1.copy()
             g = MTLGraph(arr2, ctx)
             g.compile()
@@ -45,7 +45,7 @@ class TestCopy:
         for shape, slices in test_cases:
             print(f"\nTesting shape: {shape}, slices: {slices}")
             np1 = np.random.randn(*shape).astype(np.float32)
-            arr1 = Array.from_buffer(np1).reshape(shape)
+            arr1 = Array.from_numpy(np1)
 
             # Create non-contiguous array using slicing
             arr2 = arr1[slices]

@@ -133,10 +133,11 @@ void init_xv_module(py::module_ &m)
         .def("sq", &Array::sq, "Element-wise square.", "in_place"_a = false)
         .def("sqrt", &Array::sqrt, "Element-wise square root.", "in_place"_a = false)
         .def("permute", &Array::permute, "Permutes the dimensions of the array according to the given order.", "order"_a)
-        .def("T", &Array::T, "Transposes the array.")
-        .def("flatten", [](std::shared_ptr<Array> arr, int64_t start_dim, int64_t end_dim)
-             { return arr->flatten(map_idx(arr->get_ndim(), start_dim), map_idx(arr->get_ndim(), end_dim)); }, "Flattens the array.", "start_dim"_a = 0, "end_dim"_a = -1)
-        .def_static("from_buffer", &array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = device0, "constant"_a = false);
+        .def("T", &T, "Transposes the array.", "start_dim"_a = 0, "end_dim"_a = -1)
+        .def("flatten", &flatten, "Flattens the array.", "start_dim"_a = 0, "end_dim"_a = -1)
+        .def_static("from_buffer", &array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = device0, "constant"_a = false)
+        .def_static("from_numpy", &array_from_numpy, "Creates an array from numpy array without copying.", "np_arr"_a, "device"_a = device0, "constant"_a = false)
+        .def("to_numpy", &array_to_numpy, "Converts the array to a numpy array.");
 
     py::class_<Graph, std::unique_ptr<Graph, py::nodelete>>(m, "Graph")
         .def("root", &Graph::get_root)
@@ -219,6 +220,11 @@ void init_xv_module(py::module_ &m)
     m.def("sqrt", [](const py::object &arr, bool in_place)
           { return unary(arr, [](std::shared_ptr<Array> arr, bool in_place)
                          { return arr->sqrt(in_place); }, in_place); }, "Element-wise square root.", "arr"_a, "in_place"_a = false);
+
+    m.def("permute", [](std::shared_ptr<Array> arr, const std::vector<uint64_t> &order)
+          { return arr->permute(order); }, "Permutes the dimensions of the array according to the given order.", "arr"_a, "order"_a);
+    m.def("T", &T, "Transposes the array.", "arr"_a, "start_dim"_a = 0, "end_dim"_a = -1);
+    m.def("flatten", &flatten, "Flattens the array.", "arr"_a, "start_dim"_a = 0, "end_dim"_a = -1);
 }
 
 std::shared_ptr<Array> full(const std::vector<uint64_t> &view, const py::object &c, const Dtype &dtype, const Device &device, bool constant)
@@ -269,6 +275,16 @@ std::shared_ptr<Array> binary(const py::object &obj1, const py::object &obj2, co
     return f(arr1, arr2);
 }
 
+std::shared_ptr<Array> T(std::shared_ptr<Array> arr, int64_t start_dim, int64_t end_dim)
+{
+    return arr->T(map_idx(arr->get_ndim(), start_dim), map_idx(arr->get_ndim(), end_dim));
+}
+
+std::shared_ptr<Array> flatten(std::shared_ptr<Array> arr, int64_t start_dim, int64_t end_dim)
+{
+    return arr->flatten(map_idx(arr->get_ndim(), start_dim), map_idx(arr->get_ndim(), end_dim));
+}
+
 bool is_buff_contiguous(py::buffer_info &buff_info)
 {
     auto view = buff_info.shape;
@@ -285,15 +301,24 @@ bool is_buff_contiguous(py::buffer_info &buff_info)
 std::shared_ptr<Array> array_from_buffer(py::buffer &buff, const Device &device, bool constant)
 {
     auto buff_info = buff.request();
+    uint64_t nbytes = buff_info.size * buff_info.itemsize;
+    if (nbytes == 0)
+    {
+        throw std::invalid_argument("Array cannot be initialized from an empty buffer.");
+    }
+    if (descriptors_to_dtypes.find(buff_info.format) == descriptors_to_dtypes.end())
+    {
+        throw std::invalid_argument("Unsupported buffer format: " + buff_info.format);
+    }
     if (!is_buff_contiguous(buff_info))
     {
         throw std::invalid_argument("Buffer is not contiguous.");
     }
     uint64_t numel = buff_info.size;
-    uint64_t nbytes = buff_info.size * buff_info.itemsize;
     Shape shape(0, {numel}, {1});
     uint8_t *ptr = static_cast<uint8_t *>(buff_info.ptr);
-    return Array::from_buff(ptr, nbytes, shape, descriptors_to_dtypes.at(buff_info.format), device, constant);
+    Dtype dtype = descriptors_to_dtypes.at(buff_info.format);
+    return Array::from_buff(ptr, nbytes, shape, dtype, device, constant);
 }
 
 py::buffer_info array_to_buffer(Array &arr)
@@ -309,6 +334,54 @@ py::buffer_info array_to_buffer(Array &arr)
         1,
         {arr.get_numel()},
         {arr.get_itemsize()});
+}
+
+std::shared_ptr<Array> array_from_numpy(py::array &np_arr, const Device &device, bool constant)
+{
+    uint64_t nbytes = np_arr.nbytes();
+    if (nbytes == 0)
+    {
+        throw std::invalid_argument("Array cannot be initialized from an empty numpy array.");
+    }
+    const std::string dtype_fmt = np_arr.dtype().attr("str").cast<std::string>();
+    if (descriptors_to_dtypes.find(dtype_fmt) == descriptors_to_dtypes.end())
+    {
+        throw std::invalid_argument("Unsupported numpy dtype: " + dtype_fmt);
+    }
+    std::vector<uint64_t> view;
+    std::vector<int64_t> stride;
+    for (int i = 0; i < np_arr.ndim(); i++)
+    {
+        view.push_back(np_arr.shape(i));
+        stride.push_back(np_arr.strides(i) / np_arr.itemsize());
+    }
+    Shape shape(np_arr.offset_at(0), view, stride);
+    uint8_t *ptr = ptr = static_cast<uint8_t *>(np_arr.mutable_data());
+    Dtype dtype = descriptors_to_dtypes.at(dtype_fmt);
+    return Array::from_numpy(ptr, nbytes, shape, dtype, device, constant);
+}
+
+py::array array_to_numpy(Array &arr)
+{
+    // Get shape and strides
+    std::vector<py::ssize_t> shape;
+    std::vector<py::ssize_t> strides;
+    for (size_t i = 0; i < arr.get_ndim(); i++)
+    {
+        shape.push_back(static_cast<py::ssize_t>(arr.get_shape()[i]));
+        // Ensure correct stride calculation
+        strides.push_back(static_cast<py::ssize_t>(arr.get_shape().get_stride()[i] * arr.get_itemsize()));
+    }
+    // Create numpy array with read/write access
+    return py::array(
+        py::buffer_info(
+            arr.get_ptr(),                             // Pointer to data
+            arr.get_itemsize(),                        // Size of one element
+            dtypes_to_descriptors.at(arr.get_dtype()), // Format descriptor
+            arr.get_ndim(),                            // Number of dimensions
+            shape,                                     // Buffer dimensions
+            strides                                    // Strides (in bytes)
+            ));
 }
 
 template <class T>

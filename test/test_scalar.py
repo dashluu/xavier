@@ -31,8 +31,8 @@ class TestScalar:
         shape = [np.random.randint(1, 100) for _ in range(n)]
         np1 = gen(shape)
         np2 = gen(shape)
-        arr1 = Array.from_buffer(np1).reshape(shape)
-        arr2 = Array.from_buffer(np2).reshape(shape)
+        arr1 = Array.from_numpy(np1)
+        arr2 = Array.from_numpy(np2)
         arr3: Array = op1(arr1, arr2)
         g = MTLGraph(arr3, ctx)
         g.compile()
@@ -48,7 +48,7 @@ class TestScalar:
         n = np.random.randint(1, 5)
         shape = [np.random.randint(1, 100) for _ in range(n)]
         np1 = gen(shape)
-        arr1 = Array.from_buffer(np1).reshape(shape)
+        arr1 = Array.from_numpy(np1)
         arr2: Array = op1(arr1)
         g = MTLGraph(arr2, ctx)
         g.compile()
@@ -74,8 +74,8 @@ class TestScalar:
             print(f"\nTesting shapes: {shape1}, {shape2} -> {expected_shape}")
             np1 = gen(shape1)
             np2 = gen(shape2)
-            arr1 = Array.from_buffer(np1).reshape(shape1)
-            arr2 = Array.from_buffer(np2).reshape(shape2)
+            arr1 = Array.from_numpy(np1)
+            arr2 = Array.from_numpy(np2)
             arr3: Array = op1(arr1, arr2)
             g = MTLGraph(arr3, ctx)
             g.compile()
@@ -101,7 +101,7 @@ class TestScalar:
         for shape, slices in test_cases:
             print(f"\nTesting shape: {shape}, slices: {slices}")
             np1 = gen(shape)
-            arr1 = Array.from_buffer(np1).reshape(shape)
+            arr1 = Array.from_numpy(np1)
 
             # Create non-contiguous array using slicing
             arr2 = arr1[slices]
@@ -130,8 +130,8 @@ class TestScalar:
         np1_copy = np1.copy()  # Keep copy for numpy comparison
 
         # Create arrays
-        arr1 = Array.from_buffer(np1).reshape(shape)
-        arr2 = Array.from_buffer(np2).reshape(shape)
+        arr1 = Array.from_numpy(np1)
+        arr2 = Array.from_numpy(np2)
 
         # Apply inplace operation
         arr1 = op1(arr1, arr2)  # arr1 += arr2, etc.
@@ -169,8 +169,8 @@ class TestScalar:
             np1_copy = np1.copy()
 
             # Create arrays
-            arr1 = Array.from_buffer(np1).reshape(lhs_shape)
-            arr2 = Array.from_buffer(np2).reshape(rhs_shape)
+            arr1 = Array.from_numpy(np1)
+            arr2 = Array.from_numpy(np2)
 
             # Apply inplace operation
             arr1: Array = op1(arr1, arr2)
@@ -205,7 +205,7 @@ class TestScalar:
             np1_copy = np1.copy()
 
             # Create array
-            arr1 = Array.from_buffer(np1).reshape(shape)
+            arr1 = Array.from_numpy(np1)
 
             # Apply inplace operation
             arr1: Array = op1(arr1)
@@ -389,7 +389,7 @@ class TestScalar:
         for const, shape in test_cases:
             print(f"\nTesting const {const} * shape {shape}")
             np1 = randn(shape)
-            arr1 = Array.from_buffer(np1).reshape(shape)
+            arr1 = Array.from_numpy(np1)
 
             # Xavier implementation
             arr2 = const * arr1  # Constant multiplication
@@ -421,7 +421,7 @@ class TestScalar:
         for shape, const in test_cases:
             print(f"\nTesting shape {shape} * const {const}")
             np1 = randn(shape)
-            arr1 = Array.from_buffer(np1).reshape(shape)
+            arr1 = Array.from_numpy(np1)
 
             # Xavier implementation
             arr2 = arr1 * const  # Constant multiplication
