@@ -62,7 +62,7 @@ struct Geq
 
 // Binary operations for scalar-scalar
 template <class Op, class T, class R>
-[[kernel]] void binary_ss(
+kernel void binary_ss(
     constant const uint *offset [[buffer(0)]],
     device T *lhs [[buffer(1)]],
     device T *rhs [[buffer(2)]],
@@ -73,7 +73,7 @@ template <class Op, class T, class R>
 }
 
 template <class Op, class T, class R>
-[[kernel]] void sparse_binary_ss(
+kernel void strided_binary_ss(
     constant const uint *ndim [[buffer(0)]],
     constant const uint *offset [[buffer(1)]],
     constant const uint *shape [[buffer(2)]],
@@ -92,14 +92,14 @@ template <class Op, class T, class R>
 #define binary_all(opname, op) \
 template [[host_name(#opname "_f32")]] [[kernel]] decltype(binary_ss<op, float, float>) binary_ss<op, float, float>;                            \
 template [[host_name(#opname "_i32")]] [[kernel]] decltype(binary_ss<op, int, int>) binary_ss<op, int, int>;                                    \
-template [[host_name("sparse_" #opname "_f32")]] [[kernel]] decltype(sparse_binary_ss<op, float, float>) sparse_binary_ss<op, float, float>;    \
-template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_binary_ss<op, int, int>) sparse_binary_ss<op, int, int>;
+template [[host_name("strided_" #opname "_f32")]] [[kernel]] decltype(strided_binary_ss<op, float, float>) strided_binary_ss<op, float, float>; \
+template [[host_name("strided_" #opname "_i32")]] [[kernel]] decltype(strided_binary_ss<op, int, int>) strided_binary_ss<op, int, int>;
 
 #define cmp_all(opname, op) \
-template [[host_name(#opname "_f32")]] [[kernel]] decltype(binary_ss<op, float, bool>) binary_ss<op, float, bool>;                          \
-template [[host_name(#opname "_i32")]] [[kernel]] decltype(binary_ss<op, int, bool>) binary_ss<op, int, bool>;                              \
-template [[host_name("sparse_" #opname "_f32")]] [[kernel]] decltype(sparse_binary_ss<op, float, bool>) sparse_binary_ss<op, float, bool>;  \
-template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_binary_ss<op, int, bool>) sparse_binary_ss<op, int, bool>;
+template [[host_name(#opname "_f32")]] [[kernel]] decltype(binary_ss<op, float, bool>) binary_ss<op, float, bool>;                              \
+template [[host_name(#opname "_i32")]] [[kernel]] decltype(binary_ss<op, int, bool>) binary_ss<op, int, bool>;                                  \
+template [[host_name("strided_" #opname "_f32")]] [[kernel]] decltype(strided_binary_ss<op, float, bool>) strided_binary_ss<op, float, bool>;   \
+template [[host_name("strided_" #opname "_i32")]] [[kernel]] decltype(strided_binary_ss<op, int, bool>) strided_binary_ss<op, int, bool>;
 
 binary_all(add, Add)
 binary_all(sub, Sub)

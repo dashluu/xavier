@@ -138,7 +138,7 @@ namespace xv::core
         // Copy is done to ensure gradient independence
         // Copy first and then reshape for efficiency
         operand->init_grad();
-        operand->update_grad(arr->grad->copy()->reshape(operand->get_shape().get_view()));
+        operand->update_grad(arr->grad->copy()->reshape(operand->get_view()));
     }
 
     void SliceOp::backward(std::shared_ptr<Array> arr) const

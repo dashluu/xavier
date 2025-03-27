@@ -110,7 +110,7 @@ namespace xv::core
                 {
                     throw std::runtime_error("Only arrays of floating-point types can have gradients but array " + std::to_string(id) + " has type " + dtype.str());
                 }
-                grad = Array::zeros(shape.get_view(), unary_float_dtypes.at(dtype), device);
+                grad = Array::zeros(get_view(), unary_float_dtypes.at(dtype), device);
             }
         }
 
@@ -125,11 +125,17 @@ namespace xv::core
 
         const Shape &get_shape() const { return shape; }
 
+        uint64_t get_offset() const { return shape.get_offset(); }
+
+        const std::vector<uint64_t> &get_view() const { return shape.get_view(); }
+
+        const std::vector<int64_t> &get_stride() const { return shape.get_stride(); }
+
         // Gets the buffer pointer without accounting for offset
         uint8_t *get_buff_ptr() const { return buff->get_ptr(); }
 
         // Gets the buffer pointer after accounting for offset
-        uint8_t *get_ptr() const { return get_buff_ptr() + shape.get_offset() * get_itemsize(); }
+        uint8_t *get_ptr() const { return get_buff_ptr() + get_offset() * get_itemsize(); }
 
         const Dtype &get_dtype() const { return dtype; }
 
@@ -166,12 +172,12 @@ namespace xv::core
 
         static std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, int c, const Device &device = device0, bool constant = false)
         {
-            return full(arr->get_shape().get_view(), c, arr->get_dtype(), device, constant);
+            return full(arr->get_view(), c, arr->get_dtype(), device, constant);
         }
 
         static std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, float c, const Device &device = device0, bool constant = false)
         {
-            return full(arr->get_shape().get_view(), c, arr->get_dtype(), device, constant);
+            return full(arr->get_view(), c, arr->get_dtype(), device, constant);
         }
 
         static std::shared_ptr<Array> zeros_like(std::shared_ptr<Array> arr, const Device &device = device0, bool constant = false)

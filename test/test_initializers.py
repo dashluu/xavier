@@ -6,7 +6,7 @@ class TestInitializers:
     lib = "./xavier/build/backend/metal/kernels.metallib"
 
     def test_zeros(self):
-        ctx = MTLContext(TestInitializers.lib)
+        ctx = MTLContext(self.lib)
         print("\nTesting zeros:")
 
         test_shapes = [
@@ -26,10 +26,10 @@ class TestInitializers:
             g.forward()
             result = np.frombuffer(arr, dtype=np.float32)
             assert np.allclose(result, np_arr.flatten())
-            assert tuple(arr.shape().view()) == np_arr.shape
+            assert tuple(arr.view()) == np_arr.shape
 
     def test_full(self):
-        ctx = MTLContext(TestInitializers.lib)
+        ctx = MTLContext(self.lib)
         print("\nTesting full:")
 
         test_cases = [
@@ -49,10 +49,10 @@ class TestInitializers:
             g.forward()
             result = np.frombuffer(arr, dtype=np.float32)
             assert np.allclose(result, np_arr.flatten())
-            assert tuple(arr.shape().view()) == np_arr.shape
+            assert tuple(arr.view()) == np_arr.shape
 
     def test_like_methods(self):
-        ctx = MTLContext(TestInitializers.lib)
+        ctx = MTLContext(self.lib)
         print("\nTesting *_like methods:")
 
         # Create a template array
@@ -76,10 +76,10 @@ class TestInitializers:
             g.forward()
             result = np.frombuffer(arr, dtype=np.float32)
             assert np.allclose(result, np_arr.flatten())
-            assert tuple(arr.shape().view()) == np_arr.shape
+            assert tuple(arr.view()) == np_arr.shape
 
     def test_bool_arrays(self):
-        ctx = MTLContext(TestInitializers.lib)
+        ctx = MTLContext(self.lib)
         print("\nTesting boolean arrays:")
 
         test_cases = [
@@ -99,10 +99,10 @@ class TestInitializers:
             g.forward()
             result = np.frombuffer(arr, dtype=np.bool_)
             assert np.array_equal(result, np_arr.flatten())
-            assert tuple(arr.shape().view()) == np_arr.shape
+            assert tuple(arr.view()) == np_arr.shape
 
     def test_arange(self):
-        ctx = MTLContext(TestInitializers.lib)
+        ctx = MTLContext(self.lib)
         print("\nTesting arange:")
 
         test_cases = [
@@ -134,4 +134,4 @@ class TestInitializers:
             g.forward()
             result = np.frombuffer(arr, dtype=np.float32)
             assert np.allclose(result, np_arr.flatten(), atol=1e-6)
-            assert tuple(arr.shape().view()) == np_arr.shape
+            assert tuple(arr.view()) == np_arr.shape

@@ -43,7 +43,7 @@ namespace xv::graph
         }
         else
         {
-            sparse_unary_ss(name, operand, arr, *ctx);
+            strided_unary_ss(name, operand, arr, *ctx);
         }
     }
 
@@ -61,7 +61,7 @@ namespace xv::graph
             }
             else
             {
-                sparse_matmul(lhs, rhs, arr, *ctx);
+                strided_matmul(lhs, rhs, arr, *ctx);
             }
         }
         else
@@ -81,7 +81,7 @@ namespace xv::graph
             }
             else
             {
-                sparse_binary_ss(name, lhs, rhs, arr, *ctx);
+                strided_binary_ss(name, lhs, rhs, arr, *ctx);
             }
         }
     }
@@ -102,7 +102,7 @@ namespace xv::graph
             else
             {
                 arr->alloc();
-                sparse_copy(operand, arr, *ctx);
+                strided_copy(operand, arr, *ctx);
             }
             break;
         }
@@ -143,7 +143,7 @@ namespace xv::graph
         }
         else
         {
-            sparse_copy(operand, arr, *ctx);
+            strided_copy(operand, arr, *ctx);
         }
     }
 

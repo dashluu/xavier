@@ -67,7 +67,7 @@ namespace xv::core
             idx[i] = tmp % shape[i];
             carry = tmp / shape[i];
         }
-        auto stride = shape.get_stride();
+        auto &stride = get_stride();
         auto ptr = get_ptr();
         for (size_t i = 0; i < idx.size(); i++)
         {
@@ -193,10 +193,10 @@ namespace xv::core
     std::shared_ptr<Array> Array::binary_ss(std::shared_ptr<Array> rhs)
     {
         auto dummy_op = std::make_shared<O>(nullptr, nullptr, false);
-        auto &rhs_view = rhs->shape.get_view();
-        if (!shape.broadcastable(rhs_view))
+        auto &rview = rhs->get_view();
+        if (!shape.broadcastable(rview))
         {
-            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(shape.get_view()), vnumstr(rhs_view));
+            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(get_view()), vnumstr(rview));
         }
         if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
@@ -206,9 +206,9 @@ namespace xv::core
         {
             throw IncompatDevicesForOp(dummy_op->get_name_str(), device.str(), rhs->device.str());
         }
-        auto broadcasted_lhs = broadcast(rhs_view);
-        auto broadcasted_rhs = rhs->broadcast(shape.get_view());
-        auto arr = std::make_shared<Array>(Shape(broadcasted_lhs->shape.get_view()), dtype, device);
+        auto broadcasted_lhs = broadcast(rview);
+        auto broadcasted_rhs = rhs->broadcast(get_view());
+        auto arr = std::make_shared<Array>(Shape(broadcasted_lhs->get_view()), dtype, device);
         arr->op = std::make_shared<O>(broadcasted_lhs, broadcasted_rhs, false);
         return arr;
     }
@@ -221,11 +221,9 @@ namespace xv::core
             throw std::runtime_error("Cannot update array " + std::to_string(id) + " since it is a constant.");
         }
         auto dummy_op = std::make_shared<O>(nullptr, nullptr, true);
-        auto &rhs_shape = rhs->shape;
-        auto &rhs_view = rhs_shape.get_view();
-        if (!rhs_shape.broadcastable_to(shape.get_view()))
+        if (!rhs->shape.broadcastable_to(get_view()))
         {
-            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(shape.get_view()), vnumstr(rhs_view));
+            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(get_view()), vnumstr(rhs->get_view()));
         }
         if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
@@ -235,7 +233,7 @@ namespace xv::core
         {
             throw IncompatDevicesForOp(dummy_op->get_name_str(), device.str(), rhs->device.str());
         }
-        auto broadcasted_rhs = rhs->broadcast_to(shape.get_view());
+        auto broadcasted_rhs = rhs->broadcast_to(get_view());
         auto arr = std::make_shared<Array>(shape, dtype, device);
         arr->op = std::make_shared<O>(shared_from_this(), broadcasted_rhs, true);
         return arr;
@@ -245,10 +243,10 @@ namespace xv::core
     std::shared_ptr<Array> Array::cmp(std::shared_ptr<Array> rhs)
     {
         auto dummy_op = std::make_shared<O>(nullptr, nullptr);
-        auto &rhs_view = rhs->shape.get_view();
-        if (!shape.broadcastable(rhs_view))
+        auto &rview = rhs->get_view();
+        if (!shape.broadcastable(rview))
         {
-            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(shape.get_view()), vnumstr(rhs_view));
+            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(get_view()), vnumstr(rview));
         }
         if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
@@ -258,9 +256,9 @@ namespace xv::core
         {
             throw IncompatDevicesForOp(dummy_op->get_name_str(), device.str(), rhs->device.str());
         }
-        auto broadcasted_lhs = broadcast(rhs_view);
-        auto broadcasted_rhs = rhs->broadcast(shape.get_view());
-        auto arr = std::make_shared<Array>(Shape(broadcasted_lhs->shape.get_view()), b8, device);
+        auto broadcasted_lhs = broadcast(rview);
+        auto broadcasted_rhs = rhs->broadcast(get_view());
+        auto arr = std::make_shared<Array>(Shape(broadcasted_lhs->get_view()), b8, device);
         arr->op = std::make_shared<O>(broadcasted_lhs, broadcasted_rhs);
         return arr;
     }
@@ -277,7 +275,7 @@ namespace xv::core
         {
             throw IncompatDtypeForOp(dummy_op->get_name_str(), dtype.str());
         }
-        auto arr = std::make_shared<Array>(Shape(shape.get_view()), dtype, device);
+        auto arr = std::make_shared<Array>(Shape(get_view()), dtype, device);
         arr->op = std::make_shared<O>(shared_from_this(), in_place);
         return arr;
     }
@@ -302,7 +300,7 @@ namespace xv::core
         {
             throw IncompatDtypeForOp(dummy_op->get_name_str(), dtype.str());
         }
-        auto arr = std::make_shared<Array>(Shape(shape.get_view()), result_dtype->second, device);
+        auto arr = std::make_shared<Array>(Shape(get_view()), result_dtype->second, device);
         arr->op = std::make_shared<O>(shared_from_this(), in_place);
         return arr;
     }
@@ -342,10 +340,10 @@ namespace xv::core
     std::shared_ptr<Array> Array::matmul(std::shared_ptr<Array> rhs)
     {
         auto dummy_op = std::make_shared<MatmulOp>(nullptr, nullptr);
-        auto &rview = rhs->shape.get_view();
+        auto &rview = rhs->get_view();
         if (!shape.matmul_broadcastable(rview))
         {
-            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(shape.get_view()), vnumstr(rview));
+            throw IncompatShapesForOp(dummy_op->get_name_str(), vnumstr(get_view()), vnumstr(rview));
         }
         if (!binary_dtypes.contains(dtype) || dtype != rhs->dtype)
         {
@@ -355,7 +353,7 @@ namespace xv::core
         {
             throw IncompatDevicesForOp(dummy_op->get_name_str(), device.str(), rhs->device.str());
         }
-        auto broadcasted_lview = shape.get_view();
+        auto broadcasted_lview = get_view();
         auto broadcasted_rview = rview;
         auto ndim = std::max(broadcasted_lview.size(), broadcasted_rview.size());
         broadcasted_lview.insert(broadcasted_lview.begin(), ndim - broadcasted_lview.size(), 1);
@@ -385,7 +383,7 @@ namespace xv::core
         // Rhs's shape: B, N, K
         auto mm_rhs = rhs->broadcast(broadcasted_rview)->reshape(mm_rview);
         // Result's shape: B, M, K
-        auto view = mm_lhs->shape.get_view();
+        auto view = mm_lhs->get_view();
         view[view.size() - 1] = rview[rview.size() - 1];
         auto arr = std::make_shared<Array>(Shape(view), dtype, device);
         arr->op = std::make_shared<MatmulOp>(mm_lhs, mm_rhs);
@@ -422,7 +420,7 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::reshape(const std::vector<uint64_t> &view)
     {
-        if (shape.get_view() == view)
+        if (get_view() == view)
         {
             return shared_from_this();
         }
@@ -440,7 +438,7 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::broadcast(const std::vector<uint64_t> &view)
     {
-        if (shape.get_view() == view)
+        if (get_view() == view)
         {
             return shared_from_this();
         }
@@ -451,7 +449,7 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::broadcast_to(const std::vector<uint64_t> &view)
     {
-        if (shape.get_view() == view)
+        if (get_view() == view)
         {
             return shared_from_this();
         }
@@ -462,7 +460,7 @@ namespace xv::core
 
     std::shared_ptr<Array> Array::copy()
     {
-        auto arr = std::make_shared<Array>(Shape(shape.get_view()), dtype, device);
+        auto arr = std::make_shared<Array>(Shape(get_view()), dtype, device);
         arr->op = std::make_shared<CopyOp>(shared_from_this());
         return arr;
     }
@@ -489,7 +487,7 @@ namespace xv::core
     std::shared_ptr<Array> Array::flatten(uint64_t start_dim, uint64_t end_dim)
     {
         check_dims(start_dim, end_dim);
-        std::vector<uint64_t> view = shape.get_view();
+        auto view = get_view();
         auto prod = std::accumulate(view.begin() + start_dim, view.begin() + end_dim + 1, 1ULL, std::multiplies<uint64_t>());
         // Erase from start_dim + 1 to end_dim + 1
         view.erase(view.begin() + start_dim + 1, view.begin() + end_dim + 1);

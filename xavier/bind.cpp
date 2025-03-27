@@ -69,6 +69,9 @@ void init_xv_module(py::module_ &m)
                     { return array_to_buffer(arr); })
         .def("id", &Array::get_id, "Returns the id of the array.")
         .def("shape", &Array::get_shape, "Returns the shape of the array.")
+        .def("offset", &Array::get_offset, "Returns the offset of the array.")
+        .def("view", &Array::get_view, "Returns the view of the array.")
+        .def("stride", &Array::get_stride, "Returns the stride of the array.")
         .def("dtype", &Array::get_dtype, "Returns the data type of the array.")
         .def("device", &Array::get_device, "Returns the device that the array is allocated on.")
         .def_readonly("grad", &Array::grad, "Accesses the gradient of the array.")
@@ -368,9 +371,9 @@ py::array array_to_numpy(Array &arr)
     std::vector<py::ssize_t> strides;
     for (size_t i = 0; i < arr.get_ndim(); i++)
     {
-        shape.push_back(static_cast<py::ssize_t>(arr.get_shape()[i]));
+        shape.push_back(static_cast<py::ssize_t>(arr.get_view()[i]));
         // Ensure correct stride calculation
-        strides.push_back(static_cast<py::ssize_t>(arr.get_shape().get_stride()[i] * arr.get_itemsize()));
+        strides.push_back(static_cast<py::ssize_t>(arr.get_stride()[i] * arr.get_itemsize()));
     }
     // Create numpy array with read/write access
     return py::array(

@@ -6,7 +6,7 @@ class TestCopy:
     lib = "./xavier/build/backend/metal/kernels.metallib"
 
     def test_contiguous_copy(self):
-        ctx = MTLContext(TestCopy.lib)
+        ctx = MTLContext(self.lib)
         print("Contiguous copy:")
 
         # Test cases with different shapes
@@ -27,10 +27,10 @@ class TestCopy:
             g.forward()
             np2 = np.frombuffer(arr2, dtype=np.float32)
             assert np.allclose(np2, np1.flatten(), atol=1e-6)
-            assert tuple(arr2.shape().view()) == np1.shape
+            assert tuple(arr2.view()) == np1.shape
 
-    def test_sparse_copy(self):
-        ctx = MTLContext(TestCopy.lib)
+    def test_strided_copy(self):
+        ctx = MTLContext(self.lib)
         print("Sparse copy:")
 
         # Test cases with different slicing patterns
@@ -49,7 +49,7 @@ class TestCopy:
 
             # Create non-contiguous array using slicing
             arr2 = arr1[slices]
-            expected_shape = arr2.shape().view()
+            expected_shape = arr2.view()
 
             # Copy the non-contiguous array
             arr3 = arr2.copy()
@@ -64,4 +64,4 @@ class TestCopy:
             np3 = np3.reshape(expected_shape)
 
             assert np.allclose(np3, np2, atol=1e-6)
-            assert tuple(arr3.shape().view()) == np2.shape
+            assert tuple(arr3.view()) == np2.shape

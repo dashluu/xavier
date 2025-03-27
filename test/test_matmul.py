@@ -7,7 +7,7 @@ class TestMatmul:
 
     def test_matmul_2d(self):
         """Test matrix multiplication for 2D arrays"""
-        ctx = MTLContext(TestMatmul.lib)
+        ctx = MTLContext(self.lib)
         print("matmul 2d:")
 
         # Test cases: [(shape1, shape2)]
@@ -38,12 +38,12 @@ class TestMatmul:
             xv_result = np.frombuffer(arr3, dtype=np.float32).reshape(np3.shape)
 
             # Verify shape and values
-            assert tuple(arr3.shape().view()) == np3.shape
+            assert tuple(arr3.view()) == np3.shape
             assert np.allclose(xv_result, np3, atol=1e-3, rtol=0)
 
     def test_matmul_3d(self):
         """Test matrix multiplication for 3D arrays (batched matmul)"""
-        ctx = MTLContext(TestMatmul.lib)
+        ctx = MTLContext(self.lib)
         print("\nTesting 3D matrix multiplication:")
 
         # Test cases: [(shape1, shape2, description)]
@@ -83,7 +83,5 @@ class TestMatmul:
             xv_result = arr3.to_numpy()
 
             # Verify shape and values
-            assert (
-                tuple(arr3.shape().view()) == np3.shape
-            ), f"Shape mismatch: got {arr3.shape().view()}, expected {np3.shape}"
+            assert tuple(arr3.view()) == np3.shape, f"Shape mismatch: got {arr3.view()}, expected {np3.shape}"
             assert np.allclose(xv_result, np3, atol=1e-3, rtol=0), f"Value mismatch for {desc}"

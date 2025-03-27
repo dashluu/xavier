@@ -1,7 +1,7 @@
 #include <metal_stdlib>
 
 template <class T>
-[[kernel]] void full(
+kernel void full(
     device T *c [[buffer(0)]],
     device T *output [[buffer(1)]],
     uint id [[thread_position_in_grid]])
@@ -10,7 +10,7 @@ template <class T>
 }
 
 template <class T>
-[[kernel]] void arange(
+kernel void arange(
     device int *start [[buffer(0)]],
     device int *step [[buffer(1)]],
     device T *output [[buffer(2)]],

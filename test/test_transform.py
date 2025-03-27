@@ -6,7 +6,7 @@ class TestTransform:
     lib = "./xavier/build/backend/metal/kernels.metallib"
 
     def test_slice_v1(self):
-        ctx = MTLContext(TestTransform.lib)
+        ctx = MTLContext(self.lib)
         print("slice 1:")
         s = [np.random.randint(1, 50) for _ in range(3)]
         a = np.random.randn(*s).astype(np.float32)
@@ -20,7 +20,7 @@ class TestTransform:
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
     def test_slice_v2(self):
-        ctx = MTLContext(TestTransform.lib)
+        ctx = MTLContext(self.lib)
         print("slice 2:")
         s = [np.random.randint(4, 50) for _ in range(4)]
         a = np.random.randn(*s).astype(np.float32)
@@ -34,7 +34,7 @@ class TestTransform:
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
     def test_slice_v3(self):
-        ctx = MTLContext(TestTransform.lib)
+        ctx = MTLContext(self.lib)
         print("slice 3:")
         s = [np.random.randint(4, 50) for _ in range(4)]
         a = np.random.randn(*s).astype(np.float32)
@@ -48,7 +48,7 @@ class TestTransform:
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
     def test_slice_v4(self):
-        ctx = MTLContext(TestTransform.lib)
+        ctx = MTLContext(self.lib)
         print("slice 4:")
         s = [np.random.randint(10, 50) for _ in range(4)]
         a = np.random.randn(*s).astype(np.float32)
@@ -62,7 +62,7 @@ class TestTransform:
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
     def test_transpose_start(self):
-        ctx = MTLContext(TestTransform.lib)
+        ctx = MTLContext(self.lib)
         print("transpose at the start:")
         s = [np.random.randint(3, 10) for _ in range(4)]
         a = np.random.randn(*s).astype(np.float32)
@@ -81,7 +81,7 @@ class TestTransform:
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
     def test_transpose_mid(self):
-        ctx = MTLContext(TestTransform.lib)
+        ctx = MTLContext(self.lib)
         print("transpose in the middle:")
         s = [np.random.randint(3, 10) for _ in range(6)]
         a = np.random.randn(*s).astype(np.float32)
@@ -100,7 +100,7 @@ class TestTransform:
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
     def test_transpose_end(self):
-        ctx = MTLContext(TestTransform.lib)
+        ctx = MTLContext(self.lib)
         print("transpose at the end:")
         s = [np.random.randint(3, 10) for _ in range(5)]
         a = np.random.randn(*s).astype(np.float32)
@@ -119,7 +119,7 @@ class TestTransform:
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
     def test_permute(self):
-        ctx = MTLContext(TestTransform.lib)
+        ctx = MTLContext(self.lib)
         print("\nTesting permute operations:")
 
         # Test cases: [(shape, permutation)]
@@ -160,7 +160,7 @@ class TestTransform:
             ), f"Shape mismatch: got {xv_result.shape}, expected {np_result.shape}"
 
     def test_flatten(self):
-        ctx = MTLContext(TestTransform.lib)
+        ctx = MTLContext(self.lib)
         print("\nTesting flatten operations:")
 
         # Test cases: [(shape, start_dim, end_dim, expected_shape)]

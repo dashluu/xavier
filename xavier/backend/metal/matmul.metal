@@ -1,7 +1,7 @@
 #include "utils.h"
 
 template <class T, class R>
-[[kernel]] void matmul(
+kernel void matmul(
     constant const uint *offset [[buffer(0)]],
     constant const uint *lhs_shape [[buffer(1)]],
     constant const uint *rhs_shape [[buffer(2)]],
@@ -35,7 +35,7 @@ template <class T, class R>
 }
 
 template <class T, class R>
-[[kernel]] void sparse_matmul(
+kernel void strided_matmul(
     constant const uint *ndim [[buffer(0)]],
     constant const uint *offset [[buffer(1)]],
     constant const uint *lhs_shape [[buffer(2)]],
@@ -73,5 +73,5 @@ template <class T, class R>
 
 template [[host_name("matmul_f32")]] [[kernel]] decltype(matmul<float, float>) matmul<float, float>;
 template [[host_name("matmul_i32")]] [[kernel]] decltype(matmul<int, int>) matmul<int, int>;
-template [[host_name("sparse_matmul_f32")]] [[kernel]] decltype(sparse_matmul<float, float>) sparse_matmul<float, float>;
-template [[host_name("sparse_matmul_i32")]] [[kernel]] decltype(sparse_matmul<int, int>) sparse_matmul<int, int>;
+template [[host_name("strided_matmul_f32")]] [[kernel]] decltype(strided_matmul<float, float>) strided_matmul<float, float>;
+template [[host_name("strided_matmul_i32")]] [[kernel]] decltype(strided_matmul<int, int>) strided_matmul<int, int>;

@@ -25,7 +25,7 @@ class TestScalar:
     lib = "./xavier/build/backend/metal/kernels.metallib"
 
     def binary_no_broadcast(self, name: str, op1, op2, gen=randn):
-        ctx = MTLContext(TestScalar.lib)
+        ctx = MTLContext(self.lib)
         print(f"{name}:")
         n = np.random.randint(1, 5)
         shape = [np.random.randint(1, 100) for _ in range(n)]
@@ -39,11 +39,11 @@ class TestScalar:
         g.forward()
         np3 = np.frombuffer(arr3, dtype=np.float32)
         np4: np.ndarray = op2(np1, np2)
-        assert tuple(arr3.shape().view()) == np4.shape
+        assert tuple(arr3.view()) == np4.shape
         assert np.allclose(np3, np4.flatten(), atol=1e-3, rtol=0)
 
     def unary_no_broadcast(self, name: str, op1, op2, gen=randn):
-        ctx = MTLContext(TestScalar.lib)
+        ctx = MTLContext(self.lib)
         print(f"{name}:")
         n = np.random.randint(1, 5)
         shape = [np.random.randint(1, 100) for _ in range(n)]
@@ -55,11 +55,11 @@ class TestScalar:
         g.forward()
         np2 = np.frombuffer(arr2, dtype=np.float32)
         np3: np.ndarray = op2(np1)
-        assert tuple(arr2.shape().view()) == np3.shape
+        assert tuple(arr2.view()) == np3.shape
         assert np.allclose(np2, np3.flatten(), atol=1e-3, rtol=0)
 
     def binary_with_broadcast(self, name: str, op1, op2, gen=randn):
-        ctx = MTLContext(TestScalar.lib)
+        ctx = MTLContext(self.lib)
         print(f"{name} with broadcast:")
         # Test cases with different broadcasting scenarios
         test_cases = [
@@ -82,11 +82,11 @@ class TestScalar:
             g.forward()
             np3 = np.frombuffer(arr3, dtype=np.float32)
             np4: np.ndarray = op2(np1, np2)
-            assert tuple(arr3.shape().view()) == np4.shape
+            assert tuple(arr3.view()) == np4.shape
             assert np.allclose(np3, np4.flatten(), atol=1e-3, rtol=0)
 
     def unary_with_slicing(self, name: str, op1, op2, gen=randn):
-        ctx = MTLContext(TestScalar.lib)
+        ctx = MTLContext(self.lib)
         print(f"{name} with slicing:")
 
         # Test cases with different slicing patterns
@@ -116,10 +116,10 @@ class TestScalar:
             np_arr3 = np.frombuffer(arr3, dtype=np.float32)
             np_arr3 = np_arr3.reshape(np3.shape)
             assert np.allclose(np_arr3, np3, atol=1e-3, rtol=0)
-            assert tuple(arr3.shape().view()) == np3.shape
+            assert tuple(arr3.view()) == np3.shape
 
     def binary_inplace(self, name: str, op1, op2, gen=randn):
-        ctx = MTLContext(TestScalar.lib)
+        ctx = MTLContext(self.lib)
         print(f"{name} inplace:")
         n = np.random.randint(1, 5)
         shape = [np.random.randint(1, 100) for _ in range(n)]
@@ -144,11 +144,11 @@ class TestScalar:
         np1_copy: np.ndarray = op2(np1_copy, np2)  # np1_copy += np2, etc.
         np1_copy: np.ndarray = op2(np1_copy, np2)  # Second time
         np_result = np.frombuffer(arr1, dtype=np.float32)
-        assert tuple(arr1.shape().view()) == np1_copy.shape
+        assert tuple(arr1.view()) == np1_copy.shape
         assert np.allclose(np_result, np1_copy.flatten(), atol=1e-3, rtol=0)
 
     def binary_inplace_broadcast(self, name: str, op1, op2, gen=randn):
-        ctx = MTLContext(TestScalar.lib)
+        ctx = MTLContext(self.lib)
         print(f"{name} inplace broadcast:")
 
         test_cases = [
@@ -182,10 +182,10 @@ class TestScalar:
             np1_copy: np.ndarray = op2(np1_copy, np2)
             xv_result = np.frombuffer(arr1, dtype=np.float32).reshape(lhs_shape)
             assert np.allclose(xv_result, np1_copy, atol=1e-3, rtol=0)
-            assert tuple(arr1.shape().view()) == np1_copy.shape
+            assert tuple(arr1.view()) == np1_copy.shape
 
     def unary_inplace(self, name: str, op1, op2, gen=randn):
-        ctx = MTLContext(TestScalar.lib)
+        ctx = MTLContext(self.lib)
         print(f"{name} inplace:")
 
         # Test different shapes
@@ -217,7 +217,7 @@ class TestScalar:
             np2 = op2(np1_copy)
             xv_result = np.frombuffer(arr1, dtype=np.float32).reshape(shape)
             assert np.allclose(xv_result, np2, atol=1e-3, rtol=0)
-            assert tuple(arr1.shape().view()) == np2.shape
+            assert tuple(arr1.view()) == np2.shape
 
     def test_add(self):
         self.binary_no_broadcast("add", xv.add, np.add)
@@ -374,7 +374,7 @@ class TestScalar:
 
     def test_const_mul_left(self):
         """Test multiplication with constant on the left side (c * arr)"""
-        ctx = MTLContext(TestScalar.lib)
+        ctx = MTLContext(self.lib)
         print("const mul left:")
 
         # Test cases: [(constant, shape)]
@@ -401,12 +401,12 @@ class TestScalar:
             np2 = const * np1
             np_result = np.frombuffer(arr2, dtype=np.float32)
 
-            assert tuple(arr2.shape().view()) == np2.shape
+            assert tuple(arr2.view()) == np2.shape
             assert np.allclose(np_result, np2.flatten(), atol=1e-3, rtol=0)
 
     def test_const_mul_right(self):
         """Test multiplication with constant on the right side (arr * c)"""
-        ctx = MTLContext(TestScalar.lib)
+        ctx = MTLContext(self.lib)
         print("const mul right:")
 
         # Test cases: [(shape, constant)]
@@ -433,5 +433,5 @@ class TestScalar:
             np2 = np1 * const
             np_result = np.frombuffer(arr2, dtype=np.float32)
 
-            assert tuple(arr2.shape().view()) == np2.shape
+            assert tuple(arr2.view()) == np2.shape
             assert np.allclose(np_result, np2.flatten(), atol=1e-3, rtol=0)

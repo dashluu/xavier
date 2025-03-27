@@ -12,7 +12,7 @@ class TestBackprop:
     lib = "./xavier/build/backend/metal/kernels.metallib"
 
     def test_backprop_v1(self):
-        ctx = MTLContext(TestBackprop.lib)
+        ctx = MTLContext(self.lib)
         print("backprop 1:")
         n = np.random.randint(1, 5)
         shape = [np.random.randint(1, 100) for _ in range(n)]
@@ -53,7 +53,7 @@ class TestBackprop:
         compare_grads(arr7.grad, t7.grad, "arr7")
 
     def test_backprop_v2(self):
-        ctx = MTLContext(TestBackprop.lib)
+        ctx = MTLContext(self.lib)
         print("Testing complex unary(and one binary) operations chain:")
 
         shape = [2, 3]
@@ -89,7 +89,7 @@ class TestBackprop:
         compare_grads(arr4.grad, t4.grad, "log")
 
     def test_backprop_v3(self):
-        ctx = MTLContext(TestBackprop.lib)
+        ctx = MTLContext(self.lib)
         print("Testing branched operations:")
 
         shape = [3, 4, 2]
@@ -148,7 +148,7 @@ class TestBackprop:
         compare_grads(branch2.grad, tbranch2.grad, "branch2")
 
     def test_backprop_v4(self):
-        ctx = MTLContext(TestBackprop.lib)
+        ctx = MTLContext(self.lib)
         print("Testing nested operations:")
 
         shape = [5, 7, 2, 4]
@@ -194,7 +194,7 @@ class TestBackprop:
         compare_grads(mul1.grad, tmul1.grad, "mul")
 
     def test_backprop_v5(self):
-        ctx = MTLContext(TestBackprop.lib)
+        ctx = MTLContext(self.lib)
         print("Testing square and sqrt operations:")
 
         shape = [3, 4, 2]
@@ -250,7 +250,7 @@ class TestBackprop:
         compare_grads(div1.grad, tdiv1.grad, "div")
 
     def test_backprop_twice(self):
-        ctx = MTLContext(TestBackprop.lib)
+        ctx = MTLContext(self.lib)
         print("Testing double backpropagation with complex operations:")
 
         shape = [2, 3, 4]

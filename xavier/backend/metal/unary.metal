@@ -56,7 +56,7 @@ struct Sq
 
 // Unary operations for scalar-scalar
 template <class Op, class T, class R>
-[[kernel]] void unary_ss(
+kernel void unary_ss(
     constant const uint *offset [[buffer(0)]],
     device T *input [[buffer(1)]],
     device R *output [[buffer(2)]],
@@ -66,7 +66,7 @@ template <class Op, class T, class R>
 }
 
 template <class Op, class T, class R>
-[[kernel]] void sparse_unary_ss(
+kernel void strided_unary_ss(
     constant const uint *ndim [[buffer(0)]],
     constant const uint *offset [[buffer(1)]],
     constant const uint *shape [[buffer(2)]],
@@ -80,16 +80,16 @@ template <class Op, class T, class R>
 }
 
 #define unary_float(opname, op) \
-template [[host_name(#opname "_f32")]] [[kernel]] decltype(unary_ss<op, float, float>) unary_ss<op, float, float>;                          \
-template [[host_name(#opname "_i32")]] [[kernel]] decltype(unary_ss<op, int, float>) unary_ss<op, int, float>;                              \
-template [[host_name("sparse_" #opname "_f32")]] [[kernel]] decltype(sparse_unary_ss<op, float, float>) sparse_unary_ss<op, float, float>;  \
-template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_unary_ss<op, int, float>) sparse_unary_ss<op, int, float>;
+template [[host_name(#opname "_f32")]] [[kernel]] decltype(unary_ss<op, float, float>) unary_ss<op, float, float>;                              \
+template [[host_name(#opname "_i32")]] [[kernel]] decltype(unary_ss<op, int, float>) unary_ss<op, int, float>;                                  \
+template [[host_name("strided_" #opname "_f32")]] [[kernel]] decltype(strided_unary_ss<op, float, float>) strided_unary_ss<op, float, float>;   \
+template [[host_name("strided_" #opname "_i32")]] [[kernel]] decltype(strided_unary_ss<op, int, float>) strided_unary_ss<op, int, float>;
 
 #define unary_all(opname, op) \
-template [[host_name(#opname "_f32")]] [[kernel]] decltype(unary_ss<op, float, float>) unary_ss<op, float, float>;                          \
-template [[host_name(#opname "_i32")]] [[kernel]] decltype(unary_ss<op, int, int>) unary_ss<op, int, int>;                                  \
-template [[host_name("sparse_" #opname "_f32")]] [[kernel]] decltype(sparse_unary_ss<op, float, float>) sparse_unary_ss<op, float, float>;  \
-template [[host_name("sparse_" #opname "_i32")]] [[kernel]] decltype(sparse_unary_ss<op, int, int>) sparse_unary_ss<op, int, int>;
+template [[host_name(#opname "_f32")]] [[kernel]] decltype(unary_ss<op, float, float>) unary_ss<op, float, float>;                              \
+template [[host_name(#opname "_i32")]] [[kernel]] decltype(unary_ss<op, int, int>) unary_ss<op, int, int>;                                      \
+template [[host_name("strided_" #opname "_f32")]] [[kernel]] decltype(strided_unary_ss<op, float, float>) strided_unary_ss<op, float, float>;   \
+template [[host_name("strided_" #opname "_i32")]] [[kernel]] decltype(strided_unary_ss<op, int, int>) strided_unary_ss<op, int, int>;
 
 unary_all(exp, Exp)
 unary_float(log, Log)
