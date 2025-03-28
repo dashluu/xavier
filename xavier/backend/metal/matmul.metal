@@ -62,9 +62,9 @@ kernel void strided_matmul(
         R sum = 0;
         for (int i = 0; i < K; i++) {
             // [batch, row, k] -> batch * (M * K) + row * K + k
-            const uint lhs_idx = offset[0] + access(batch * M * K + row * K + i, ndim, lhs_shape, lhs_stride);
+            const uint lhs_idx = offset[0] + strided_idx(batch * M * K + row * K + i, ndim, lhs_shape, lhs_stride);
             // [batch, k, col] -> batch * (K * N) + k * N + col
-            const uint rhs_idx = offset[1] + access(batch * K * N + N * i + col, ndim, rhs_shape, rhs_stride);
+            const uint rhs_idx = offset[1] + strided_idx(batch * K * N + N * i + col, ndim, rhs_shape, rhs_stride);
             sum += lhs[lhs_idx] * rhs[rhs_idx];
         }
         output[out_idx] = sum;

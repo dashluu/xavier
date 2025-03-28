@@ -20,7 +20,7 @@ kernel void strided_copy(
     device R *dst [[buffer(5)]],
     uint id [[thread_position_in_grid]])
 {
-    uint idx = access(id, ndim, shape, stride);
+    uint idx = strided_idx(id, ndim, shape, stride);
     dst[offset[1] + id] = src[offset[0] + idx];
 }
 

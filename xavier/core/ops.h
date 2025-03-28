@@ -37,7 +37,8 @@ namespace xv::core
         INTERPRET,
         SLICE,
         UNSLICE,
-        COPY
+        COPY,
+        SUM
     };
 
     enum class OpType
@@ -55,6 +56,7 @@ namespace xv::core
         {OpName::ARANGE, "arange"},
         {OpName::FULL, "full"},
         {OpName::BUFF, "buff"},
+        {OpName::NUMPY, "numpy"},
         {OpName::ADD, "add"},
         {OpName::SUB, "sub"},
         {OpName::MUL, "mul"},
@@ -80,7 +82,8 @@ namespace xv::core
         {OpName::INTERPRET, "interpret"},
         {OpName::SLICE, "slice"},
         {OpName::UNSLICE, "unslice"},
-        {OpName::COPY, "copy"}};
+        {OpName::COPY, "copy"},
+        {OpName::SUM, "sum"}};
 
     struct Op : public std::enable_shared_from_this<Op>, public IStr
     {
@@ -202,6 +205,17 @@ namespace xv::core
 
     public:
         TransformOp(OpName name, std::shared_ptr<Array> operand) : Op(name, OpType::TRANSFORM), operand(operand) {}
+        std::shared_ptr<Array> get_operand() const { return operand; }
+        const std::string str() const override;
+    };
+
+    struct ReduceOp : public Op
+    {
+    protected:
+        std::shared_ptr<Array> operand;
+
+    public:
+        ReduceOp(OpName name, std::shared_ptr<Array> operand) : Op(name, OpType::REDUCE), operand(operand) {}
         std::shared_ptr<Array> get_operand() const { return operand; }
         const std::string str() const override;
     };
@@ -412,5 +426,11 @@ namespace xv::core
         CopyOp(std::shared_ptr<Array> operand) : Op(OpName::COPY, OpType::MOVE), operand(operand) {}
         std::shared_ptr<Array> get_operand() const { return operand; }
         const std::string str() const override;
+    };
+
+    struct SumOp : public ReduceOp
+    {
+    public:
+        SumOp(std::shared_ptr<Array> operand) : ReduceOp(OpName::SUM, operand) {}
     };
 }

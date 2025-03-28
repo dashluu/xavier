@@ -5,34 +5,23 @@ import numpy as np
 import torch
 
 ctx = MTLContext("./xavier/build/backend/metal/kernels.metallib")
-shape1 = [2, 3]
-shape2 = [3, 4]
-np1 = np.random.randn(*shape1).astype(np.float32)
-np2 = np.random.randn(*shape2).astype(np.float32)
-np3 = np1 @ np2
-arr1 = Array.from_numpy(np1)
-arr2 = Array.from_numpy(np2)
-arr3 = arr1 @ arr2
-g = MTLGraph(arr3, ctx)
+# Forward: (2,3,4,5) -> permute -> reshape -> matmul -> exp
+x = torch.randn(2, 3, 4, 5, dtype=torch.float32)
+w = torch.randn(8, 5, 2, dtype=torch.float32)
+# Xavier implementation
+xv_x = Array.from_numpy(x.numpy())
+xv_w = Array.from_numpy(w.numpy())
+xv_v = xv_x.permute([0, 2, 1, 3]).reshape([8, 3, 5]) @ xv_w  # (2,4,3,5)  # (8,3,5)  # (8,3,2)
+xv_out = xv_v.exp()
+g = MTLGraph(xv_out, ctx)
 g.compile()
+print(g)
 g.forward()
-np4 = arr3.to_numpy()
-print(np1)
-print(np2)
-print(np3)
-print(np4)
-# s1 = [2, 2, 3]
-# s2 = [2, 3, 4]
-# np1 = np.random.randn(*s1).astype(np.float32)
-# np2 = np.random.randn(*s2).astype(np.float32)
-# # Xavier implementation
-# arr1 = Array.from_buffer(np1).reshape(s1)
-# arr2 = Array.from_buffer(np2).reshape(s2)
-# arr3 = arr1 @ arr2  # Use matmul operator
-# g = MTLGraph(arr3, ctx)
-# g.compile()
-# g.forward()
-# # NumPy comparison
-# np3 = np.matmul(np1, np2)
-# print(arr3)
-# print(np3)
+g.backward()
+x_t = x.requires_grad_(True)
+w_t = w.requires_grad_(True)
+out_t = x_t.permute(0, 2, 1, 3).reshape(8, 3, 5) @ w_t  # (2,4,3,5)  # (8,3,5)  # (8,3,2)
+out_t = torch.exp(out_t)
+out_t.sum().backward()
+print(xv_w.grad)
+print(w_t.grad)

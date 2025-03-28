@@ -4,6 +4,7 @@ namespace xv::backend::metal
 {
     std::vector<std::string> MTLContext::num_unary_ops = {"exp", "log", "neg", "recip", "sq", "sqrt"};
     std::vector<std::string> MTLContext::num_binary_ops = {"add", "sub", "mul", "div", "eq", "neq", "lt", "gt", "leq", "geq"};
+    std::vector<std::string> MTLContext::num_reduction_ops = {"sum"};
 
     void MTLContext::init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, bool strided)
     {
@@ -47,6 +48,11 @@ namespace xv::backend::metal
         init_kernels("matmul", num_dtypes, true);
     }
 
+    void MTLContext::init_reduction_kernels()
+    {
+        init_kernels(num_reduction_ops, num_dtypes, false);
+    }
+
     void MTLContext::init_util_kernels()
     {
         init_kernels("copy", all_dtypes, false);
@@ -63,10 +69,12 @@ namespace xv::backend::metal
         NS::Error *error = nullptr;
         lib = NS::TransferPtr<MTL::Library>(device->newLibrary(url, &error));
         cmd_queue = NS::TransferPtr<MTL::CommandQueue>(device->newCommandQueue());
+        // Initializes kernels here
         init_initializer_kernels();
         init_unary_kernels();
         init_binary_kernels();
         init_util_kernels();
+        init_reduction_kernels();
     }
 
     void MTLContext::register_kernel(const std::string &name, std::shared_ptr<MTLKernel> kernel)

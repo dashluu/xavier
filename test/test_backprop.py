@@ -368,3 +368,87 @@ class TestBackprop:
         compare_grads(sqrt2.grad, tsqrt2.grad, "sqrt2 (2nd pass)")
         compare_grads(mul2.grad, tmul2.grad, "mul2 (2nd pass)")
         compare_grads(sq2.grad, tsq2.grad, "square2 (2nd pass)")
+
+    def test_permute_binary_backprop(self):
+        """Test backprop through permute and binary op"""
+        ctx = MTLContext(self.lib)
+
+        # Forward: (2,3,4) -> (4,2,3) * (4,2,3)
+        x = torch.randn(2, 3, 4, dtype=torch.float32)
+        y = torch.randn(4, 2, 3, dtype=torch.float32)
+
+        # Xavier implementation
+        xv_x = Array.from_numpy(x.numpy())
+        xv_y = Array.from_numpy(y.numpy())
+        xv_out = xv_x.permute([2, 0, 1]) * xv_y
+        g = MTLGraph(xv_out, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        x_t = x.requires_grad_(True)
+        y_t = y.requires_grad_(True)
+        out_t = x_t.permute(2, 0, 1) * y_t
+        out_t.sum().backward()
+
+        # Compare gradients
+        compare_grads(xv_x.grad, x_t.grad, "permute+mul x grad")
+        compare_grads(xv_y.grad, y_t.grad, "permute+mul y grad")
+
+    def test_backprop_v6(self):
+        """Test backprop through complex chain of operations"""
+        ctx = MTLContext(self.lib)
+        print("\nTesting complex chain backprop:")
+
+        # Forward: (2,3,4,5) -> permute -> reshape -> exp
+        x = torch.randn(2, 3, 4, 5, dtype=torch.float32)
+
+        # Xavier implementation
+        xv_x = Array.from_numpy(x.numpy())
+        xv_out = xv_x.permute([0, 2, 1, 3]).reshape([8, 3, 5])  # (2,4,3,5)  # (8,3,5)
+        xv_out = xv_out.exp()
+        g = MTLGraph(xv_out, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        x_t = x.requires_grad_(True)
+        out_t = x_t.permute(0, 2, 1, 3).reshape(8, 3, 5)  # (2,4,3,5)  # (8,3,5)
+        out_t = torch.exp(out_t)
+        out_t.sum().backward()
+
+        # Compare gradients
+        compare_grads(xv_x.grad, x_t.grad, "complex chain x grad")
+
+    def test_backprop_v7(self):
+        """Test backprop through complex chain of operations"""
+        ctx = MTLContext(self.lib)
+        print("\nTesting complex chain backprop:")
+
+        # Forward: (2,3,4,5) -> permute -> reshape -> matmul -> exp
+        x = torch.randn(2, 3, 4, 5, dtype=torch.float32)
+        # TODO: can try doing matmul with broadcast
+        w = torch.randn(8, 5, 2, dtype=torch.float32)
+
+        # Xavier implementation
+        xv_x = Array.from_numpy(x.numpy())
+        xv_w = Array.from_numpy(w.numpy())
+        xv_out = xv_x.permute([0, 2, 1, 3]).reshape([8, 3, 5]) @ xv_w  # (2,4,3,5)  # (8,3,5)  # (8,3,2)
+        xv_out = xv_out.exp()
+        g = MTLGraph(xv_out, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        x_t = x.requires_grad_(True)
+        w_t = w.requires_grad_(True)
+        out_t = x_t.permute(0, 2, 1, 3).reshape(8, 3, 5) @ w_t  # (2,4,3,5)  # (8,3,5)  # (8,3,2)
+        out_t = torch.exp(out_t)
+        out_t.sum().backward()
+
+        # Compare gradients
+        compare_grads(xv_x.grad, x_t.grad, "complex chain x grad")
+        compare_grads(xv_w.grad, w_t.grad, "complex chain w grad")

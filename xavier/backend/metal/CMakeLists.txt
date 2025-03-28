@@ -28,6 +28,7 @@ build_kernel(initializers)
 build_kernel(unary)
 build_kernel(copy utils.h)
 build_kernel(matmul utils.h)
+build_kernel(reduction utils.h)
 
 message(STATUS "Kernel AIR Files: ${KERNEL_AIR}")
 

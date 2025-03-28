@@ -132,6 +132,22 @@ namespace xv::graph
         }
     }
 
+    void MTLGraph::call_reduce(const std::string &name, std::shared_ptr<Array> arr)
+    {
+        auto op = arr->get_op();
+        switch (op->get_name())
+        {
+        case OpName::SUM:
+        {
+            auto sum_op = std::static_pointer_cast<SumOp>(op);
+            auto operand = sum_op->get_operand();
+            arr->alloc();
+            reduce(name, operand, arr, *ctx);
+            break;
+        }
+        }
+    }
+
     void MTLGraph::call_move(std::shared_ptr<Array> arr)
     {
         auto move_op = std::static_pointer_cast<TransformOp>(arr->get_op());
@@ -188,6 +204,14 @@ namespace xv::graph
             order.push_back(arr);
             break;
         }
+        case OpType::REDUCE:
+        {
+            auto reduce_op = std::static_pointer_cast<ReduceOp>(arr->get_op());
+            auto operand = reduce_op->get_operand();
+            toposort(operand, order);
+            order.push_back(arr);
+            break;
+        }
         default:
             // Move operations
             auto move_op = std::static_pointer_cast<CopyOp>(arr->get_op());
@@ -221,6 +245,11 @@ namespace xv::graph
         case OpType::TRANSFORM:
         {
             call_transform(arr);
+            break;
+        }
+        case OpType::REDUCE:
+        {
+            call_reduce(op->get_name_str(), arr);
             break;
         }
         default:
@@ -292,12 +321,12 @@ namespace xv::graph
         std::string s = "Forward:\n";
         for (auto &arr : fw_order)
         {
-            s += std::to_string(arr->get_id()) + ": " + arr->get_op()->str() + "\n";
+            s += arr->get_id().str() + ": " + arr->get_op()->str() + "\n";
         }
         s += "Backward:\n";
         for (auto &arr : bw_order)
         {
-            s += std::to_string(arr->get_id()) + ": " + arr->get_op()->str() + "\n";
+            s += arr->get_id().str() + ": " + arr->get_op()->str() + "\n";
         }
         return s;
     }

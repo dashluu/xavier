@@ -7,36 +7,15 @@
 #include "device.h"
 #include "ops.h"
 #include "buffer.h"
+#include "id.h"
 
 namespace xv::core
 {
-    using IdType = uint64_t;
-
-    struct IdGenerator
-    {
-    private:
-        static IdType counter;
-
-    public:
-        IdGenerator() = default;
-        IdGenerator(const IdGenerator &) = delete;
-        IdGenerator &operator=(const IdGenerator &) = delete;
-
-        IdType generate()
-        {
-            IdType curr = counter;
-            counter++;
-            return curr;
-        }
-    };
-
-    inline IdType IdGenerator::counter = 1;
-
     class Array : public std::enable_shared_from_this<Array>, public IStr
     {
     private:
         static IdGenerator id_gen;
-        IdType id;
+        Id id;
         Shape shape;
         Dtype dtype = f32;
         Device device;
@@ -64,15 +43,13 @@ namespace xv::core
     public:
         std::shared_ptr<Array> grad = nullptr;
 
-        Array(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : shape(shape), dtype(dtype), device(device), constant(constant)
+        Array(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : id(id_gen.generate()), shape(shape), dtype(dtype), device(device), constant(constant)
         {
             buff = std::make_shared<Buffer>(ptr, nbytes, false);
-            id = id_gen.generate();
         }
 
-        Array(const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : shape(shape), dtype(dtype), device(device), constant(constant)
+        Array(const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : id(id_gen.generate()), shape(shape), dtype(dtype), device(device), constant(constant)
         {
-            id = id_gen.generate();
         }
 
         ~Array()
@@ -108,7 +85,7 @@ namespace xv::core
             {
                 if (!float_dtypes.contains(dtype))
                 {
-                    throw std::runtime_error("Only arrays of floating-point types can have gradients but array " + std::to_string(id) + " has type " + dtype.str());
+                    throw std::runtime_error("Only arrays of floating-point types can have gradients but array " + id.str() + " has type " + dtype.str());
                 }
                 grad = Array::zeros(get_view(), unary_float_dtypes.at(dtype), device);
             }
@@ -116,12 +93,11 @@ namespace xv::core
 
         void update_grad(std::shared_ptr<Array> grad, bool sub = false) { this->grad = sub ? this->grad->self_sub(grad) : this->grad->self_add(grad); }
 
-        Array(const Array &arr) : shape(arr.shape), dtype(arr.dtype), device(arr.device), buff(arr.buff)
+        Array(const Array &arr) : id(id_gen.generate()), shape(arr.shape), dtype(arr.dtype), device(arr.device), buff(arr.buff)
         {
-            id = id_gen.generate();
         }
 
-        const IdType &get_id() const { return id; }
+        const Id &get_id() const { return id; }
 
         const Shape &get_shape() const { return shape; }
 
@@ -163,18 +139,44 @@ namespace xv::core
 
         bool is_contiguous() const { return shape.is_contiguous(); }
 
-        uint8_t *access_(uint64_t k) const;
+        /**
+         * @brief Gets a pointer to the k-th element using the array's stride
+         * @param k The index of the element to access
+         * @return Pointer to the k-th element in the strided array
+         */
+        uint8_t *strided_idx(uint64_t k) const;
 
         // TODO: implement this
         Array &operator=(const Array &arr) = delete;
 
         const std::string str() const override;
 
+        /**
+         * @brief Creates a new array with the same shape as the input array, filled with an integer value.
+         *
+         * @param arr Input array whose shape will be used as reference
+         * @param c Constant value to fill the new array with
+         * @param device Device where the new array will be allocated (default: device0)
+         * @param constant Whether the array should be marked as constant (default: false)
+         * @return std::shared_ptr<Array> New array with same shape as input, filled with value c
+         */
         static std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, int c, const Device &device = device0, bool constant = false)
         {
             return full(arr->get_view(), c, arr->get_dtype(), device, constant);
         }
 
+        /**
+         * @brief Creates a new array with the same shape as input array, filled with a floating-point value.
+         *
+         * @param arr Input array whose shape will be used as reference
+         * @param c Scalar value to fill the new array with
+         * @param device Target device where the array will be allocated (defaults to device0)
+         * @param constant Whether the array should be marked as constant (defaults to false)
+         *
+         * @return std::shared_ptr<Array> New array with same shape as input, filled with value c
+         *
+         * @see full()
+         */
         static std::shared_ptr<Array> full_like(std::shared_ptr<Array> arr, float c, const Device &device = device0, bool constant = false)
         {
             return full(arr->get_view(), c, arr->get_dtype(), device, constant);
@@ -190,6 +192,20 @@ namespace xv::core
             return full_like(arr, 1, device, constant);
         }
 
+        /**
+         * Creates a new Array containing elements selected by the given ranges.
+         *
+         * @param ranges A vector of Range objects specifying the indices to select from each dimension.
+         *              Each Range object defines the start, stop, and step values for slicing along that dimension.
+         *
+         * @return A shared pointer to a new Array containing the selected elements.
+         *         The returned Array shares the same underlying buffer as the original Array,
+         *         but with modified shape and strides to represent the slice view,
+         *         avoiding memory allocation for efficiency.
+         *
+         * @throws std::invalid_argument If the number of ranges doesn't match the Array's dimensions
+         *                              or if any range specifies invalid indices.
+         */
         std::shared_ptr<Array> slice(const std::vector<Range> &ranges);
 
         // Unslice operation yields constant array(for efficiency)
@@ -202,12 +218,38 @@ namespace xv::core
         static std::shared_ptr<Array> full(const std::vector<uint64_t> &view, float c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
         // Saves memory by storing only one constant value and broadcasts later if needed
+        /**
+         * @brief Creates a scalar array filled with a specified integer value
+         *
+         * @param c The integer value to fill the array with
+         * @param dtype The data type of the array elements (default: float32)
+         * @param device The device where the array will be allocated (default: device0)
+         *
+         * @return std::shared_ptr<Array> A shared pointer to the newly created array
+         *
+         * @details This is a convenience function that creates a scalar (1-dimensional array of size 1)
+         * filled with the specified value. It internally calls the more general full() function
+         * with a shape vector of {1}.
+         */
         static std::shared_ptr<Array> full(int c, const Dtype &dtype = f32, const Device &device = device0)
         {
             std::vector<uint64_t> view = {1};
             return full(view, c, dtype, device, true);
         }
 
+        /**
+         * @brief Creates a scalar array filled with a specified floating-point value
+         *
+         * @param c The floating-point value to fill the array with
+         * @param dtype The data type of the array elements (default: float32)
+         * @param device The device where the array will be allocated (default: device0)
+         *
+         * @return std::shared_ptr<Array> A shared pointer to the newly created array
+         *
+         * @details This is a convenience function that creates a scalar (1-dimensional array of size 1)
+         * filled with the specified value. It internally calls the more general full() function
+         * with a shape vector of {1}.
+         */
         static std::shared_ptr<Array> full(float c, const Dtype &dtype = f32, const Device &device = device0)
         {
             std::vector<uint64_t> view = {1};
@@ -300,9 +342,36 @@ namespace xv::core
          */
         std::shared_ptr<Array> T(uint64_t start_dim, uint64_t end_dim);
 
+        /**
+         * @brief Transposes array starting from a specified dimension to the last dimension.
+         *
+         * @param start_dim Starting dimension for transpose operation (0-based index)
+         * @return std::shared_ptr<Array> A new array with dimensions transposed from start_dim to the last dimension
+         * @note This is a convenience overload that calls T(start_dim, get_ndim() - 1)
+         */
+        std::shared_ptr<Array> T(uint64_t start_dim)
+        {
+            return T(start_dim, get_ndim() - 1);
+        }
+
+        /**
+         * @brief Flattens a multi-dimensional array by collapsing dimensions from start_dim to end_dim into a single dimension.
+         *
+         * @param start_dim Starting dimension to flatten (inclusive)
+         * @param end_dim Ending dimension to flatten (inclusive)
+         * @return std::shared_ptr<Array> A new array with the specified dimensions flattened into one
+         *
+         * @details This method preserves the order of elements while reducing the number of dimensions.
+         * The dimensions from start_dim to end_dim (inclusive) are merged into a single dimension,
+         * while dimensions before start_dim and after end_dim remain unchanged.
+         *
+         * @throws std::invalid_argument If start_dim > end_dim or if end_dim exceeds array dimensions
+         */
         std::shared_ptr<Array> flatten(uint64_t start_dim, uint64_t end_dim);
 
         std::shared_ptr<Array> as_contiguous() { return is_contiguous() ? shared_from_this() : copy(); }
+
+        std::shared_ptr<Array> sum();
     };
 
     inline IdGenerator Array::id_gen = IdGenerator();

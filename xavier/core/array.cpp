@@ -52,7 +52,7 @@ namespace xv::core
         }
     }
 
-    uint8_t *Array::access_(uint64_t k) const
+    uint8_t *Array::strided_idx(uint64_t k) const
     {
         if (is_contiguous())
         {
@@ -142,7 +142,7 @@ namespace xv::core
         Shape sliced_shape = orig_shape.slice(ranges);
         if (sliced_shape != shape)
         {
-            throw std::invalid_argument("Cannot unslice because the sliced shape " + sliced_shape.str() + " does not match the current shape " + shape.str() + " of array " + std::to_string(id) + ".");
+            throw std::invalid_argument("Cannot unslice because the sliced shape " + sliced_shape.str() + " does not match the current shape " + shape.str() + " of array " + id.str() + ".");
         }
         auto arr = std::make_shared<Array>(orig_shape, dtype, device, true);
         arr->op = std::make_shared<UnsliceOp>(shared_from_this(), orig_shape, ranges);
@@ -218,7 +218,7 @@ namespace xv::core
     {
         if (constant)
         {
-            throw std::runtime_error("Cannot update array " + std::to_string(id) + " since it is a constant.");
+            throw std::runtime_error("Cannot update array " + id.str() + " since it is a constant.");
         }
         auto dummy_op = std::make_shared<O>(nullptr, nullptr, true);
         if (!rhs->shape.broadcastable_to(get_view()))
@@ -269,7 +269,7 @@ namespace xv::core
         auto dummy_op = std::make_shared<O>(nullptr, in_place);
         if (in_place && constant)
         {
-            throw CannotUpdateConstArray(std::to_string(id));
+            throw CannotUpdateConstArray(id.str());
         }
         if (!unary_dtypes.contains(dtype))
         {
@@ -288,11 +288,11 @@ namespace xv::core
         {
             if (constant)
             {
-                throw CannotUpdateConstArray(std::to_string(id));
+                throw CannotUpdateConstArray(id.str());
             }
             else if (dtype != f32)
             {
-                throw std::runtime_error("Array " + std::to_string(id) + " must be a float array for " + dummy_op->get_name_str() + " operation.");
+                throw std::runtime_error("Array " + id.str() + " must be a float array for " + dummy_op->get_name_str() + " operation.");
             }
         }
         auto result_dtype = unary_float_dtypes.find(dtype);
@@ -494,5 +494,13 @@ namespace xv::core
         // Update view at start_dim
         view[start_dim] = prod;
         return reshape(view);
+    }
+
+    std::shared_ptr<Array> Array::sum()
+    {
+        // Reduce to one element for now
+        auto arr = std::make_shared<Array>(Shape({1}), dtype, device);
+        arr->op = std::make_shared<SumOp>(shared_from_this());
+        return arr;
     }
 }

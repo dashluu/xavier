@@ -9,6 +9,7 @@ namespace xv::backend::metal
     private:
         static std::vector<std::string> num_unary_ops;
         static std::vector<std::string> num_binary_ops;
+        static std::vector<std::string> num_reduction_ops;
         NS::SharedPtr<NS::AutoreleasePool> pool;
         NS::SharedPtr<MTL::Device> device;
         NS::SharedPtr<MTL::Library> lib;
@@ -20,6 +21,7 @@ namespace xv::backend::metal
         void init_initializer_kernels();
         void init_unary_kernels();
         void init_binary_kernels();
+        void init_reduction_kernels();
         void init_util_kernels();
 
     public:

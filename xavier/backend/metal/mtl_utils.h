@@ -15,13 +15,13 @@ namespace xv::backend::metal
         return v32;
     }
 
-    inline void ss_dispatch(MTLContext &ctx, MTL::CommandBuffer *cmd_buff, MTL::ComputeCommandEncoder *encoder, const std::string &name, uint64_t numels)
+    inline void ss_dispatch(MTLContext &ctx, MTL::CommandBuffer *cmd_buff, MTL::ComputeCommandEncoder *encoder, const std::string &name, uint64_t numel)
     {
         auto kernel = ctx.get_kernel(name);
         encoder->setComputePipelineState(kernel->get_state().get());
-        auto grid_size = MTL::Size::Make(numels, 1, 1);
-        auto thread_group_size = MTL::Size::Make(kernel->get_state()->maxTotalThreadsPerThreadgroup(), 1, 1);
-        encoder->dispatchThreads(grid_size, thread_group_size);
+        auto grid_size = MTL::Size::Make(numel, 1, 1);
+        auto threadgroup_size = MTL::Size::Make(kernel->get_state()->maxTotalThreadsPerThreadgroup(), 1, 1);
+        encoder->dispatchThreads(grid_size, threadgroup_size);
         encoder->endEncoding();
         cmd_buff->commit();
         cmd_buff->waitUntilCompleted();

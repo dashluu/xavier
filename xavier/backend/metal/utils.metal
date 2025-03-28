@@ -1,6 +1,6 @@
 #include "utils.h"
 
-uint access(uint id, constant const uint *ndim, constant const uint *shape, constant const int *stride)
+uint strided_idx(uint id, constant const uint *ndim, constant const uint *shape, constant const int *stride)
 {
     uint dim[MAX_NDIM];
     uint carry = id;

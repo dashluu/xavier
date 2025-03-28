@@ -5,22 +5,27 @@ namespace xv::core
 {
     const std::string UnaryOp::str() const
     {
-        return get_name_str() + ", in-place: " + std::to_string(in_place) + ", operand: " + std::to_string(operand->get_id());
+        return get_name_str() + ", in-place: " + std::to_string(in_place) + ", operand: " + operand->get_id().str();
     }
 
     const std::string BinaryOp::str() const
     {
-        return get_name_str() + ", in-place: " + std::to_string(in_place) + ", lhs: " + std::to_string(lhs->get_id()) + ", rhs: " + std::to_string(rhs->get_id());
+        return get_name_str() + ", in-place: " + std::to_string(in_place) + ", lhs: " + lhs->get_id().str() + ", rhs: " + rhs->get_id().str();
     }
 
     const std::string TransformOp::str() const
     {
-        return get_name_str() + ", operand: " + std::to_string(operand->get_id());
+        return get_name_str() + ", operand: " + operand->get_id().str();
+    }
+
+    const std::string ReduceOp::str() const
+    {
+        return get_name_str() + ", operand: " + operand->get_id().str();
     }
 
     const std::string CopyOp::str() const
     {
-        return get_name_str() + ", operand: " + std::to_string(operand->get_id());
+        return get_name_str() + ", operand: " + operand->get_id().str();
     }
 
     void AddOp::backward(std::shared_ptr<Array> arr) const
@@ -75,9 +80,10 @@ namespace xv::core
         // dx += dz @ y^T
         // dy += x^T @ dz
         lhs->init_grad();
-        lhs->update_grad(arr->grad->matmul(rhs->T(rhs->get_ndim() - 2, rhs->get_ndim() - 1)));
+        // Transpose the last two dimensions of lhs and rhs
+        lhs->update_grad(arr->grad->matmul(rhs->T(rhs->get_ndim() - 2)));
         rhs->init_grad();
-        rhs->update_grad(lhs->T(lhs->get_ndim() - 2, lhs->get_ndim() - 1)->matmul(arr->grad));
+        rhs->update_grad(lhs->T(lhs->get_ndim() - 2)->matmul(arr->grad));
     }
 
     void SqOp::backward(std::shared_ptr<Array> arr) const

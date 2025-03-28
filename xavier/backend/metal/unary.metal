@@ -75,7 +75,7 @@ kernel void strided_unary_ss(
     device R *output [[buffer(5)]],
     uint id [[thread_position_in_grid]])
 {
-    uint idx = access(id, ndim, shape, stride);
+    uint idx = strided_idx(id, ndim, shape, stride);
     output[offset[1] + id] = Op()(input[offset[0] + idx]);
 }
 

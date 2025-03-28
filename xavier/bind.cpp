@@ -10,6 +10,11 @@ PYBIND11_MODULE(xavier, m)
 
 void init_xv_module(py::module_ &m)
 {
+    py::class_<Id>(m, "Id")
+        .def("data", &Id::get_data)
+        .def("__str__", &Id::str)
+        .def("__repr__", &Id::str);
+
     py::class_<Shape>(m, "Shape")
         .def(py::init<const std::vector<uint64_t> &>(), "view"_a)
         .def("offset", &Shape::get_offset)
@@ -77,7 +82,7 @@ void init_xv_module(py::module_ &m)
         .def_readonly("grad", &Array::grad, "Accesses the gradient of the array.")
         .def("ptr", [](const Array &arr)
              { return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(arr.get_ptr())); }, "Returns a pointer to the data of the array.")
-        .def("access_", &Array::access_, "Accesses the kth element in the array.", "k"_a)
+        .def("strided_idx", &Array::strided_idx, "Accesses the kth element in the array.", "k"_a)
         .def("is_contiguous", &Array::is_contiguous, "Checks if the array is contiguous.")
         .def("numel", &Array::get_numel, "Returns the number of elements in the array.")
         .def("ndim", &Array::get_ndim, "Returns the number of dimensions in the array.")
@@ -138,6 +143,7 @@ void init_xv_module(py::module_ &m)
         .def("permute", &Array::permute, "Permutes the dimensions of the array according to the given order.", "order"_a)
         .def("T", &T, "Transposes the array.", "start_dim"_a = 0, "end_dim"_a = -1)
         .def("flatten", &flatten, "Flattens the array.", "start_dim"_a = 0, "end_dim"_a = -1)
+        .def("sum", &Array::sum, "Computes the sum of the array elements.")
         .def_static("from_buffer", &array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = device0, "constant"_a = false)
         .def_static("from_numpy", &array_from_numpy, "Creates an array from numpy array without copying.", "np_arr"_a, "device"_a = device0, "constant"_a = false)
         .def("to_numpy", &array_to_numpy, "Converts the array to a numpy array.");

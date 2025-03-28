@@ -84,8 +84,8 @@ kernel void strided_binary_ss(
     device R *output [[buffer(7)]],
     uint id [[thread_position_in_grid]])
 {
-    uint lhs_idx = access(id, ndim, shape, lhs_stride);
-    uint rhs_idx = access(id, ndim, shape, rhs_stride);
+    uint lhs_idx = strided_idx(id, ndim, shape, lhs_stride);
+    uint rhs_idx = strided_idx(id, ndim, shape, rhs_stride);
     output[offset[2] + id] = Op()(lhs[offset[0] + lhs_idx], rhs[offset[1] + rhs_idx]);
 }
 

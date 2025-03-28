@@ -11,6 +11,8 @@ include_directories(${PYBIND})
 find_package(pybind11 REQUIRED)
 
 set(HEADER_FILES
+    common.h
+    core/id.h
     core/dtype.h
     core/shape.h
     core/array.h
@@ -36,6 +38,7 @@ if(APPLE)
         backend/metal/mtl_unary.h
         backend/metal/mtl_binary.h
         backend/metal/mtl_matmul.h
+        backend/metal/mtl_reduce.h
     )
     SET(MTL_SRC_FILES
         graph/mtl_graph.cpp
@@ -45,6 +48,7 @@ if(APPLE)
         backend/metal/mtl_unary.cpp
         backend/metal/mtl_binary.cpp
         backend/metal/mtl_matmul.cpp
+        backend/metal/mtl_reduce.cpp
     )
     add_subdirectory(backend/metal)
     pybind11_add_module(${PROJECT_NAME} bind.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})

@@ -31,7 +31,7 @@ namespace xv::core
 
         uint8_t *next()
         {
-            ptr = arr->access_(counter);
+            ptr = arr->strided_idx(counter);
             counter++;
             return ptr;
         }

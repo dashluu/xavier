@@ -44,11 +44,11 @@ void xv::backend::metal::matmul(std::shared_ptr<Array> lhs, std::shared_ptr<Arra
     uint64_t x_group_count = std::max(1ull, static_cast<uint64_t>((N + X_THREADS_PER_GROUP - 1) / X_THREADS_PER_GROUP));
     uint64_t y_group_count = std::max(1ull, static_cast<uint64_t>((M + Y_THREADS_PER_GROUP - 1) / Y_THREADS_PER_GROUP));
     uint64_t z_group_count = std::max(1ull, static_cast<uint64_t>((B + Z_THREADS_PER_GROUP - 1) / Z_THREADS_PER_GROUP));
-    auto thread_group_count = MTL::Size::Make(x_group_count, y_group_count, z_group_count);
+    auto threadgroup_count = MTL::Size::Make(x_group_count, y_group_count, z_group_count);
 
     // Compute the number of threads per group
-    auto thread_group_size = MTL::Size::Make(X_THREADS_PER_GROUP, Y_THREADS_PER_GROUP, Z_THREADS_PER_GROUP);
-    encoder->dispatchThreadgroups(thread_group_count, thread_group_size);
+    auto threadgroup_size = MTL::Size::Make(X_THREADS_PER_GROUP, Y_THREADS_PER_GROUP, Z_THREADS_PER_GROUP);
+    encoder->dispatchThreadgroups(threadgroup_count, threadgroup_size);
     encoder->endEncoding();
     cmd_buff->commit();
     cmd_buff->waitUntilCompleted();
@@ -110,11 +110,11 @@ void xv::backend::metal::strided_matmul(std::shared_ptr<Array> lhs, std::shared_
     uint64_t x_group_count = std::max(1ull, static_cast<uint64_t>((N + X_THREADS_PER_GROUP - 1) / X_THREADS_PER_GROUP));
     uint64_t y_group_count = std::max(1ull, static_cast<uint64_t>((M + Y_THREADS_PER_GROUP - 1) / Y_THREADS_PER_GROUP));
     uint64_t z_group_count = std::max(1ull, static_cast<uint64_t>((B + Z_THREADS_PER_GROUP - 1) / Z_THREADS_PER_GROUP));
-    auto thread_group_count = MTL::Size::Make(x_group_count, y_group_count, z_group_count);
+    auto threadgroup_count = MTL::Size::Make(x_group_count, y_group_count, z_group_count);
 
     // Compute the number of threads per group
-    auto thread_group_size = MTL::Size::Make(X_THREADS_PER_GROUP, Y_THREADS_PER_GROUP, Z_THREADS_PER_GROUP);
-    encoder->dispatchThreadgroups(thread_group_count, thread_group_size);
+    auto threadgroup_size = MTL::Size::Make(X_THREADS_PER_GROUP, Y_THREADS_PER_GROUP, Z_THREADS_PER_GROUP);
+    encoder->dispatchThreadgroups(threadgroup_count, threadgroup_size);
     encoder->endEncoding();
     cmd_buff->commit();
     cmd_buff->waitUntilCompleted();
