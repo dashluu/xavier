@@ -28,7 +28,7 @@ namespace xv::core
         return get_name_str() + ", operand: " + operand->get_id().str();
     }
 
-    void AddOp::backward(std::shared_ptr<Array> arr) const
+    void AddOp::backward(ArrayPtr arr) const
     {
         // In-place or not, gradient should be computed properly
         // z = x + y
@@ -40,7 +40,7 @@ namespace xv::core
         rhs->update_grad(arr->grad);
     }
 
-    void SubOp::backward(std::shared_ptr<Array> arr) const
+    void SubOp::backward(ArrayPtr arr) const
     {
         // z = x + y
         // dx += dz
@@ -51,7 +51,7 @@ namespace xv::core
         rhs->update_grad(arr->grad, true);
     }
 
-    void MulOp::backward(std::shared_ptr<Array> arr) const
+    void MulOp::backward(ArrayPtr arr) const
     {
         // z = x*y
         // dx += dz*y
@@ -62,7 +62,7 @@ namespace xv::core
         rhs->update_grad(arr->grad->mul(lhs));
     }
 
-    void DivOp::backward(std::shared_ptr<Array> arr) const
+    void DivOp::backward(ArrayPtr arr) const
     {
         // z = x/y
         // dx += dz * (1/y)
@@ -74,7 +74,7 @@ namespace xv::core
         rhs->update_grad(arr->grad->mul(arr->div(rhs)), true);
     }
 
-    void MatmulOp::backward(std::shared_ptr<Array> arr) const
+    void MatmulOp::backward(ArrayPtr arr) const
     {
         // z = x@y
         // dx += dz @ y^T
@@ -86,24 +86,24 @@ namespace xv::core
         rhs->update_grad(lhs->T(lhs->get_ndim() - 2)->matmul(arr->grad));
     }
 
-    void SqOp::backward(std::shared_ptr<Array> arr) const
+    void SqOp::backward(ArrayPtr arr) const
     {
         // z = x**2
         // dx += dz * 2x
         operand->init_grad();
-        operand->update_grad(arr->grad->mul(operand->mul(2)));
+        operand->update_grad(arr->grad->mul(operand->mul(2.0f)));
     }
 
-    void SqrtOp::backward(std::shared_ptr<Array> arr) const
+    void SqrtOp::backward(ArrayPtr arr) const
     {
         // z = sqrt(x)
         // dx += dz / (2 * sqrt(x))
         // dx += dz / 2z
         operand->init_grad();
-        operand->update_grad(arr->grad->div(arr->mul(2)));
+        operand->update_grad(arr->grad->div(arr->mul(2.0f)));
     }
 
-    void ExpOp::backward(std::shared_ptr<Array> arr) const
+    void ExpOp::backward(ArrayPtr arr) const
     {
         // z = e**x
         // dx += dz * e**x
@@ -112,7 +112,7 @@ namespace xv::core
         operand->update_grad(arr->grad->mul(arr));
     }
 
-    void LogOp::backward(std::shared_ptr<Array> arr) const
+    void LogOp::backward(ArrayPtr arr) const
     {
         // z = ln(x)
         // dx += dz / x
@@ -120,7 +120,7 @@ namespace xv::core
         operand->update_grad(arr->grad->div(operand));
     }
 
-    void NegOp::backward(std::shared_ptr<Array> arr) const
+    void NegOp::backward(ArrayPtr arr) const
     {
         // z = -x
         // dx += -dz
@@ -129,7 +129,7 @@ namespace xv::core
         operand->update_grad(arr->grad, true);
     }
 
-    void RecipOp::backward(std::shared_ptr<Array> arr) const
+    void RecipOp::backward(ArrayPtr arr) const
     {
         // z = 1/x
         // dx += dz * -1/x**2
@@ -139,7 +139,7 @@ namespace xv::core
         operand->update_grad(arr->grad->mul(arr->sq()), true);
     }
 
-    void ReshapeOp::backward(std::shared_ptr<Array> arr) const
+    void ReshapeOp::backward(ArrayPtr arr) const
     {
         // Copy is done to ensure gradient independence
         // Copy first and then reshape for efficiency
@@ -147,24 +147,34 @@ namespace xv::core
         operand->update_grad(arr->grad->copy()->reshape(operand->get_view()));
     }
 
-    void SliceOp::backward(std::shared_ptr<Array> arr) const
+    void SliceOp::backward(ArrayPtr arr) const
     {
         // operand->init_grad();
         // operand->update_grad(arr->grad->unslice(operand->get_shape(), ranges));
     }
 
-    void UnsliceOp::backward(std::shared_ptr<Array> arr) const
+    void UnsliceOp::backward(ArrayPtr arr) const
     {
         // operand->init_grad();
         // operand->update_grad(arr->grad->slice(ranges));
     }
 
-    void PermuteOp::backward(std::shared_ptr<Array> arr) const
+    void PermuteOp::backward(ArrayPtr arr) const
     {
         operand->init_grad();
         // Gradient independence
         auto grad_copy = arr->grad->copy();
         auto reversed_order = grad_copy->get_shape().undo_permute_view(order);
         operand->update_grad(grad_copy->permute(reversed_order));
+    }
+
+    void SumOp::backward(ArrayPtr arr) const
+    {
+        if (arr->grad == nullptr)
+        {
+            arr->grad = Array::ones_like(arr, arr->get_device());
+        }
+        operand->init_grad();
+        operand->update_grad(arr->grad);
     }
 }

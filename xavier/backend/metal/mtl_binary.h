@@ -4,6 +4,6 @@
 
 namespace xv::backend::metal
 {
-    void binary_ss(const std::string &name, std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, std::shared_ptr<Array> output, MTLContext &ctx);
-    void strided_binary_ss(const std::string &name, std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, std::shared_ptr<Array> output, MTLContext &ctx);
+    void binary_ss(const std::string &name, ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTLContext &ctx);
+    void strided_binary_ss(const std::string &name, ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTLContext &ctx);
 }

@@ -2,7 +2,7 @@
 
 namespace xv::backend::metal
 {
-    void reduce(const std::string &name, std::shared_ptr<Array> input, std::shared_ptr<Array> output, MTLContext &ctx)
+    void reduce(const std::string &name, ArrayPtr input, ArrayPtr output, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();

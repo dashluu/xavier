@@ -14,10 +14,12 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <functional>
+#include <type_traits>
 
 namespace xv::core
 {
     class Array;
+    using ArrayPtr = std::shared_ptr<Array>;
 
     class IStr
     {

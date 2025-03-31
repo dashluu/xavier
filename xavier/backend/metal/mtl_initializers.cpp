@@ -2,7 +2,7 @@
 
 namespace xv::backend::metal
 {
-    void full(std::shared_ptr<Array> arr, int c, uint64_t size, MTLContext &ctx)
+    void full(ArrayPtr arr, int c, uint64_t size, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();
@@ -16,7 +16,7 @@ namespace xv::backend::metal
         ss_dispatch(ctx, cmd_buff, encoder, name, arr->get_numel());
     }
 
-    void arange(std::shared_ptr<Array> arr, int start, int step, MTLContext &ctx)
+    void arange(ArrayPtr arr, int start, int step, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();

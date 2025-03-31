@@ -30,8 +30,7 @@ struct AtomicSum
     }
 };
 
-struct AtomicMax
-{
+struct AtomicMaxInt {
     template <class T, class R>
     void operator()(volatile device metal::_atomic<R> *output, T val)
     {
@@ -39,12 +38,18 @@ struct AtomicMax
     }
 };
 
-struct AtomicMin
+struct AtomicMaxFloat
 {
     template <class T, class R>
     void operator()(volatile device metal::_atomic<R> *output, T val)
     {
-        metal::atomic_fetch_min_explicit(output, val, metal::memory_order_relaxed);
+        // Hackery way using atomic_fetch_max_explicit, atomic_fetch_min_explicit for int
+        // TODO: handle nan and inf case?
+        if (!metal::signbit(val)) {
+            metal::atomic_fetch_max_explicit(reinterpret_cast<volatile device metal::_atomic<int>*>(output), as_type<int>(val), metal::memory_order_relaxed);
+        } else {
+            metal::atomic_fetch_min_explicit(reinterpret_cast<volatile device metal::_atomic<uint>*>(output), as_type<uint>(val), metal::memory_order_relaxed);
+        }
     }
 };
 
@@ -152,12 +157,11 @@ kernel void strided_reduce_to_one(
     }
 }
 
-#define reduce_all(opname, op, atomic_op) \
-template [[host_name(#opname "_f32")]] [[kernel]] decltype(reduce_to_one<op, atomic_op, float, float>) reduce_to_one<op, atomic_op, float, float>;                              \
-template [[host_name(#opname "_i32")]] [[kernel]] decltype(reduce_to_one<op, atomic_op, int, int>) reduce_to_one<op, atomic_op, int, int>;                                      \
-template [[host_name("strided_" #opname "_f32")]] [[kernel]] decltype(strided_reduce_to_one<op, atomic_op, float, float>) strided_reduce_to_one<op, atomic_op, float, float>;   \
-template [[host_name("strided_" #opname "_i32")]] [[kernel]] decltype(strided_reduce_to_one<op, atomic_op, int, int>) strided_reduce_to_one<op, atomic_op, int, int>;
+#define reduce_all(opname, op, atomic_op_float, atomic_op_int) \
+template [[host_name(#opname "_f32")]] [[kernel]] decltype(reduce_to_one<op, atomic_op_float, float, float>) reduce_to_one<op, atomic_op_float, float, float>;                              \
+template [[host_name(#opname "_i32")]] [[kernel]] decltype(reduce_to_one<op, atomic_op_int, int, int>) reduce_to_one<op, atomic_op_int, int, int>;                                          \
+template [[host_name("strided_" #opname "_f32")]] [[kernel]] decltype(strided_reduce_to_one<op, atomic_op_float, float, float>) strided_reduce_to_one<op, atomic_op_float, float, float>;   \
+template [[host_name("strided_" #opname "_i32")]] [[kernel]] decltype(strided_reduce_to_one<op, atomic_op_int, int, int>) strided_reduce_to_one<op, atomic_op_int, int, int>;
 
-reduce_all(sum, Sum, AtomicSum)
-// reduce_all(max, Max, AtomicMax)
-// reduce_all(min, Min, AtomicMin)
+reduce_all(sum, Sum, AtomicSum, AtomicSum)
+reduce_all(max, Max, AtomicMaxFloat, AtomicMaxInt)

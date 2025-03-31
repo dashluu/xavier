@@ -3,7 +3,9 @@ project(xavier)
 
 set(CMAKE_CXX_STANDARD 23)
 # Python and Pybind11
+# Note: set path to python here
 set(PYTHON "/opt/miniconda3/envs/tensor_x/include/python3.12")
+# Note: set path to pybind11 here
 set(PYBIND "/opt/miniconda3/envs/tensor_x/include/pybind11")
 set(CMAKE_CXX_FLAGS "-undefined dynamic_lookup")
 include_directories(${PYTHON})
@@ -50,8 +52,18 @@ if(APPLE)
         backend/metal/mtl_matmul.cpp
         backend/metal/mtl_reduce.cpp
     )
+    SET(BIND_HEADER_FILES
+        python/bind.h
+        python/utils.h
+        python/array.h
+    )
+    SET(BIND_SRC_FILES
+        python/utils.cpp
+        python/array.cpp
+        python/bind.cpp
+    )
     add_subdirectory(backend/metal)
-    pybind11_add_module(${PROJECT_NAME} bind.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
+    pybind11_add_module(${PROJECT_NAME} ${BIND_SRC_FILES} ${BIND_HEADER_FILES} ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
     # set(CMAKE_BUILD_TYPE Debug)
     # add_executable(${PROJECT_NAME} main.cpp ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})
     # Metal-cpp

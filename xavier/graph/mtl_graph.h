@@ -17,27 +17,27 @@ namespace xv::graph
     private:
         std::shared_ptr<MTLContext> ctx;
         std::unordered_set<Id> visited;
-        std::vector<std::shared_ptr<Array>> fw_order;
-        std::vector<std::shared_ptr<Array>> bw_order;
+        std::vector<ArrayPtr> fw_order;
+        std::vector<ArrayPtr> bw_order;
 
-        void toposort(std::shared_ptr<Array> arr, std::vector<std::shared_ptr<Array>> &order);
+        void toposort(ArrayPtr arr, std::vector<ArrayPtr> &order);
 
-        void call(std::shared_ptr<Array> arr);
+        void call(ArrayPtr arr);
 
-        void call_initializer(std::shared_ptr<Array> arr);
+        void call_initializer(ArrayPtr arr);
 
-        void call_unary(const std::string &name, std::shared_ptr<Array> arr);
+        void call_unary(ArrayPtr arr);
 
-        void call_binary(const std::string &name, std::shared_ptr<Array> arr);
+        void call_binary(ArrayPtr arr);
 
-        void call_transform(std::shared_ptr<Array> arr);
+        void call_transform(ArrayPtr arr);
 
-        void call_reduce(const std::string &name, std::shared_ptr<Array> arr);
+        void call_reduce(ArrayPtr arr);
 
-        void call_move(std::shared_ptr<Array> arr);
+        void call_move(ArrayPtr arr);
 
     public:
-        MTLGraph(std::shared_ptr<Array> root, std::shared_ptr<MTLContext> ctx) : Graph(root), ctx(ctx) {}
+        MTLGraph(ArrayPtr root, std::shared_ptr<MTLContext> ctx) : Graph(root), ctx(ctx) {}
 
         void compile() override;
 

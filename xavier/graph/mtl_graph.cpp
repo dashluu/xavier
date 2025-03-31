@@ -2,7 +2,7 @@
 
 namespace xv::graph
 {
-    void MTLGraph::call_initializer(std::shared_ptr<Array> arr)
+    void MTLGraph::call_initializer(ArrayPtr arr)
     {
         arr->alloc();
         auto op = arr->get_op();
@@ -25,7 +25,7 @@ namespace xv::graph
         }
     }
 
-    void MTLGraph::call_unary(const std::string &name, std::shared_ptr<Array> arr)
+    void MTLGraph::call_unary(ArrayPtr arr)
     {
         auto unary_op = std::static_pointer_cast<UnaryOp>(arr->get_op());
         auto operand = unary_op->get_operand();
@@ -39,15 +39,15 @@ namespace xv::graph
         }
         if (operand->is_contiguous())
         {
-            unary_ss(name, operand, arr, *ctx);
+            unary_ss(unary_op->get_name_str(), operand, arr, *ctx);
         }
         else
         {
-            strided_unary_ss(name, operand, arr, *ctx);
+            strided_unary_ss(unary_op->get_name_str(), operand, arr, *ctx);
         }
     }
 
-    void MTLGraph::call_binary(const std::string &name, std::shared_ptr<Array> arr)
+    void MTLGraph::call_binary(ArrayPtr arr)
     {
         auto binary_op = std::static_pointer_cast<BinaryOp>(arr->get_op());
         auto lhs = binary_op->get_lhs();
@@ -77,16 +77,16 @@ namespace xv::graph
             }
             if (lhs->is_contiguous() && rhs->is_contiguous())
             {
-                binary_ss(name, lhs, rhs, arr, *ctx);
+                binary_ss(binary_op->get_name_str(), lhs, rhs, arr, *ctx);
             }
             else
             {
-                strided_binary_ss(name, lhs, rhs, arr, *ctx);
+                strided_binary_ss(binary_op->get_name_str(), lhs, rhs, arr, *ctx);
             }
         }
     }
 
-    void MTLGraph::call_transform(std::shared_ptr<Array> arr)
+    void MTLGraph::call_transform(ArrayPtr arr)
     {
         auto op = arr->get_op();
         switch (op->get_name())
@@ -132,23 +132,16 @@ namespace xv::graph
         }
     }
 
-    void MTLGraph::call_reduce(const std::string &name, std::shared_ptr<Array> arr)
+    void MTLGraph::call_reduce(ArrayPtr arr)
     {
         auto op = arr->get_op();
-        switch (op->get_name())
-        {
-        case OpName::SUM:
-        {
-            auto sum_op = std::static_pointer_cast<SumOp>(op);
-            auto operand = sum_op->get_operand();
-            arr->alloc();
-            reduce(name, operand, arr, *ctx);
-            break;
-        }
-        }
+        auto reduce_op = std::static_pointer_cast<ReduceOp>(op);
+        auto operand = reduce_op->get_operand();
+        arr->alloc();
+        reduce(reduce_op->get_name_str(), operand, arr, *ctx);
     }
 
-    void MTLGraph::call_move(std::shared_ptr<Array> arr)
+    void MTLGraph::call_move(ArrayPtr arr)
     {
         auto move_op = std::static_pointer_cast<TransformOp>(arr->get_op());
         auto operand = move_op->get_operand();
@@ -163,7 +156,7 @@ namespace xv::graph
         }
     }
 
-    void MTLGraph::toposort(std::shared_ptr<Array> arr, std::vector<std::shared_ptr<Array>> &order)
+    void MTLGraph::toposort(ArrayPtr arr, std::vector<ArrayPtr> &order)
     {
         if (visited.contains(arr->get_id()))
         {
@@ -222,7 +215,7 @@ namespace xv::graph
         }
     }
 
-    void MTLGraph::call(std::shared_ptr<Array> arr)
+    void MTLGraph::call(ArrayPtr arr)
     {
         auto op = arr->get_op();
         switch (op->get_type())
@@ -234,12 +227,12 @@ namespace xv::graph
         }
         case OpType::UNARY:
         {
-            call_unary(op->get_name_str(), arr);
+            call_unary(arr);
             break;
         }
         case OpType::BINARY:
         {
-            call_binary(op->get_name_str(), arr);
+            call_binary(arr);
             break;
         }
         case OpType::TRANSFORM:
@@ -249,7 +242,7 @@ namespace xv::graph
         }
         case OpType::REDUCE:
         {
-            call_reduce(op->get_name_str(), arr);
+            call_reduce(arr);
             break;
         }
         default:
@@ -264,6 +257,10 @@ namespace xv::graph
     {
         if (fw_order.empty())
         {
+            // if (root->get_numel() > 1)
+            // {
+            //     throw std::invalid_argument("Root array " + root->get_id().str() + " must contain a single element.");
+            // }
             toposort(root, fw_order);
             // Seed root for now
             root->grad = Array::ones_like(root, root->get_device());

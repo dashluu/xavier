@@ -8,6 +8,6 @@
 
 namespace xv::backend::metal
 {
-    void matmul(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, std::shared_ptr<Array> output, MTLContext &ctx);
-    void strided_matmul(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, std::shared_ptr<Array> output, MTLContext &ctx);
+    void matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTLContext &ctx);
+    void strided_matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTLContext &ctx);
 }

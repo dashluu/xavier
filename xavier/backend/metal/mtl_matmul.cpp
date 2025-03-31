@@ -1,6 +1,6 @@
 #include "mtl_matmul.h"
 
-void xv::backend::metal::matmul(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, std::shared_ptr<Array> output, MTLContext &ctx)
+void xv::backend::metal::matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTLContext &ctx)
 {
     auto cmd_queue = ctx.get_cmd_queue();
     auto cmd_buff = cmd_queue->commandBuffer();
@@ -54,7 +54,7 @@ void xv::backend::metal::matmul(std::shared_ptr<Array> lhs, std::shared_ptr<Arra
     cmd_buff->waitUntilCompleted();
 }
 
-void xv::backend::metal::strided_matmul(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, std::shared_ptr<Array> output, MTLContext &ctx)
+void xv::backend::metal::strided_matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTLContext &ctx)
 {
     auto cmd_queue = ctx.get_cmd_queue();
     auto cmd_buff = cmd_queue->commandBuffer();

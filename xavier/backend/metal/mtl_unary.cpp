@@ -2,7 +2,7 @@
 
 namespace xv::backend::metal
 {
-    void unary_ss(const std::string &name, std::shared_ptr<Array> input, std::shared_ptr<Array> output, MTLContext &ctx)
+    void unary_ss(const std::string &name, ArrayPtr input, ArrayPtr output, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();
@@ -21,7 +21,7 @@ namespace xv::backend::metal
         ss_dispatch(ctx, cmd_buff, encoder, kernel_name, input->get_numel());
     }
 
-    void strided_unary_ss(const std::string &name, std::shared_ptr<Array> input, std::shared_ptr<Array> output, MTLContext &ctx)
+    void strided_unary_ss(const std::string &name, ArrayPtr input, ArrayPtr output, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();

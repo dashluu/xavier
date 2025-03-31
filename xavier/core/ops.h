@@ -38,7 +38,9 @@ namespace xv::core
         SLICE,
         UNSLICE,
         COPY,
-        SUM
+        SUM,
+        MAX,
+        MIN
     };
 
     enum class OpType
@@ -51,7 +53,7 @@ namespace xv::core
         MOVE
     };
 
-    inline const std::unordered_map<OpName, std::string> opnames = {
+    inline const std::unordered_map<OpName, const std::string> opnames = {
         {OpName::RANDN, "randn"},
         {OpName::ARANGE, "arange"},
         {OpName::FULL, "full"},
@@ -83,7 +85,9 @@ namespace xv::core
         {OpName::SLICE, "slice"},
         {OpName::UNSLICE, "unslice"},
         {OpName::COPY, "copy"},
-        {OpName::SUM, "sum"}};
+        {OpName::SUM, "sum"},
+        {OpName::MAX, "max"},
+        {OpName::MIN, "min"}};
 
     struct Op : public std::enable_shared_from_this<Op>, public IStr
     {
@@ -98,9 +102,9 @@ namespace xv::core
         Op &operator=(const Op &) = delete;
         virtual ~Op() = default;
         OpName get_name() const { return name; }
-        std::string get_name_str() const { return opnames.at(name); }
+        const std::string &get_name_str() const { return opnames.at(name); }
         OpType get_type() const { return type; }
-        virtual void backward(std::shared_ptr<Array> arr) const {}
+        virtual void backward(ArrayPtr arr) const {}
     };
 
     struct InitializerOp : public Op
@@ -174,11 +178,11 @@ namespace xv::core
     {
     protected:
         bool in_place;
-        std::shared_ptr<Array> operand;
+        ArrayPtr operand;
 
     public:
-        UnaryOp(OpName name, std::shared_ptr<Array> operand, bool in_place) : Op(name, OpType::UNARY), operand(operand), in_place(in_place) {}
-        std::shared_ptr<Array> get_operand() const { return operand; }
+        UnaryOp(OpName name, ArrayPtr operand, bool in_place) : Op(name, OpType::UNARY), operand(operand), in_place(in_place) {}
+        ArrayPtr get_operand() const { return operand; }
         const std::string str() const override;
         bool is_in_place() const { return in_place; }
     };
@@ -187,13 +191,13 @@ namespace xv::core
     {
     protected:
         bool in_place;
-        std::shared_ptr<Array> lhs;
-        std::shared_ptr<Array> rhs;
+        ArrayPtr lhs;
+        ArrayPtr rhs;
 
     public:
-        BinaryOp(OpName name, std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, bool in_place) : Op(name, OpType::BINARY), lhs(lhs), rhs(rhs), in_place(in_place) {}
-        std::shared_ptr<Array> get_lhs() const { return lhs; }
-        std::shared_ptr<Array> get_rhs() const { return rhs; }
+        BinaryOp(OpName name, ArrayPtr lhs, ArrayPtr rhs, bool in_place) : Op(name, OpType::BINARY), lhs(lhs), rhs(rhs), in_place(in_place) {}
+        ArrayPtr get_lhs() const { return lhs; }
+        ArrayPtr get_rhs() const { return rhs; }
         const std::string str() const override;
         bool is_in_place() const { return in_place; }
     };
@@ -201,146 +205,146 @@ namespace xv::core
     struct TransformOp : public Op
     {
     protected:
-        std::shared_ptr<Array> operand;
+        ArrayPtr operand;
 
     public:
-        TransformOp(OpName name, std::shared_ptr<Array> operand) : Op(name, OpType::TRANSFORM), operand(operand) {}
-        std::shared_ptr<Array> get_operand() const { return operand; }
+        TransformOp(OpName name, ArrayPtr operand) : Op(name, OpType::TRANSFORM), operand(operand) {}
+        ArrayPtr get_operand() const { return operand; }
         const std::string str() const override;
     };
 
     struct ReduceOp : public Op
     {
     protected:
-        std::shared_ptr<Array> operand;
+        ArrayPtr operand;
 
     public:
-        ReduceOp(OpName name, std::shared_ptr<Array> operand) : Op(name, OpType::REDUCE), operand(operand) {}
-        std::shared_ptr<Array> get_operand() const { return operand; }
+        ReduceOp(OpName name, ArrayPtr operand) : Op(name, OpType::REDUCE), operand(operand) {}
+        ArrayPtr get_operand() const { return operand; }
         const std::string str() const override;
     };
 
     struct AddOp : public BinaryOp
     {
     public:
-        AddOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, bool in_place) : BinaryOp(OpName::ADD, lhs, rhs, in_place) {}
+        AddOp(ArrayPtr lhs, ArrayPtr rhs, bool in_place) : BinaryOp(OpName::ADD, lhs, rhs, in_place) {}
 
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct SubOp : public BinaryOp
     {
     public:
-        SubOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, bool in_place) : BinaryOp(OpName::SUB, lhs, rhs, in_place) {}
+        SubOp(ArrayPtr lhs, ArrayPtr rhs, bool in_place) : BinaryOp(OpName::SUB, lhs, rhs, in_place) {}
 
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct MulOp : public BinaryOp
     {
     public:
-        MulOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, bool in_place) : BinaryOp(OpName::MUL, lhs, rhs, in_place) {}
+        MulOp(ArrayPtr lhs, ArrayPtr rhs, bool in_place) : BinaryOp(OpName::MUL, lhs, rhs, in_place) {}
 
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct DivOp : public BinaryOp
     {
     public:
-        DivOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs, bool in_place) : BinaryOp(OpName::DIV, lhs, rhs, in_place) {}
+        DivOp(ArrayPtr lhs, ArrayPtr rhs, bool in_place) : BinaryOp(OpName::DIV, lhs, rhs, in_place) {}
 
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct EqOp : public BinaryOp
     {
     public:
-        EqOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::EQ, lhs, rhs, false) {}
+        EqOp(ArrayPtr lhs, ArrayPtr rhs) : BinaryOp(OpName::EQ, lhs, rhs, false) {}
     };
 
     struct NeqOp : public BinaryOp
     {
     public:
-        NeqOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::NEQ, lhs, rhs, false) {}
+        NeqOp(ArrayPtr lhs, ArrayPtr rhs) : BinaryOp(OpName::NEQ, lhs, rhs, false) {}
     };
 
     struct LtOp : public BinaryOp
     {
     public:
-        LtOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::LT, lhs, rhs, false) {}
+        LtOp(ArrayPtr lhs, ArrayPtr rhs) : BinaryOp(OpName::LT, lhs, rhs, false) {}
     };
 
     struct GtOp : public BinaryOp
     {
     public:
-        GtOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::GT, lhs, rhs, false) {}
+        GtOp(ArrayPtr lhs, ArrayPtr rhs) : BinaryOp(OpName::GT, lhs, rhs, false) {}
     };
 
     struct LeqOp : public BinaryOp
     {
     public:
-        LeqOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::LEQ, lhs, rhs, false) {}
+        LeqOp(ArrayPtr lhs, ArrayPtr rhs) : BinaryOp(OpName::LEQ, lhs, rhs, false) {}
     };
 
     struct GeqOp : public BinaryOp
     {
     public:
-        GeqOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::GEQ, lhs, rhs, false) {}
+        GeqOp(ArrayPtr lhs, ArrayPtr rhs) : BinaryOp(OpName::GEQ, lhs, rhs, false) {}
     };
 
     struct MatmulOp : public BinaryOp
     {
     public:
-        MatmulOp(std::shared_ptr<Array> lhs, std::shared_ptr<Array> rhs) : BinaryOp(OpName::MATMUL, lhs, rhs, false) {}
-        void backward(std::shared_ptr<Array> arr) const override;
+        MatmulOp(ArrayPtr lhs, ArrayPtr rhs) : BinaryOp(OpName::MATMUL, lhs, rhs, false) {}
+        void backward(ArrayPtr arr) const override;
     };
 
     struct SqOp : public UnaryOp
     {
     public:
-        SqOp(std::shared_ptr<Array> operand, bool in_place) : UnaryOp(OpName::SQ, operand, in_place) {}
+        SqOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::SQ, operand, in_place) {}
 
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct SqrtOp : public UnaryOp
     {
     public:
-        SqrtOp(std::shared_ptr<Array> operand, bool in_place) : UnaryOp(OpName::SQRT, operand, in_place) {}
+        SqrtOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::SQRT, operand, in_place) {}
 
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct NegOp : public UnaryOp
     {
     public:
-        NegOp(std::shared_ptr<Array> operand, bool in_place) : UnaryOp(OpName::NEG, operand, in_place) {}
+        NegOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::NEG, operand, in_place) {}
 
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct ExpOp : public UnaryOp
     {
     public:
-        ExpOp(std::shared_ptr<Array> operand, bool in_place) : UnaryOp(OpName::EXP, operand, in_place) {}
+        ExpOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::EXP, operand, in_place) {}
 
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct LogOp : public UnaryOp
     {
     public:
-        LogOp(std::shared_ptr<Array> operand, bool in_place) : UnaryOp(OpName::LOG, operand, in_place) {}
+        LogOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::LOG, operand, in_place) {}
 
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct RecipOp : public UnaryOp
     {
     public:
-        RecipOp(std::shared_ptr<Array> operand, bool in_place) : UnaryOp(OpName::RECIP, operand, in_place) {}
+        RecipOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::RECIP, operand, in_place) {}
 
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct ReshapeOp : public TransformOp
@@ -349,10 +353,10 @@ namespace xv::core
         std::vector<uint64_t> view;
 
     public:
-        ReshapeOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view) : TransformOp(OpName::RESHAPE, operand), view(view) {}
+        ReshapeOp(ArrayPtr operand, const std::vector<uint64_t> &view) : TransformOp(OpName::RESHAPE, operand), view(view) {}
         const std::vector<uint64_t> &get_view() { return view; }
         const std::string str() const override { return TransformOp::str() + ", view: (" + vnumstr(view) + ")"; }
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct SliceOp : public TransformOp
@@ -361,7 +365,7 @@ namespace xv::core
         std::vector<Range> ranges;
 
     public:
-        SliceOp(std::shared_ptr<Array> operand, const std::vector<Range> &ranges) : TransformOp(OpName::SLICE, operand), ranges(ranges) {}
+        SliceOp(ArrayPtr operand, const std::vector<Range> &ranges) : TransformOp(OpName::SLICE, operand), ranges(ranges) {}
         const std::vector<Range> &get_ranges() { return ranges; }
         const std::string str() const override
         {
@@ -369,7 +373,7 @@ namespace xv::core
                                                                    { return range.str(); }) +
                    ")";
         }
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct UnsliceOp : public TransformOp
@@ -379,7 +383,7 @@ namespace xv::core
         std::vector<Range> ranges;
 
     public:
-        UnsliceOp(std::shared_ptr<Array> operand, const Shape &orig_shape, const std::vector<Range> &ranges) : TransformOp(OpName::UNSLICE, operand), orig_shape(orig_shape), ranges(ranges) {}
+        UnsliceOp(ArrayPtr operand, const Shape &orig_shape, const std::vector<Range> &ranges) : TransformOp(OpName::UNSLICE, operand), orig_shape(orig_shape), ranges(ranges) {}
         const Shape &get_shape() { return orig_shape; }
         const std::vector<Range> &get_ranges() { return ranges; }
         const std::string str() const override
@@ -388,7 +392,7 @@ namespace xv::core
                                                                    { return range.str(); }) +
                    "), original shape: (" + orig_shape.str() + ")";
         }
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct PermuteOp : public TransformOp
@@ -397,10 +401,10 @@ namespace xv::core
         std::vector<uint64_t> order;
 
     public:
-        PermuteOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &order) : TransformOp(OpName::PERMUTE, operand), order(order) {}
+        PermuteOp(ArrayPtr operand, const std::vector<uint64_t> &order) : TransformOp(OpName::PERMUTE, operand), order(order) {}
         const std::vector<uint64_t> &get_perm() { return order; }
         const std::string str() const override { return TransformOp::str() + ", permutation: (" + vnumstr(order) + ")"; }
-        void backward(std::shared_ptr<Array> arr) const override;
+        void backward(ArrayPtr arr) const override;
     };
 
     struct BroadcastOp : public TransformOp
@@ -409,7 +413,7 @@ namespace xv::core
         std::vector<uint64_t> view;
 
     public:
-        BroadcastOp(std::shared_ptr<Array> operand, const std::vector<uint64_t> &view) : TransformOp(OpName::BROADCAST, operand), view(view) {}
+        BroadcastOp(ArrayPtr operand, const std::vector<uint64_t> &view) : TransformOp(OpName::BROADCAST, operand), view(view) {}
         const std::vector<uint64_t> &get_view() { return view; }
         const std::string str() const override
         {
@@ -420,17 +424,30 @@ namespace xv::core
     struct CopyOp : public Op
     {
     private:
-        std::shared_ptr<Array> operand;
+        ArrayPtr operand;
 
     public:
-        CopyOp(std::shared_ptr<Array> operand) : Op(OpName::COPY, OpType::MOVE), operand(operand) {}
-        std::shared_ptr<Array> get_operand() const { return operand; }
+        CopyOp(ArrayPtr operand) : Op(OpName::COPY, OpType::MOVE), operand(operand) {}
+        ArrayPtr get_operand() const { return operand; }
         const std::string str() const override;
     };
 
     struct SumOp : public ReduceOp
     {
     public:
-        SumOp(std::shared_ptr<Array> operand) : ReduceOp(OpName::SUM, operand) {}
+        SumOp(ArrayPtr operand) : ReduceOp(OpName::SUM, operand) {}
+        void backward(ArrayPtr arr) const override;
+    };
+
+    struct MaxOp : public ReduceOp
+    {
+    public:
+        MaxOp(ArrayPtr operand) : ReduceOp(OpName::MAX, operand) {}
+    };
+
+    struct MinOp : public ReduceOp
+    {
+    public:
+        MinOp(ArrayPtr operand) : ReduceOp(OpName::MIN, operand) {}
     };
 }

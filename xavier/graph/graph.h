@@ -9,16 +9,16 @@ namespace xv::graph
     class Graph : public IStr
     {
     protected:
-        std::shared_ptr<Array> root;
+        ArrayPtr root;
 
     public:
-        Graph(std::shared_ptr<Array> root) : root(root) {}
+        Graph(ArrayPtr root) : root(root) {}
 
         Graph(const Graph &) = delete;
 
         Graph &operator=(const Graph &) = delete;
 
-        std::shared_ptr<Array> get_root() { return root; }
+        ArrayPtr get_root() { return root; }
 
         virtual void compile() = 0;
 

@@ -2,7 +2,7 @@
 
 namespace xv::backend::metal
 {
-    void copy(std::shared_ptr<Array> src, std::shared_ptr<Array> dst, MTLContext &ctx)
+    void copy(ArrayPtr src, ArrayPtr dst, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();
@@ -21,7 +21,7 @@ namespace xv::backend::metal
         ss_dispatch(ctx, cmd_buff, encoder, name, src->get_numel());
     }
 
-    void strided_copy(std::shared_ptr<Array> src, std::shared_ptr<Array> dst, MTLContext &ctx)
+    void strided_copy(ArrayPtr src, ArrayPtr dst, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();
