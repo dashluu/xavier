@@ -28,8 +28,9 @@ class TestMatmul:
             # Xavier implementation
             arr1 = Array.from_numpy(np1)
             arr2 = Array.from_numpy(np2)
-            arr3 = arr1 @ arr2  # Use matmul operator
-            g = MTLGraph(arr3, ctx)
+            arr3 = arr1 @ arr2
+            arr4 = arr3.sum()
+            g = MTLGraph(arr4, ctx)
             g.compile()
             g.forward()
 
@@ -74,7 +75,8 @@ class TestMatmul:
             arr1 = Array.from_numpy(np1)
             arr2 = Array.from_numpy(np2)
             arr3 = arr1 @ arr2
-            g = MTLGraph(arr3, ctx)
+            arr4 = arr3.sum()
+            g = MTLGraph(arr4, ctx)
             g.compile()
             g.forward()
 

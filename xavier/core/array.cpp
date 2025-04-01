@@ -3,22 +3,7 @@
 
 namespace xv::core
 {
-    template <class I, class F>
-    std::string fmt_num(uint8_t *ptr, Dtype dtype)
-    {
-        if (dtype.get_name().at(0) == 'i')
-        {
-            return std::to_string(*reinterpret_cast<I *>(ptr));
-        }
-        F val = *reinterpret_cast<F *>(ptr);
-        if (0 < val && val <= 1e-5)
-        {
-            return std::format("{:.4e}", val);
-        }
-        return std::format("{:.4f}", val);
-    }
-
-    std::string fmt(uint8_t *ptr, const Dtype &dtype)
+    std::string Array::fmt(uint8_t *ptr, const Dtype &dtype) const
     {
         switch (dtype.get_size())
         {
@@ -36,7 +21,7 @@ namespace xv::core
         }
     }
 
-    void Array::check_dims(uint64_t start_dim, uint64_t end_dim) const
+    void Array::check_dims(usize start_dim, usize end_dim) const
     {
         if (start_dim > end_dim)
         {
@@ -52,15 +37,15 @@ namespace xv::core
         }
     }
 
-    uint8_t *Array::strided_idx(uint64_t k) const
+    uint8_t *Array::strided_idx(usize k) const
     {
         if (is_contiguous())
         {
             return get_ptr() + k * get_itemsize();
         }
-        std::vector<uint64_t> idx(get_ndim());
-        uint carry = k;
-        uint tmp;
+        std::vector<usize> idx(get_ndim());
+        usize carry = k;
+        usize tmp;
         for (int i = get_ndim() - 1; i >= 0; i--)
         {
             tmp = carry;
@@ -149,7 +134,7 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::arange(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype, const Device &device, bool constant)
+    ArrayPtr Array::arange(const ShapeView &view, isize start, isize step, const Dtype &dtype, const Device &device, bool constant)
     {
         auto op = std::make_shared<ArangeOp>(view, start, step, dtype);
         auto arr = std::make_shared<Array>(Shape(view), dtype, device, constant);
@@ -157,7 +142,7 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::full(const std::vector<uint64_t> &view, int c, const Dtype &dtype, const Device &device, bool constant)
+    ArrayPtr Array::full(const ShapeView &view, int c, const Dtype &dtype, const Device &device, bool constant)
     {
         std::shared_ptr<Op> op;
         if (dtype == f32)
@@ -173,7 +158,7 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::full(const std::vector<uint64_t> &view, float c, const Dtype &dtype, const Device &device, bool constant)
+    ArrayPtr Array::full(const ShapeView &view, float c, const Dtype &dtype, const Device &device, bool constant)
     {
         std::shared_ptr<Op> op;
         if (dtype == f32)
@@ -189,7 +174,7 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::from_buff(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype, const Device &device, bool constant)
+    ArrayPtr Array::from_buff(uint8_t *ptr, usize nbytes, const Shape &shape, const Dtype &dtype, const Device &device, bool constant)
     {
         auto op = std::make_shared<BuffOp>();
         auto arr = std::make_shared<Array>(ptr, nbytes, shape, dtype, device, constant);
@@ -197,7 +182,7 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::from_numpy(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype, const Device &device, bool constant)
+    ArrayPtr Array::from_numpy(uint8_t *ptr, usize nbytes, const Shape &shape, const Dtype &dtype, const Device &device, bool constant)
     {
         auto op = std::make_shared<NumpyOp>();
         auto arr = std::make_shared<Array>(ptr, nbytes, shape, dtype, device, constant);
@@ -236,12 +221,12 @@ namespace xv::core
             broadcasted_lview.begin(),
             std::prev(broadcasted_lview.end(), 2),
             1ULL,
-            std::multiplies<uint64_t>());
-        std::vector<uint64_t> mm_lview = {
+            std::multiplies<usize>());
+        ShapeView mm_lview = {
             batch,
             broadcasted_lview[broadcasted_lview.size() - 2],
             broadcasted_lview[broadcasted_lview.size() - 1]};
-        std::vector<uint64_t> mm_rview = {
+        ShapeView mm_rview = {
             batch,
             broadcasted_rview[broadcasted_rview.size() - 2],
             broadcasted_rview[broadcasted_rview.size() - 1]};
@@ -262,14 +247,14 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::reshape(const std::vector<uint64_t> &view)
+    ArrayPtr Array::reshape(const ShapeView &view)
     {
         if (get_view() == view)
         {
             return shared_from_this();
         }
         Shape::check_view(view);
-        uint64_t numel = std::accumulate(view.begin(), view.end(), 1, std::multiplies<uint64_t>());
+        usize numel = std::accumulate(view.begin(), view.end(), 1, std::multiplies<usize>());
         if (shape.get_numel() != numel)
         {
             throw std::invalid_argument("Cannot reshape array of " + std::to_string(shape.get_numel()) +
@@ -280,7 +265,7 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::broadcast(const std::vector<uint64_t> &view)
+    ArrayPtr Array::broadcast(const ShapeView &view)
     {
         if (get_view() == view)
         {
@@ -291,7 +276,7 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::broadcast_to(const std::vector<uint64_t> &view)
+    ArrayPtr Array::broadcast_to(const ShapeView &view)
     {
         if (get_view() == view)
         {
@@ -309,17 +294,17 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::permute(const std::vector<uint64_t> &order)
+    ArrayPtr Array::permute(const ShapeOrder &order)
     {
         auto arr = std::make_shared<Array>(shape.permute(order), dtype, device);
         arr->op = std::make_shared<PermuteOp>(shared_from_this(), order);
         return arr;
     }
 
-    ArrayPtr Array::T(uint64_t start_dim, uint64_t end_dim)
+    ArrayPtr Array::T(usize start_dim, usize end_dim)
     {
         check_dims(start_dim, end_dim);
-        std::vector<uint64_t> order(get_ndim());
+        ShapeOrder order(get_ndim());
         std::iota(order.begin(), order.begin() + start_dim, 0);
         std::iota(order.begin() + end_dim + 1, order.end(), end_dim + 1);
         // Fill with decreasing values
@@ -328,11 +313,11 @@ namespace xv::core
         return permute(order);
     }
 
-    ArrayPtr Array::flatten(uint64_t start_dim, uint64_t end_dim)
+    ArrayPtr Array::flatten(usize start_dim, usize end_dim)
     {
         check_dims(start_dim, end_dim);
         auto view = get_view();
-        auto prod = std::accumulate(view.begin() + start_dim, view.begin() + end_dim + 1, 1ULL, std::multiplies<uint64_t>());
+        auto prod = std::accumulate(view.begin() + start_dim, view.begin() + end_dim + 1, 1ULL, std::multiplies<usize>());
         // Erase from start_dim + 1 to end_dim + 1
         view.erase(view.begin() + start_dim + 1, view.begin() + end_dim + 1);
         // Update view at start_dim

@@ -34,7 +34,8 @@ class TestScalar:
         arr1 = Array.from_numpy(np1)
         arr2 = Array.from_numpy(np2)
         arr3: Array = op1(arr1, arr2)
-        g = MTLGraph(arr3, ctx)
+        arr4 = arr3.sum()
+        g = MTLGraph(arr4, ctx)
         g.compile()
         g.forward()
         np3 = np.frombuffer(arr3, dtype=np.float32)
@@ -50,7 +51,8 @@ class TestScalar:
         np1 = gen(shape)
         arr1 = Array.from_numpy(np1)
         arr2: Array = op1(arr1)
-        g = MTLGraph(arr2, ctx)
+        arr3 = arr2.sum()
+        g = MTLGraph(arr3, ctx)
         g.compile()
         g.forward()
         np2 = np.frombuffer(arr2, dtype=np.float32)
@@ -77,7 +79,8 @@ class TestScalar:
             arr1 = Array.from_numpy(np1)
             arr2 = Array.from_numpy(np2)
             arr3: Array = op1(arr1, arr2)
-            g = MTLGraph(arr3, ctx)
+            arr4 = arr3.sum()
+            g = MTLGraph(arr4, ctx)
             g.compile()
             g.forward()
             np3 = np.frombuffer(arr3, dtype=np.float32)
@@ -106,7 +109,8 @@ class TestScalar:
             # Create non-contiguous array using slicing
             arr2 = arr1[slices]
             arr3: Array = op1(arr2)  # Apply unary operation
-            g = MTLGraph(arr3, ctx)
+            arr4 = arr3.sum()
+            g = MTLGraph(arr4, ctx)
             g.compile()
             g.forward()
 
@@ -134,9 +138,10 @@ class TestScalar:
         arr2 = Array.from_numpy(np2)
 
         # Apply inplace operation
-        arr1 = op1(arr1, arr2)  # arr1 += arr2, etc.
-        arr1 = op1(arr1, arr2)  # Second time to make sure it's updated.
-        g = MTLGraph(arr1, ctx)  # Use arr1 since it was modified in-place
+        arr1: Array = op1(arr1, arr2)  # arr1 += arr2, etc.
+        arr1: Array = op1(arr1, arr2)  # Second time to make sure it's updated.
+        arr2 = arr1.sum()
+        g = MTLGraph(arr2, ctx)  # Use arr1 since it was modified in-place
         g.compile()
         g.forward()
 
@@ -174,7 +179,8 @@ class TestScalar:
 
             # Apply inplace operation
             arr1: Array = op1(arr1, arr2)
-            g = MTLGraph(arr1, ctx)
+            arr2 = arr1.sum()
+            g = MTLGraph(arr2, ctx)
             g.compile()
             g.forward()
 
@@ -209,7 +215,8 @@ class TestScalar:
 
             # Apply inplace operation
             arr1: Array = op1(arr1)
-            g = MTLGraph(arr1, ctx)
+            arr2 = arr1.sum()
+            g = MTLGraph(arr2, ctx)
             g.compile()
             g.forward()
 
@@ -393,7 +400,8 @@ class TestScalar:
 
             # Xavier implementation
             arr2 = const * arr1  # Constant multiplication
-            g = MTLGraph(arr2, ctx)
+            arr3 = arr2.sum()
+            g = MTLGraph(arr3, ctx)
             g.compile()
             g.forward()
 
@@ -425,7 +433,8 @@ class TestScalar:
 
             # Xavier implementation
             arr2 = arr1 * const  # Constant multiplication
-            g = MTLGraph(arr2, ctx)
+            arr3 = arr2.sum()
+            g = MTLGraph(arr3, ctx)
             g.compile()
             g.forward()
 

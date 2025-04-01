@@ -10,8 +10,8 @@ namespace xv::backend::metal
         auto device = ctx.get_device();
 
         // Offset
-        uint32_t offset[] = {static_cast<uint32_t>(input->get_offset()), static_cast<uint32_t>(output->get_offset())};
-        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset, sizeof(offset), MTL::ResourceStorageModeShared, nullptr));
+        auto offset = get_mtl_offsets({input, output});
+        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset.data(), vsize(offset), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(offset_buff.get(), 0, 0);
 
         // Input and output buffers

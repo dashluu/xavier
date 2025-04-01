@@ -10,19 +10,20 @@ class TestCopy:
         print("Contiguous copy:")
 
         # Test cases with different shapes
-        test_shapes = [
+        test_cases = [
             [10],  # 1D array
             [3, 4],  # 2D array
             [2, 3, 4],  # 3D array
             [2, 3, 4, 5],  # 4D array
         ]
 
-        for shape in test_shapes:
+        for shape in test_cases:
             print(f"\nTesting shape: {shape}")
             np1 = np.random.randn(*shape).astype(np.float32)
             arr1 = Array.from_numpy(np1)
             arr2 = arr1.copy()
-            g = MTLGraph(arr2, ctx)
+            arr3 = arr2.sum()
+            g = MTLGraph(arr3, ctx)
             g.compile()
             g.forward()
             np2 = np.frombuffer(arr2, dtype=np.float32)
@@ -53,8 +54,9 @@ class TestCopy:
 
             # Copy the non-contiguous array
             arr3 = arr2.copy()
+            arr4 = arr3.sum()
 
-            g = MTLGraph(arr3, ctx)
+            g = MTLGraph(arr4, ctx)
             g.compile()
             g.forward()
 

@@ -4,14 +4,18 @@
 
 namespace xv::core
 {
+    using ShapeView = std::vector<usize>;
+    using ShapeStride = std::vector<isize>;
+    using ShapeOrder = std::vector<usize>;
+
     class Shape : public IStr
     {
     private:
-        uint64_t offset;
-        std::vector<uint64_t> view;
-        std::vector<int64_t> stride;
+        usize offset;
+        ShapeView view;
+        ShapeStride stride;
 
-        void check_ranges(const std::vector<Range> &ranges) const
+        void check_ranges(const Ranges &ranges) const
         {
             if (ranges.size() != get_ndim())
             {
@@ -45,7 +49,7 @@ namespace xv::core
             }
         }
 
-        void check_permute(const std::vector<uint64_t> &order) const
+        void check_permute(const ShapeOrder &order) const
         {
             auto n = view.size();
             if (order.size() != n)
@@ -74,7 +78,7 @@ namespace xv::core
     public:
         Shape() : Shape(0, {1}, {1}) {}
 
-        Shape(uint64_t offset, const std::vector<uint64_t> &view, const std::vector<int64_t> &stride)
+        Shape(usize offset, const ShapeView &view, const ShapeStride &stride)
         {
             check_view(view);
             if (view.size() != stride.size())
@@ -87,13 +91,13 @@ namespace xv::core
             this->stride = stride;
         }
 
-        Shape(uint64_t offset, const std::vector<uint64_t> &view)
+        Shape(usize offset, const ShapeView &view)
         {
             check_view(view);
             this->offset = offset;
             this->view = view;
             stride.resize(view.size());
-            uint64_t s = 1;
+            usize s = 1;
             for (int i = view.size() - 1; i >= 0; i--)
             {
                 stride[i] = s;
@@ -101,7 +105,7 @@ namespace xv::core
             }
         }
 
-        Shape(const std::vector<uint64_t> &view) : Shape(0, view) {}
+        Shape(const ShapeView &view) : Shape(0, view) {}
 
         Shape(const Shape &shape) : Shape(shape.offset, shape.view, shape.stride) {}
 
@@ -113,31 +117,31 @@ namespace xv::core
             return *this;
         }
 
-        uint64_t get_offset() const { return offset; }
+        usize get_offset() const { return offset; }
 
-        const std::vector<uint64_t> &get_view() const { return view; }
+        const ShapeView &get_view() const { return view; }
 
-        const std::vector<int64_t> &get_stride() const { return stride; }
+        const ShapeStride &get_stride() const { return stride; }
 
         bool is_contiguous() const { return stride == get_contiguous_stride(); }
 
-        static void check_view(const std::vector<uint64_t> &view)
+        static void check_view(const ShapeView &view)
         {
             if (view.size() == 0)
             {
                 throw std::invalid_argument("Shape must have at least one dimension.");
             }
-            if (std::any_of(view.begin(), view.end(), [](uint64_t v)
+            if (std::any_of(view.begin(), view.end(), [](usize v)
                             { return v == 0; }))
             {
                 throw std::invalid_argument("Dimension cannot be zero.");
             }
         }
 
-        std::vector<int64_t> get_contiguous_stride() const
+        ShapeStride get_contiguous_stride() const
         {
-            std::vector<int64_t> contiguous_stride(stride.size(), 0);
-            int64_t s = 1;
+            ShapeStride contiguous_stride(stride.size(), 0);
+            isize s = 1;
             for (int i = view.size() - 1; i >= 0; i--)
             {
                 contiguous_stride[i] = s;
@@ -146,10 +150,10 @@ namespace xv::core
             return contiguous_stride;
         }
 
-        std::vector<uint64_t> get_elms_per_dim() const
+        std::vector<usize> get_elms_per_dim() const
         {
-            std::vector<uint64_t> elms_per_dim(view.size(), 0);
-            uint64_t n = 1;
+            std::vector<usize> elms_per_dim(view.size(), 0);
+            usize n = 1;
             for (int i = view.size() - 1; i >= 0; i--)
             {
                 n *= view[i];
@@ -158,11 +162,11 @@ namespace xv::core
             return elms_per_dim;
         }
 
-        uint64_t get_ndim() const { return view.size(); }
+        usize get_ndim() const { return view.size(); }
 
-        uint64_t get_numel() const { return std::accumulate(view.begin(), view.end(), 1, std::multiplies<uint64_t>()); }
+        usize get_numel() const { return std::accumulate(view.begin(), view.end(), 1, std::multiplies<usize>()); }
 
-        bool broadcastable(const std::vector<uint64_t> &rhs) const
+        bool broadcastable(const ShapeView &rhs) const
         {
             if (view == rhs)
             {
@@ -181,7 +185,7 @@ namespace xv::core
         }
 
         // One-direction broadcast check
-        bool broadcastable_to(const std::vector<uint64_t> &target) const
+        bool broadcastable_to(const ShapeView &target) const
         {
             if (view == target)
             {
@@ -201,7 +205,7 @@ namespace xv::core
             return true;
         }
 
-        bool matmul_broadcastable(const std::vector<uint64_t> &rhs) const
+        bool matmul_broadcastable(const ShapeView &rhs) const
         {
             if (view.size() < 2 || view[view.size() - 1] != rhs[rhs.size() - 2])
             {
@@ -220,7 +224,7 @@ namespace xv::core
         }
 
         // One-direction broadcast
-        Shape broadcast_to(const std::vector<uint64_t> &target) const
+        Shape broadcast_to(const ShapeView &target) const
         {
             if (view == target)
             {
@@ -246,7 +250,7 @@ namespace xv::core
             return s;
         }
 
-        Shape broadcast(const std::vector<uint64_t> &rhs) const
+        Shape broadcast(const ShapeView &rhs) const
         {
             if (view == rhs)
             {
@@ -276,13 +280,13 @@ namespace xv::core
             return s;
         }
 
-        Shape reshape(const std::vector<uint64_t> &target)
+        Shape reshape(const ShapeView &target)
         {
             // TODO: fix this
             return Shape(offset, target);
         }
 
-        Shape remove(uint64_t dim) const
+        Shape remove(usize dim) const
         {
             auto v = view;
             auto s = stride;
@@ -291,12 +295,12 @@ namespace xv::core
             return Shape(offset, v, s);
         }
 
-        Shape permute(const std::vector<uint64_t> &order) const
+        Shape permute(const ShapeOrder &order) const
         {
             check_permute(order);
             auto n = view.size();
-            std::vector<uint64_t> v(n, 0);
-            std::vector<int64_t> s(n, 0);
+            ShapeView v(n, 0);
+            ShapeStride s(n, 0);
             for (int i = 0; i < n; i++)
             {
                 v[i] = view[order[i]];
@@ -305,7 +309,7 @@ namespace xv::core
             return Shape(offset, v, s);
         }
 
-        std::vector<uint64_t> undo_permute_view(const std::vector<uint64_t> &order) const
+        ShapeView undo_permute_view(const ShapeOrder &order) const
         {
             /*
             Example 1:
@@ -330,7 +334,7 @@ namespace xv::core
             2 3 4 5
             */
             check_permute(order);
-            std::vector<uint64_t> reversed_order(order.size());
+            ShapeView reversed_order(order.size());
             for (int i = 0; i < order.size(); i++)
             {
                 reversed_order[order[i]] = i;
@@ -338,12 +342,12 @@ namespace xv::core
             return reversed_order;
         }
 
-        Shape undo_permute(const std::vector<uint64_t> &order) const
+        Shape undo_permute(const ShapeOrder &order) const
         {
             return permute(undo_permute_view(order));
         }
 
-        Shape slice(const std::vector<Range> &ranges) const
+        Shape slice(const Ranges &ranges) const
         {
             check_ranges(ranges);
             auto o = offset;
@@ -351,13 +355,13 @@ namespace xv::core
             {
                 o += ranges[i].start * stride[i];
             }
-            std::vector<uint64_t> v(get_ndim());
-            std::vector<int64_t> s(get_ndim());
+            ShapeView v(get_ndim());
+            ShapeStride s(get_ndim());
             for (int i = 0; i < ranges.size(); i++)
             {
                 auto &range = ranges[i];
                 auto d = range.start <= range.stop ? range.stop - range.start : range.start - range.stop;
-                v[i] = static_cast<uint64_t>(ceil(static_cast<double>(d) / std::abs(range.step)));
+                v[i] = static_cast<usize>(ceil(static_cast<double>(d) / std::abs(range.step)));
                 s[i] = stride[i] * range.step;
             }
             return Shape(o, v, s);
@@ -367,29 +371,29 @@ namespace xv::core
 
         bool operator!=(const Shape &shape) const { return !(*this == shape); }
 
-        uint64_t operator[](uint64_t dim) const { return view[dim]; }
+        usize operator[](usize dim) const { return view[dim]; }
 
         const std::string str() const override
         {
             return "(" + vnumstr(view) + ")";
         }
 
-        std::vector<uint64_t>::const_iterator cbegin() const
+        ShapeView::const_iterator cbegin() const
         {
             return view.cbegin();
         }
 
-        std::vector<uint64_t>::const_iterator cend() const
+        ShapeView::const_iterator cend() const
         {
             return view.cend();
         }
 
-        std::vector<uint64_t>::const_reverse_iterator crbegin() const
+        ShapeView::const_reverse_iterator crbegin() const
         {
             return view.crbegin();
         }
 
-        std::vector<uint64_t>::const_reverse_iterator crend() const
+        ShapeView::const_reverse_iterator crend() const
         {
             return view.crend();
         }

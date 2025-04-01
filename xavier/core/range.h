@@ -6,11 +6,11 @@ namespace xv::core
 {
     struct Range
     {
-        uint64_t start;
-        uint64_t stop;
-        int64_t step;
+        usize start;
+        usize stop;
+        isize step;
 
-        Range(uint64_t start, uint64_t stop, int64_t step = 1) : start(start), stop(stop), step(step) {}
+        Range(usize start, usize stop, isize step = 1) : start(start), stop(stop), step(step) {}
 
         Range(const Range &range) : Range(range.start, range.stop, range.step) {}
 
@@ -32,4 +32,6 @@ namespace xv::core
             return "(" + std::to_string(start) + ", " + std::to_string(stop) + ", " + std::to_string(step) + ")";
         }
     };
+
+    using Ranges = std::vector<Range>;
 }

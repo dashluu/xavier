@@ -11,10 +11,8 @@ int main()
 {
     std::string lib_path = "backend/metal/kernels.metallib";
     auto ctx = std::make_shared<MTLContext>(lib_path);
-    std::vector<uint64_t> view1 = {2, 2, 3};
-    std::vector<uint64_t> view2 = {1, 3, 4};
-    auto x1 = Array::full(view1, 7.0f);
-    auto x2 = Array::arange(view2, 0, 1);
+    auto x1 = Array::full({2, 2, 3}, 7.0f);
+    auto x2 = Array::arange({1, 3, 4}, 0, 1);
     auto x3 = x1->matmul(x2);
     MTLGraph graph(x3, ctx);
     graph.compile();

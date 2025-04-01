@@ -9,7 +9,7 @@ namespace xv::core
     private:
         std::shared_ptr<const Array> arr;
         uint8_t *ptr;
-        uint64_t counter;
+        usize counter;
 
     public:
         ArrayIter(std::shared_ptr<const Array> arr) : arr(arr)
@@ -22,7 +22,7 @@ namespace xv::core
 
         bool has_next() const { return counter < arr->get_shape().get_numel(); }
 
-        uint64_t count() const { return counter; }
+        usize count() const { return counter; }
 
         void start()
         {

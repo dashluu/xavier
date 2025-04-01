@@ -8,16 +8,16 @@ namespace xv::core
     {
     private:
         std::string name;
-        uint64_t size;
+        usize size;
 
     public:
-        Dtype(const std::string &name, uint64_t size) : name(name), size(size) {}
+        Dtype(const std::string &name, usize size) : name(name), size(size) {}
 
         Dtype(const Dtype &dtype) : Dtype(dtype.name, dtype.size) {}
 
         const std::string &get_name() const { return name; }
 
-        uint64_t get_size() const { return size; }
+        usize get_size() const { return size; }
 
         bool operator==(const Dtype &dtype) const { return name == dtype.name && size == dtype.size; }
 

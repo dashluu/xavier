@@ -257,13 +257,13 @@ namespace xv::graph
     {
         if (fw_order.empty())
         {
-            // if (root->get_numel() > 1)
-            // {
-            //     throw std::invalid_argument("Root array " + root->get_id().str() + " must contain a single element.");
-            // }
+            if (root->get_numel() > 1)
+            {
+                throw std::invalid_argument("Root array " + root->get_id().str() + " must contain a single element.");
+            }
             toposort(root, fw_order);
-            // Seed root for now
-            root->grad = Array::ones_like(root, root->get_device());
+            // Initializes root gradient
+            root->init_grad(true);
             // Initializes the gradient array first without allocating buffers
             for (auto &arr : std::views::reverse(fw_order))
             {
@@ -273,9 +273,9 @@ namespace xv::graph
             for (auto &arr : std::views::reverse(fw_order))
             {
                 // grad is null when backward is not implemented for op
-                if (arr->grad != nullptr)
+                if (arr->get_grad() != nullptr)
                 {
-                    toposort(arr->grad, bw_order);
+                    toposort(arr->get_grad(), bw_order);
                 }
             }
         }

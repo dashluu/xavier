@@ -116,16 +116,16 @@ namespace xv::core
     struct ArangeOp : public InitializerOp
     {
     private:
-        std::vector<uint64_t> view;
-        int64_t start;
-        int64_t step;
+        ShapeView view;
+        isize start;
+        isize step;
         Dtype dtype;
 
     public:
-        ArangeOp(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype) : InitializerOp(OpName::ARANGE), view(view), start(start), step(step), dtype(dtype) {}
-        const std::vector<uint64_t> &get_view() { return view; }
-        int64_t get_start() { return start; }
-        int64_t get_step() { return step; }
+        ArangeOp(const ShapeView &view, isize start, isize step, const Dtype &dtype) : InitializerOp(OpName::ARANGE), view(view), start(start), step(step), dtype(dtype) {}
+        const ShapeView &get_view() { return view; }
+        isize get_start() { return start; }
+        isize get_step() { return step; }
         const Dtype &get_dtype() { return dtype; }
         const std::string str() const override
         {
@@ -136,13 +136,13 @@ namespace xv::core
     struct FullOp : public InitializerOp
     {
     private:
-        std::vector<uint64_t> view;
+        ShapeView view;
         int c;
         Dtype dtype;
 
     public:
-        FullOp(const std::vector<uint64_t> &view, int c, const Dtype &dtype) : InitializerOp(OpName::FULL), view(view), c(c), dtype(dtype) {}
-        const std::vector<uint64_t> &get_view() { return view; }
+        FullOp(const ShapeView &view, int c, const Dtype &dtype) : InitializerOp(OpName::FULL), view(view), c(c), dtype(dtype) {}
+        const ShapeView &get_view() { return view; }
         int get_const() const { return c; }
         const Dtype &get_dtype() { return dtype; }
         const std::string str() const override
@@ -350,11 +350,11 @@ namespace xv::core
     struct ReshapeOp : public TransformOp
     {
     private:
-        std::vector<uint64_t> view;
+        ShapeView view;
 
     public:
-        ReshapeOp(ArrayPtr operand, const std::vector<uint64_t> &view) : TransformOp(OpName::RESHAPE, operand), view(view) {}
-        const std::vector<uint64_t> &get_view() { return view; }
+        ReshapeOp(ArrayPtr operand, const ShapeView &view) : TransformOp(OpName::RESHAPE, operand), view(view) {}
+        const ShapeView &get_view() { return view; }
         const std::string str() const override { return TransformOp::str() + ", view: (" + vnumstr(view) + ")"; }
         void backward(ArrayPtr arr) const override;
     };
@@ -398,11 +398,11 @@ namespace xv::core
     struct PermuteOp : public TransformOp
     {
     private:
-        std::vector<uint64_t> order;
+        ShapeOrder order;
 
     public:
-        PermuteOp(ArrayPtr operand, const std::vector<uint64_t> &order) : TransformOp(OpName::PERMUTE, operand), order(order) {}
-        const std::vector<uint64_t> &get_perm() { return order; }
+        PermuteOp(ArrayPtr operand, const ShapeOrder &order) : TransformOp(OpName::PERMUTE, operand), order(order) {}
+        const ShapeOrder &get_perm() { return order; }
         const std::string str() const override { return TransformOp::str() + ", permutation: (" + vnumstr(order) + ")"; }
         void backward(ArrayPtr arr) const override;
     };
@@ -410,11 +410,11 @@ namespace xv::core
     struct BroadcastOp : public TransformOp
     {
     private:
-        std::vector<uint64_t> view;
+        ShapeView view;
 
     public:
-        BroadcastOp(ArrayPtr operand, const std::vector<uint64_t> &view) : TransformOp(OpName::BROADCAST, operand), view(view) {}
-        const std::vector<uint64_t> &get_view() { return view; }
+        BroadcastOp(ArrayPtr operand, const ShapeView &view) : TransformOp(OpName::BROADCAST, operand), view(view) {}
+        const ShapeView &get_view() { return view; }
         const std::string str() const override
         {
             return TransformOp::str() + ", view: (" + vnumstr(view) + ")";

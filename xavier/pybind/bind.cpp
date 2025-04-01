@@ -18,7 +18,7 @@ void init_xv_module(py::module_ &m)
         .def("__repr__", &xc::Id::str);
 
     py::class_<xc::Shape>(m, "Shape")
-        .def(py::init<const std::vector<uint64_t> &>(), "view"_a)
+        .def(py::init<const xc::ShapeView &>(), "view"_a)
         .def("offset", &xc::Shape::get_offset)
         .def("view", &xc::Shape::get_view)
         .def("stride", &xc::Shape::get_stride)
@@ -37,12 +37,12 @@ void init_xv_module(py::module_ &m)
         .def("__eq__", &xc::Shape::operator==, "shape"_a)
         .def("__neq__", &xc::Shape::operator!=, "shape"_a)
         .def("__getitem__", [](const xc::Shape &shape, const py::object &obj)
-             { return xb::vslice<uint64_t>(shape.get_view(), obj); }, "dim"_a)
+             { return xb::vslice<xc::usize>(shape.get_view(), obj); }, "dim"_a)
         .def("__str__", &xc::Shape::str)
         .def("__len__", &xc::Shape::get_ndim);
 
     py::class_<xc::Dtype>(m, "Dtype")
-        .def(py::init<const std::string &, uint64_t>(), "name"_a, "size"_a)
+        .def(py::init<const std::string &, xc::usize>(), "name"_a, "size"_a)
         .def("name", &xc::Dtype::get_name)
         .def("size", &xc::Dtype::get_size)
         .def("__eq__", &xc::Dtype::operator==, "dtype"_a)
@@ -81,7 +81,7 @@ void init_xv_module(py::module_ &m)
         .def("stride", &xc::Array::get_stride, "Returns the stride of the array.")
         .def("dtype", &xc::Array::get_dtype, "Returns the data type of the array.")
         .def("device", &xc::Array::get_device, "Returns the device that the array is allocated on.")
-        .def_readonly("grad", &xc::Array::grad, "Accesses the gradient of the array.")
+        .def("grad", &xc::Array::get_grad, "Accesses the gradient of the array.")
         .def("ptr", [](const xc::Array &arr)
              { return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(arr.get_ptr())); }, "Returns a pointer to the data of the array.")
         .def("strided_idx", &xc::Array::strided_idx, "Accesses the kth element in the array.", "k"_a)
@@ -135,6 +135,7 @@ void init_xv_module(py::module_ &m)
         .def("T", &xb::T, "Transposes the array.", "start_dim"_a = 0, "end_dim"_a = -1)
         .def("flatten", &xb::flatten, "Flattens the array.", "start_dim"_a = 0, "end_dim"_a = -1)
         .def("sum", &xc::Array::sum, "Computes the sum of the array elements.")
+        .def("max", &xc::Array::max, "Computes the maximum of the array elements.")
         .def_static("from_buffer", &xb::array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = xc::device0, "constant"_a = false)
         .def_static("from_numpy", &xb::array_from_numpy, "Creates an array from numpy array without copying.", "np_arr"_a, "device"_a = xc::device0, "constant"_a = false)
         .def("to_numpy", &xb::array_to_numpy, "Converts the array to a numpy array.");
@@ -177,5 +178,6 @@ void init_xv_module(py::module_ &m)
     m.def("permute", &xb::m_permute, "Permutes the dimensions of the array according to the given order.", "arr"_a, "order"_a);
     m.def("T", &xb::m_T, "Transposes the array.", "arr"_a, "start_dim"_a = 0, "end_dim"_a = -1);
     m.def("flatten", &xb::m_flatten, "Flattens the array.", "arr"_a, "start_dim"_a = 0, "end_dim"_a = -1);
-    m.def("sum", &xb::sum, "Computes the sum of the array elements.");
+    m.def("sum", &xb::m_sum, "Computes the sum of the array elements.");
+    m.def("max", &xb::m_max, "Computes the maximum of the array elements.");
 }

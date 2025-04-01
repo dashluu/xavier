@@ -5,7 +5,7 @@
 namespace xv::backend::metal
 {
     template <class T1, class T2>
-    std::vector<T2> v64to32(const std::vector<T1> &v)
+    inline std::vector<T2> v64to32(const std::vector<T1> &v)
     {
         std::vector<T2> v32(v.size());
         for (size_t i = 0; i < v.size(); i++)
@@ -15,7 +15,27 @@ namespace xv::backend::metal
         return v32;
     }
 
-    inline void ss_dispatch(MTLContext &ctx, MTL::CommandBuffer *cmd_buff, MTL::ComputeCommandEncoder *encoder, const std::string &name, uint64_t numel)
+    inline std::vector<uint32_t> get_mtl_view(const ShapeView &view)
+    {
+        return v64to32<usize, uint32_t>(view);
+    }
+
+    inline std::vector<int32_t> get_mtl_stride(const ShapeStride &stride)
+    {
+        return v64to32<isize, int32_t>(stride);
+    }
+
+    inline std::vector<uint32_t> get_mtl_offsets(const std::vector<ArrayPtr> &arrs)
+    {
+        std::vector<uint32_t> offsets;
+        for (auto &arr : arrs)
+        {
+            offsets.emplace_back(arr->get_offset());
+        }
+        return offsets;
+    }
+
+    inline void ss_dispatch(MTLContext &ctx, MTL::CommandBuffer *cmd_buff, MTL::ComputeCommandEncoder *encoder, const std::string &name, usize numel)
     {
         auto kernel = ctx.get_kernel(name);
         encoder->setComputePipelineState(kernel->get_state().get());

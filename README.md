@@ -4,14 +4,14 @@
 Xavier is a lightweight deep learning framework designed to provide Metal-accelerated tensor operations similar to PyTorch. Future releases will hopefully include CUDA support for NVIDIA GPUs.
 
 ## Requirements
-A virtual environment(e.g., Conda) is recommended before installing these packages:
+A virtual environment(e.g., Conda) is recommended before installing Python packages:
 - Python 3.12+
 - C++ 23
-- NumPy
-- Mypy (type hints and docs)
-- Pybind 11 (C++ bindings)
-- Metal-capable device (macOS)
-- Pytest (optional, mainly for testing)
+- NumPy (>=2.0 but should work for any version)
+- Mypy >= 1.15 (type hints and docs)
+- Pybind11 >= 2.13.6 (C++ bindings)
+- Metal 3.2 (macOS)
+- Pytest >= 8.3.4 (optional, mainly for testing)
 
 ## Installation
 1. Clone the repository
@@ -21,27 +21,30 @@ cd xavier
 ```
 
 2. Build the project
-* Edit python and pybind11 path in `xavier/CMakeLists.txt`.
+* Edit the system path to python and pybind11 in `xavier/CMakeLists.txt`.
 * Build the project and generate `.so` file using the following commands:
 ```bash
 cd xavier/core
 cmake -S . -B build
 cmake --build build
 ```
-* Place the generated `.so` file inside `python` directory.
-* Run `stubgen -m xavier` after installing mypy to enable autocomplete.
+* Place the generated `.so` file inside `python` directory or anywhere else you'd like, treat the `.so` file as a Python module.
+* Place the generated `.metallib` file by Metal anywhere you'd like, use that path to initialize `MTLContext` to run on Macos Metal GPU.
+* Run `stubgen -m xavier -o .` after installing mypy to enable autocomplete and type hints.
 
 
 ## Usage
 1. Import Xavier in your Python code:
 ```python
+# Note: use the path to `.so` module
+# The path to `.so` module in the example is python/xavier.cpython-312-darwin.so
 import python.xavier as xv
 from python.xavier import MTLGraph, Array, MTLContext, f32
 ```
 
 2. Initialize Metal context and create tensors:
 ```python
-ctx = MTLContext("./xavier/build/backend/metal/kernels.metallib")
+ctx = MTLContext("path to your generated metallib file")
 shape = [2, 3, 4]
 x1 = Array.from_numpy(np.random.randn(*shape).astype(np.float32))
 x2 = Array.from_numpy(np.random.randn(*shape).astype(np.float32))
@@ -65,6 +68,7 @@ g.backward()
 ## Features
 - Metal-accelerated tensor operations
 - Automatic differentiation
+- Full computational graph forward and backward propagation
 - Well supported operations:
   - Initialization operations: full, arange, ones, zeros, from_numpy, to_numpy, from_buffer
   - Common tensor operations: reshape, permute, matmul, slice, transpose

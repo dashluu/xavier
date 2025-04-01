@@ -4,6 +4,6 @@
 
 namespace xv::backend::metal
 {
-    void full(ArrayPtr arr, int c, uint64_t size, MTLContext &ctx);
+    void full(ArrayPtr arr, int c, usize size, MTLContext &ctx);
     void arange(ArrayPtr arr, int start, int step, MTLContext &ctx);
 }

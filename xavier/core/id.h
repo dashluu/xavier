@@ -7,11 +7,11 @@ namespace xv::core
     struct Id : public IStr
     {
     private:
-        uint64_t data;
+        usize data;
 
     public:
         Id() : data(0) {}
-        Id(uint64_t id) : data(id) {}
+        Id(usize id) : data(id) {}
         Id(const Id &id) : data(id.data) {}
         bool operator==(const Id &id) const { return data == id.data; }
         bool operator!=(const Id &id) const { return !(*this == id); }
@@ -20,14 +20,14 @@ namespace xv::core
             data = id.data;
             return *this;
         }
-        uint64_t get_data() const { return data; }
+        usize get_data() const { return data; }
         const std::string str() const override { return std::to_string(data); }
     };
 
     struct IdGenerator
     {
     private:
-        static uint64_t counter;
+        static usize counter;
 
     public:
         IdGenerator() = default;
@@ -41,7 +41,7 @@ namespace xv::core
         }
     };
 
-    inline uint64_t IdGenerator::counter = 1;
+    inline usize IdGenerator::counter = 1;
 }
 
 namespace std
@@ -51,7 +51,7 @@ namespace std
     {
         std::size_t operator()(const xv::core::Id &id) const
         {
-            return std::hash<uint64_t>()(id.get_data());
+            return std::hash<xv::core::usize>()(id.get_data());
         }
     };
 }

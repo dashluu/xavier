@@ -8,11 +8,11 @@ namespace xv::core
     {
     private:
         uint8_t *ptr;
-        uint64_t nbytes;
+        usize nbytes;
         bool root;
 
     public:
-        Buffer(uint8_t *ptr, uint64_t nbytes, bool root) : ptr(ptr), nbytes(nbytes), root(root)
+        Buffer(uint8_t *ptr, usize nbytes, bool root) : ptr(ptr), nbytes(nbytes), root(root)
         {
         }
 
@@ -28,7 +28,7 @@ namespace xv::core
 
         uint8_t *get_ptr() const { return ptr; }
 
-        uint64_t get_nbytes() const { return nbytes; }
+        usize get_nbytes() const { return nbytes; }
 
         bool is_root() { return root; }
     };

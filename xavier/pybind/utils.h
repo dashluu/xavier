@@ -16,9 +16,9 @@ namespace xv::bind
 
 	std::vector<xc::Range> get_arr_ranges(const xc::Array &arr, const py::object &obj);
 
-	uint64_t map_idx(int64_t len, int64_t idx);
+	xc::usize map_idx(xc::usize len, xc::isize idx);
 
-	xc::Range slice_to_range(int64_t len, const py::object &obj);
+	xc::Range slice_to_range(xc::usize len, const py::object &obj);
 
 	inline std::string get_pyclass(const py::object &obj) { return obj.attr("__class__").cast<py::str>().cast<std::string>(); }
 
@@ -29,21 +29,21 @@ namespace xv::bind
 	bool is_scalar(const py::object &obj);
 
 	template <class T>
-	std::vector<T> vslice(const std::vector<T> &v, const py::object &obj)
+	inline std::vector<T> vslice(const std::vector<T> &v, const py::object &obj)
 	{
 		std::vector<T> result;
 		auto len = v.size();
 		// obj must be an int or a slice
 		if (py::isinstance<py::int_>(obj))
 		{
-			auto idx = map_idx(len, obj.cast<int64_t>());
+			auto idx = map_idx(len, obj.cast<xc::isize>());
 			result.push_back(v[idx]);
 			return result;
 		}
 		else if (py::isinstance<py::slice>(obj))
 		{
 			auto range = slice_to_range(len, obj);
-			for (uint64_t i = range.start; i < range.stop; i += range.step)
+			for (xc::usize i = range.start; i < range.stop; i += range.step)
 			{
 				result.push_back(v[i]);
 			}

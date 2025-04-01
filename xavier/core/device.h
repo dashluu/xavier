@@ -16,18 +16,18 @@ namespace xv::core
     private:
         Allocator *allocator;
         DeviceType type;
-        uint64_t idx;
+        usize idx;
 
     public:
         Device() = delete;
 
-        Device(DeviceType type, Allocator *allocator, uint64_t idx = 0) : type(type), idx(idx), allocator(allocator) {}
+        Device(DeviceType type, Allocator *allocator, usize idx = 0) : type(type), idx(idx), allocator(allocator) {}
 
         Device(const Device &device) : Device(device.type, device.allocator, device.idx) {}
 
         DeviceType get_type() const { return type; }
 
-        uint64_t get_idx() const { return idx; }
+        usize get_idx() const { return idx; }
 
         Allocator *get_allocator() const { return allocator; }
 

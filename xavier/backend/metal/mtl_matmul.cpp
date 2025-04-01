@@ -8,10 +8,8 @@ void xv::backend::metal::matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTL
     auto device = ctx.get_device();
 
     // Offset
-    uint32_t offset[] = {static_cast<uint32_t>(lhs->get_offset()),
-                         static_cast<uint32_t>(rhs->get_offset()),
-                         static_cast<uint32_t>(output->get_offset())};
-    auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset, sizeof(offset), MTL::ResourceStorageModeShared, nullptr));
+    auto offset = get_mtl_offsets({lhs, rhs, output});
+    auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset.data(), vsize(offset), MTL::ResourceStorageModeShared, nullptr));
     encoder->setBuffer(offset_buff.get(), 0, 0);
 
     // lhs, rhs view
@@ -66,10 +64,8 @@ void xv::backend::metal::strided_matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr out
     encoder->setBuffer(ndim_buff.get(), 0, 0);
 
     // Offset
-    uint32_t offset[] = {static_cast<uint32_t>(lhs->get_offset()),
-                         static_cast<uint32_t>(rhs->get_offset()),
-                         static_cast<uint32_t>(output->get_offset())};
-    auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset, sizeof(offset), MTL::ResourceStorageModeShared, nullptr));
+    auto offset = get_mtl_offsets({lhs, rhs, output});
+    auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset.data(), vsize(offset), MTL::ResourceStorageModeShared, nullptr));
     encoder->setBuffer(offset_buff.get(), 0, 1);
 
     // lhs, rhs view
@@ -87,10 +83,10 @@ void xv::backend::metal::strided_matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr out
     encoder->setBuffer(rhs_view_buff.get(), 0, 3);
 
     // lhs, rhs stride
-    std::vector<int32_t> lhs_stride = v64to32<int64_t, int32_t>(lhs->get_stride());
+    std::vector<int32_t> lhs_stride = get_mtl_stride(lhs->get_stride());
     auto lhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs_stride.data(), lhs_stride.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
     encoder->setBuffer(lhs_stride_buff.get(), 0, 4);
-    std::vector<int32_t> rhs_stride = v64to32<int64_t, int32_t>(rhs->get_stride());
+    std::vector<int32_t> rhs_stride = get_mtl_stride(rhs->get_stride());
     auto rhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs_stride.data(), rhs_stride.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
     encoder->setBuffer(rhs_stride_buff.get(), 0, 5);
 

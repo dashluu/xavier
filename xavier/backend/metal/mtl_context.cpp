@@ -4,7 +4,7 @@ namespace xv::backend::metal
 {
     std::vector<std::string> MTLContext::num_unary_ops = {"exp", "log", "neg", "recip", "sq", "sqrt"};
     std::vector<std::string> MTLContext::num_binary_ops = {"add", "sub", "mul", "div", "eq", "neq", "lt", "gt", "leq", "geq"};
-    std::vector<std::string> MTLContext::num_reduction_ops = {"sum"};
+    std::vector<std::string> MTLContext::num_reduction_ops = {"sum", "max"};
 
     void MTLContext::init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, bool strided)
     {

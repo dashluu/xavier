@@ -21,7 +21,25 @@ namespace xv::core
         Device device;
         std::shared_ptr<Buffer> buff = nullptr;
         std::shared_ptr<Op> op = nullptr;
+        ArrayPtr grad = nullptr;
         bool constant;
+
+        template <class I, class F>
+        std::string fmt_num(uint8_t *ptr, Dtype dtype) const
+        {
+            if (dtype.get_name().at(0) == 'i')
+            {
+                return std::to_string(*reinterpret_cast<I *>(ptr));
+            }
+            F val = *reinterpret_cast<F *>(ptr);
+            if (0 < val && val <= 1e-5)
+            {
+                return std::format("{:.4e}", val);
+            }
+            return std::format("{:.4f}", val);
+        }
+
+        std::string fmt(uint8_t *ptr, const Dtype &dtype) const;
 
         template <class O>
         ArrayPtr unary_ss(bool in_place)
@@ -151,12 +169,10 @@ namespace xv::core
         template <class T>
         void check_scalar(T c) { static_assert(std::is_arithmetic_v<T>, "Scalar type must be numeric"); }
 
-        void check_dims(uint64_t start_dim, uint64_t end_dim) const;
+        void check_dims(usize start_dim, usize end_dim) const;
 
     public:
-        ArrayPtr grad = nullptr;
-
-        Array(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : id(id_gen.generate()), shape(shape), dtype(dtype), device(device), constant(constant)
+        Array(uint8_t *ptr, usize nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : id(id_gen.generate()), shape(shape), dtype(dtype), device(device), constant(constant)
         {
             buff = std::make_shared<Buffer>(ptr, nbytes, false);
         }
@@ -191,7 +207,7 @@ namespace xv::core
             }
         }
 
-        void init_grad()
+        void init_grad(bool is_root = false)
         {
             // This method only initializes the gradient array without allocating any new buffer for the data
             if (grad == nullptr)
@@ -200,7 +216,8 @@ namespace xv::core
                 {
                     throw std::runtime_error("Only arrays of floating-point types can have gradients but array " + id.str() + " has type " + dtype.str());
                 }
-                grad = Array::zeros(get_view(), unary_float_dtypes.at(dtype), device);
+                const Dtype &grad_dtype = unary_float_dtypes.at(dtype);
+                grad = is_root ? ones(get_view(), grad_dtype, device) : zeros(get_view(), grad_dtype, device);
             }
         }
 
@@ -214,11 +231,11 @@ namespace xv::core
 
         const Shape &get_shape() const { return shape; }
 
-        uint64_t get_offset() const { return shape.get_offset(); }
+        usize get_offset() const { return shape.get_offset(); }
 
-        const std::vector<uint64_t> &get_view() const { return shape.get_view(); }
+        const ShapeView &get_view() const { return shape.get_view(); }
 
-        const std::vector<int64_t> &get_stride() const { return shape.get_stride(); }
+        const ShapeStride get_stride() const { return shape.get_stride(); }
 
         // Gets the buffer pointer without accounting for offset
         uint8_t *get_buff_ptr() const { return buff->get_ptr(); }
@@ -238,17 +255,19 @@ namespace xv::core
 
         std::shared_ptr<Op> get_op() const { return op; }
 
-        uint64_t get_numel() const { return shape.get_numel(); }
+        std::shared_ptr<Array> get_grad() { return grad; }
 
-        uint64_t get_ndim() const { return shape.get_ndim(); }
+        usize get_numel() const { return shape.get_numel(); }
 
-        uint64_t get_itemsize() const { return dtype.get_size(); }
+        usize get_ndim() const { return shape.get_ndim(); }
 
-        uint64_t get_nbytes() const { return get_numel() * get_itemsize(); }
+        usize get_itemsize() const { return dtype.get_size(); }
+
+        usize get_nbytes() const { return get_numel() * get_itemsize(); }
 
         // Get the number of bytes of the buffer the array is working on
         // Note: get_buff_nbytes() != get_nbytes()
-        uint64_t get_buff_nbytes() const { return buff->get_nbytes(); }
+        usize get_buff_nbytes() const { return buff->get_nbytes(); }
 
         bool is_contiguous() const { return shape.is_contiguous(); }
 
@@ -257,7 +276,7 @@ namespace xv::core
          * @param k The index of the element to access
          * @return Pointer to the k-th element in the strided array
          */
-        uint8_t *strided_idx(uint64_t k) const;
+        uint8_t *strided_idx(usize k) const;
 
         // TODO: implement this
         Array &operator=(const Array &arr) = delete;
@@ -324,11 +343,11 @@ namespace xv::core
         // Unslice operation yields constant array(for efficiency)
         ArrayPtr unslice(const Shape &orig_shape, const std::vector<Range> &ranges);
 
-        static ArrayPtr arange(const std::vector<uint64_t> &view, int64_t start, int64_t step, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
+        static ArrayPtr arange(const ShapeView &view, isize start, isize step, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
-        static ArrayPtr full(const std::vector<uint64_t> &view, int c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
+        static ArrayPtr full(const ShapeView &view, int c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
-        static ArrayPtr full(const std::vector<uint64_t> &view, float c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
+        static ArrayPtr full(const ShapeView &view, float c, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
         // Saves memory by storing only one constant value and broadcasts later if needed
         /**
@@ -346,8 +365,7 @@ namespace xv::core
          */
         static ArrayPtr full(int c, const Dtype &dtype = f32, const Device &device = device0)
         {
-            std::vector<uint64_t> view = {1};
-            return full(view, c, dtype, device, true);
+            return full({1}, c, dtype, device, true);
         }
 
         /**
@@ -365,23 +383,22 @@ namespace xv::core
          */
         static ArrayPtr full(float c, const Dtype &dtype = f32, const Device &device = device0)
         {
-            std::vector<uint64_t> view = {1};
-            return full(view, c, dtype, device, true);
+            return full({1}, c, dtype, device, true);
         }
 
-        static ArrayPtr zeros(const std::vector<uint64_t> &view, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
+        static ArrayPtr zeros(const ShapeView &view, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
         {
             return full(view, 0, dtype, device, constant);
         }
 
-        static ArrayPtr ones(const std::vector<uint64_t> &view, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
+        static ArrayPtr ones(const ShapeView &view, const Dtype &dtype = f32, const Device &device = device0, bool constant = false)
         {
             return full(view, 1, dtype, device, constant);
         }
 
-        static ArrayPtr from_buff(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
+        static ArrayPtr from_buff(uint8_t *ptr, usize nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
-        static ArrayPtr from_numpy(uint8_t *ptr, uint64_t nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
+        static ArrayPtr from_numpy(uint8_t *ptr, usize nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
         ArrayPtr add(ArrayPtr rhs) { return binary_ss<AddOp>(rhs); }
 
@@ -530,15 +547,15 @@ namespace xv::core
 
         ArrayPtr recip(bool in_place = false) { return unary_ss_float<RecipOp>(in_place); }
 
-        ArrayPtr reshape(const std::vector<uint64_t> &view);
+        ArrayPtr reshape(const ShapeView &view);
 
-        ArrayPtr broadcast(const std::vector<uint64_t> &view);
+        ArrayPtr broadcast(const ShapeView &view);
 
-        ArrayPtr broadcast_to(const std::vector<uint64_t> &view);
+        ArrayPtr broadcast_to(const ShapeView &view);
 
         ArrayPtr copy();
 
-        ArrayPtr permute(const std::vector<uint64_t> &order);
+        ArrayPtr permute(const ShapeOrder &order);
 
         /**
          * @brief Transposes the dimensions of the array between `start_dim` and `end_dim`.
@@ -554,7 +571,7 @@ namespace xv::core
          * @throws std::invalid_argument if `start_dim` or `end_dim` are out of bounds or
          *         if `start_dim` is greater than `end_dim`.
          */
-        ArrayPtr T(uint64_t start_dim, uint64_t end_dim);
+        ArrayPtr T(usize start_dim, usize end_dim);
 
         /**
          * @brief Transposes array starting from a specified dimension to the last dimension.
@@ -563,7 +580,7 @@ namespace xv::core
          * @return std::shared_ptr<Array> A new array with dimensions transposed from start_dim to the last dimension
          * @note This is a convenience overload that calls T(start_dim, get_ndim() - 1)
          */
-        ArrayPtr T(uint64_t start_dim) { return T(start_dim, get_ndim() - 1); }
+        ArrayPtr T(usize start_dim) { return T(start_dim, get_ndim() - 1); }
 
         /**
          * @brief Flattens a multi-dimensional array by collapsing dimensions from start_dim to end_dim into a single dimension.
@@ -578,7 +595,7 @@ namespace xv::core
          *
          * @throws std::invalid_argument If start_dim > end_dim or if end_dim exceeds array dimensions
          */
-        ArrayPtr flatten(uint64_t start_dim, uint64_t end_dim);
+        ArrayPtr flatten(usize start_dim, usize end_dim);
 
         ArrayPtr as_contiguous() { return is_contiguous() ? shared_from_this() : copy(); }
 

@@ -53,14 +53,14 @@ if(APPLE)
         backend/metal/mtl_reduce.cpp
     )
     SET(BIND_HEADER_FILES
-        python/bind.h
-        python/utils.h
-        python/array.h
+        pybind/bind.h
+        pybind/utils.h
+        pybind/array.h
     )
     SET(BIND_SRC_FILES
-        python/utils.cpp
-        python/array.cpp
-        python/bind.cpp
+        pybind/utils.cpp
+        pybind/array.cpp
+        pybind/bind.cpp
     )
     add_subdirectory(backend/metal)
     pybind11_add_module(${PROJECT_NAME} ${BIND_SRC_FILES} ${BIND_HEADER_FILES} ${SRC_FILES} ${HEADER_FILES} ${MTL_SRC_FILES} ${MTL_HEADER_FILES})

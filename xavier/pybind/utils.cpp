@@ -6,7 +6,7 @@ namespace xv::bind
 	{
 		auto view = buff_info.shape;
 		std::vector<py::ssize_t> contiguous_stride(view.size());
-		uint64_t s = 1;
+		xc::usize s = 1;
 		for (int i = view.size() - 1; i >= 0; i--)
 		{
 			contiguous_stride[i] = s * buff_info.itemsize;
@@ -18,7 +18,7 @@ namespace xv::bind
 	xc::ArrayPtr array_from_buffer(py::buffer &buff, const xc::Device &device, bool constant)
 	{
 		auto buff_info = buff.request();
-		uint64_t nbytes = buff_info.size * buff_info.itemsize;
+		xc::usize nbytes = buff_info.size * buff_info.itemsize;
 		if (nbytes == 0)
 		{
 			throw std::invalid_argument("Array cannot be initialized from an empty buffer.");
@@ -31,7 +31,7 @@ namespace xv::bind
 		{
 			throw std::invalid_argument("Buffer is not contiguous.");
 		}
-		uint64_t numel = buff_info.size;
+		xc::usize numel = buff_info.size;
 		xc::Shape shape(0, {numel}, {1});
 		uint8_t *ptr = static_cast<uint8_t *>(buff_info.ptr);
 		xc::Dtype dtype = descriptors_to_dtypes.at(buff_info.format);
@@ -55,7 +55,7 @@ namespace xv::bind
 
 	xc::ArrayPtr array_from_numpy(py::array &np_arr, const xc::Device &device, bool constant)
 	{
-		uint64_t nbytes = np_arr.nbytes();
+		xc::usize nbytes = np_arr.nbytes();
 		if (nbytes == 0)
 		{
 			throw std::invalid_argument("Array cannot be initialized from an empty numpy array.");
@@ -65,8 +65,8 @@ namespace xv::bind
 		{
 			throw std::invalid_argument("Unsupported numpy dtype: " + dtype_fmt);
 		}
-		std::vector<uint64_t> view;
-		std::vector<int64_t> stride;
+		xc::ShapeView view;
+		xc::ShapeStride stride;
 		for (int i = 0; i < np_arr.ndim(); i++)
 		{
 			view.push_back(np_arr.shape(i));
@@ -108,7 +108,7 @@ namespace xv::bind
 		// obj can be an int, a slice, or a sequence of ints or slices
 		if (py::isinstance<py::int_>(obj))
 		{
-			auto idx = map_idx(shape[0], obj.cast<int64_t>());
+			auto idx = map_idx(shape[0], obj.cast<xc::isize>());
 			ranges.emplace_back(idx, idx + 1, 1);
 			for (int i = 1; i < shape.get_ndim(); i++)
 			{
@@ -139,7 +139,7 @@ namespace xv::bind
 				// elm must be a sequence of ints or slices
 				if (py::isinstance<py::int_>(elm))
 				{
-					auto idx = map_idx(shape[i], elm.cast<int64_t>());
+					auto idx = map_idx(shape[i], elm.cast<xc::isize>());
 					ranges.emplace_back(idx, idx + 1, 1);
 				}
 				else
@@ -156,26 +156,27 @@ namespace xv::bind
 		throw xc::PybindInvalidArgumentType(get_pyclass(obj), "int, slice, list, tuple");
 	}
 
-	uint64_t map_idx(int64_t len, int64_t idx)
+	xc::usize map_idx(xc::usize len, xc::isize idx)
 	{
-		// TODO: len should be an unsigned?
-		if (idx < -len || idx >= len)
+		// TODO: check for edge cases, especially the boundary values
+		auto slen = static_cast<xc::isize>(len);
+		if (idx < -slen || idx >= slen)
 		{
-			throw std::out_of_range("Index out of range: " + std::to_string(idx) + " not in [-" + std::to_string(len) + ", " + std::to_string(len) + ")");
+			throw std::out_of_range("Index out of range: " + std::to_string(idx) + " not in [" + std::to_string(-slen) + ", " + std::to_string(slen) + ")");
 		}
-		return idx < 0 ? idx + len : idx;
+		return idx < 0 ? idx + slen : idx;
 	}
 
-	xc::Range slice_to_range(int64_t len, const py::object &obj)
+	xc::Range slice_to_range(xc::usize len, const py::object &obj)
 	{
 		if (!py::isinstance<py::slice>(obj))
 		{
 			throw xc::PybindInvalidArgumentType(get_pyclass(obj), "slice");
 		}
 		auto slice = obj.cast<py::slice>();
-		auto start = slice.attr("start").is_none() ? 0 : map_idx(len, slice.attr("start").cast<int64_t>());
-		auto stop = slice.attr("stop").is_none() ? len : map_idx(len, slice.attr("stop").cast<int64_t>());
-		auto step = slice.attr("step").is_none() ? 1 : slice.attr("step").cast<int64_t>();
+		auto start = slice.attr("start").is_none() ? 0 : map_idx(len, slice.attr("start").cast<xc::isize>());
+		auto stop = slice.attr("stop").is_none() ? len : map_idx(len, slice.attr("stop").cast<xc::isize>());
+		auto step = slice.attr("step").is_none() ? 1 : slice.attr("step").cast<xc::isize>();
 		return xc::Range(start, stop, step);
 	}
 

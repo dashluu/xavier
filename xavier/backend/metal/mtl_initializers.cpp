@@ -2,7 +2,7 @@
 
 namespace xv::backend::metal
 {
-    void full(ArrayPtr arr, int c, uint64_t size, MTLContext &ctx)
+    void full(ArrayPtr arr, int c, usize size, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();

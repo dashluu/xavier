@@ -20,12 +20,26 @@ namespace xv::core
 {
     class Array;
     using ArrayPtr = std::shared_ptr<Array>;
+    using usize = uint64_t;
+    using isize = int64_t;
 
     class IStr
     {
     public:
         virtual const std::string str() const = 0;
+
+        // Add friend operator that uses the virtual str() method
+        friend std::ostream &operator<<(std::ostream &os, const IStr &obj)
+        {
+            return os << obj.str();
+        }
     };
+
+    template <class T>
+    inline uint64_t vsize(const std::vector<T> &v)
+    {
+        return v.size() * sizeof(T);
+    }
 
     template <class T>
     inline const std::string vstr(const std::vector<T> &v, const std::function<std::string(T)> &f)
