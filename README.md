@@ -82,3 +82,10 @@ Check the `tests` directory for example implementations of:
 - Gradient calculations
 - Metal backend usage
 - PyTorch comparison tests
+
+## Acknowledgement
+These resources inspired me to do the project:
+- MLX from Apple (https://github.com/ml-explore/mlx)
+- PyTorch from Meta (https://github.com/pytorch/pytorch)
+- Tinygrad by George Hotz (https://github.com/tinygrad/tinygrad)
+- Micrograd by Karpathy (https://github.com/karpathy/micrograd)

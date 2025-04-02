@@ -138,7 +138,14 @@ namespace xv::graph
         auto reduce_op = std::static_pointer_cast<ReduceOp>(op);
         auto operand = reduce_op->get_operand();
         arr->alloc();
-        reduce(reduce_op->get_name_str(), operand, arr, *ctx);
+        if (operand->is_contiguous())
+        {
+            reduce(reduce_op->get_name_str(), operand, arr, *ctx);
+        }
+        else
+        {
+            strided_reduce(reduce_op->get_name_str(), operand, arr, *ctx);
+        }
     }
 
     void MTLGraph::call_move(ArrayPtr arr)

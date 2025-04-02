@@ -51,6 +51,7 @@ namespace xv::backend::metal
     void MTLContext::init_reduction_kernels()
     {
         init_kernels(num_reduction_ops, num_dtypes, false);
+        init_kernels(num_reduction_ops, num_dtypes, true);
     }
 
     void MTLContext::init_util_kernels()

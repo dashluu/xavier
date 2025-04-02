@@ -58,7 +58,7 @@ kernel void reduce_to_one(
     constant const uint *offset [[buffer(0)]],
     const device T *input [[buffer(1)]],
     device metal::_atomic<R> *output [[buffer(2)]],
-    threadgroup T *ldata [[threadgroup(0)]],
+    threadgroup R *ldata [[threadgroup(0)]],
     uint gid [[thread_position_in_grid]],
     uint lid [[thread_position_in_threadgroup]],
     uint lsize [[threads_per_threadgroup]],
@@ -122,7 +122,7 @@ kernel void strided_reduce_to_one(
     constant const int *stride [[buffer(3)]],
     const device T *input [[buffer(4)]],
     device metal::_atomic<R> *output [[buffer(5)]],
-    threadgroup T *ldata [[threadgroup(0)]],
+    threadgroup R *ldata [[threadgroup(0)]],
     uint gid [[thread_position_in_grid]],
     uint lid [[thread_position_in_threadgroup]],
     uint lsize [[threads_per_threadgroup]],
@@ -130,15 +130,14 @@ kernel void strided_reduce_to_one(
     uint simd_lane_id [[thread_index_in_simdgroup]],
     uint simd_group_id [[simdgroup_index_in_threadgroup]])
 {
+    // The algorithm is same as before with the exception that
+    // elements are accessed non-contiguously
     uint idx = strided_idx(gid, ndim, shape, stride);
     R val = input[offset[0] + idx];
     for (uint s = lsize/simd_size; s > 1; s /= simd_size)
     {
         for (uint lanes = simd_size/2; lanes > 0; lanes /= 2) {
-            if (gid >= lanes) {
-                uint shuffle_dist = idx - strided_idx(gid - lanes, ndim, shape, stride);
-                val = Op()(val, metal::simd_shuffle_down(val, shuffle_dist));
-            }
+            val = Op()(val, metal::simd_shuffle_down(val, lanes));
         }
         if (simd_lane_id == 0) {
             ldata[simd_group_id] = val;
@@ -147,10 +146,7 @@ kernel void strided_reduce_to_one(
         val = (lid < s) ? ldata[lid] : 0;
     }
     for (uint lanes = simd_size/2; lanes > 0; lanes /= 2) {
-        if (gid >= lanes) {
-            uint shuffle_dist = idx - strided_idx(gid - lanes, ndim, shape, stride);
-            val = Op()(val, metal::simd_shuffle_down(val, shuffle_dist));
-        }
+        val = Op()(val, metal::simd_shuffle_down(val, lanes));
     }
     if (lid == 0) {
         AtomicOp()(output + offset[1], val);

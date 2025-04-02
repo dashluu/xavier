@@ -42,17 +42,17 @@ namespace xv::backend::metal
 
         // View (shared since dimensions match)
         std::vector<uint32_t> view = get_mtl_view(lhs->get_view());
-        auto view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(view.data(), view.size() * sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
+        auto view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(view.data(), vsize(view), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(view_buff.get(), 0, 2);
 
         // lhs stride
         std::vector<int32_t> lhs_stride = get_mtl_stride(lhs->get_stride());
-        auto lhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs_stride.data(), lhs_stride.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
+        auto lhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs_stride.data(), vsize(lhs_stride), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(lhs_stride_buff.get(), 0, 3);
 
         // rhs stride
         std::vector<int32_t> rhs_stride = get_mtl_stride(rhs->get_stride());
-        auto rhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs_stride.data(), rhs_stride.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
+        auto rhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs_stride.data(), vsize(rhs_stride), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(rhs_stride_buff.get(), 0, 4);
 
         // lhs, rhs, output buffers

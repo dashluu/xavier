@@ -40,12 +40,12 @@ namespace xv::backend::metal
 
         // View
         std::vector<uint32_t> view = get_mtl_view(input->get_view());
-        auto view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(view.data(), view.size() * sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
+        auto view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(view.data(), vsize(view), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(view_buff.get(), 0, 2);
 
         // Stride
         std::vector<int32_t> stride = get_mtl_stride(input->get_stride());
-        auto stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(stride.data(), stride.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
+        auto stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(stride.data(), vsize(stride), MTL::ResourceStorageModeShared, nullptr));
         encoder->setBuffer(stride_buff.get(), 0, 3);
 
         // Input and output buffers

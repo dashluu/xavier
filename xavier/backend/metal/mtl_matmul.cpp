@@ -84,10 +84,10 @@ void xv::backend::metal::strided_matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr out
 
     // lhs, rhs stride
     std::vector<int32_t> lhs_stride = get_mtl_stride(lhs->get_stride());
-    auto lhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs_stride.data(), lhs_stride.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
+    auto lhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs_stride.data(), vsize(lhs_stride), MTL::ResourceStorageModeShared, nullptr));
     encoder->setBuffer(lhs_stride_buff.get(), 0, 4);
     std::vector<int32_t> rhs_stride = get_mtl_stride(rhs->get_stride());
-    auto rhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs_stride.data(), rhs_stride.size() * sizeof(int32_t), MTL::ResourceStorageModeShared, nullptr));
+    auto rhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs_stride.data(), vsize(rhs_stride), MTL::ResourceStorageModeShared, nullptr));
     encoder->setBuffer(rhs_stride_buff.get(), 0, 5);
 
     // lhs, rhs, output buffers
