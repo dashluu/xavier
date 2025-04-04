@@ -8,13 +8,19 @@ namespace xv::bind
 
 	xc::ArrayPtr full_like(xc::ArrayPtr arr, const py::object &c, const xc::Device &device, bool constant);
 
-	xc::ArrayPtr unary(const py::object &operand_obj, const std::function<xc::ArrayPtr(xc::ArrayPtr, bool)> &f, bool in_place);
+	xc::ArrayPtr unary(const py::object &py_operand, const std::function<xc::ArrayPtr(xc::ArrayPtr, bool)> &f, bool in_place);
 
-	xc::ArrayPtr m_binary(const py::object &lhs_obj, const py::object &rhs_obj, const std::function<xc::ArrayPtr(xc::ArrayPtr, xc::ArrayPtr)> &f);
+	xc::ArrayPtr m_binary(const py::object &py_lhs, const py::object &py_rhs, const std::function<xc::ArrayPtr(xc::ArrayPtr, xc::ArrayPtr)> &f);
 
-	xc::ArrayPtr binary(xc::ArrayPtr lhs_arr, const py::object &rhs_obj, const std::function<xc::ArrayPtr(xc::ArrayPtr, xc::ArrayPtr)> &f);
+	xc::ArrayPtr binary(xc::ArrayPtr lhs_arr, const py::object &py_rhs, const std::function<xc::ArrayPtr(xc::ArrayPtr, xc::ArrayPtr)> &f);
 
-	xc::ArrayPtr reduce(const py::object &operand_obj, const std::function<xc::ArrayPtr(xc::ArrayPtr)> &f);
+	xc::ArrayPtr m_reduce(const py::object &py_operand,
+						  const std::vector<py::int_> &py_dims,
+						  const std::function<xc::ArrayPtr(xc::ArrayPtr, const std::vector<xc::usize> &)> &f);
+
+	xc::ArrayPtr reduce(xc::ArrayPtr operand,
+						const std::vector<py::int_> &py_dims,
+						const std::function<xc::ArrayPtr(xc::ArrayPtr, const std::vector<xc::usize> &)> &f);
 
 	inline xc::ArrayPtr m_add(const py::object &lhs, const py::object &rhs)
 	{
@@ -262,15 +268,27 @@ namespace xv::bind
 		return flatten(obj_to_arr(operand, xc::device0), start_dim, end_dim);
 	}
 
-	inline xc::ArrayPtr m_sum(const py::object &operand)
+	inline xc::ArrayPtr sum(xc::ArrayPtr operand, const std::vector<py::int_> &dims)
 	{
-		return reduce(operand, [](xc::ArrayPtr arr)
-					  { return arr->sum(); });
+		return reduce(operand, dims, [](xc::ArrayPtr arr, const std::vector<xc::usize> &dims)
+					  { return arr->sum(dims); });
 	}
 
-	inline xc::ArrayPtr m_max(const py::object &operand)
+	inline xc::ArrayPtr m_sum(const py::object &operand, const std::vector<py::int_> &dims)
 	{
-		return reduce(operand, [](xc::ArrayPtr arr)
-					  { return arr->max(); });
+		return m_reduce(operand, dims, [](xc::ArrayPtr arr, const std::vector<xc::usize> &dims)
+						{ return arr->sum(dims); });
+	}
+
+	inline xc::ArrayPtr max(xc::ArrayPtr operand, const std::vector<py::int_> &dims)
+	{
+		return reduce(operand, dims, [](xc::ArrayPtr arr, const std::vector<xc::usize> &dims)
+					  { return arr->max(dims); });
+	}
+
+	inline xc::ArrayPtr m_max(const py::object &operand, const std::vector<py::int_> &dims)
+	{
+		return m_reduce(operand, dims, [](xc::ArrayPtr arr, const std::vector<xc::usize> &dims)
+						{ return arr->max(dims); });
 	}
 }

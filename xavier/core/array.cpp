@@ -122,18 +122,6 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::unslice(const Shape &orig_shape, const std::vector<Range> &ranges)
-    {
-        Shape sliced_shape = orig_shape.slice(ranges);
-        if (sliced_shape != shape)
-        {
-            throw std::invalid_argument("Cannot unslice because the sliced shape " + sliced_shape.str() + " does not match the current shape " + shape.str() + " of array " + id.str() + ".");
-        }
-        auto arr = std::make_shared<Array>(orig_shape, dtype, device, true);
-        arr->op = std::make_shared<UnsliceOp>(shared_from_this(), orig_shape, ranges);
-        return arr;
-    }
-
     ArrayPtr Array::arange(const ShapeView &view, isize start, isize step, const Dtype &dtype, const Device &device, bool constant)
     {
         auto op = std::make_shared<ArangeOp>(view, start, step, dtype);
@@ -287,10 +275,10 @@ namespace xv::core
         return arr;
     }
 
-    ArrayPtr Array::copy()
+    ArrayPtr Array::identity()
     {
         auto arr = std::make_shared<Array>(Shape(get_view()), dtype, device);
-        arr->op = std::make_shared<CopyOp>(shared_from_this());
+        arr->op = std::make_shared<IdOp>(shared_from_this());
         return arr;
     }
 

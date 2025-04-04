@@ -26,6 +26,7 @@ namespace xv::core
         SQ,
         SQRT,
         NEG,
+        ID,
         EXP,
         LOG,
         RECIP,
@@ -36,8 +37,6 @@ namespace xv::core
         UNSQUEEZE,
         INTERPRET,
         SLICE,
-        UNSLICE,
-        COPY,
         SUM,
         MAX,
         MIN
@@ -48,9 +47,9 @@ namespace xv::core
         INITIALIZER,
         UNARY,
         BINARY,
+        MATMUL,
         TRANSFORM,
-        REDUCE,
-        MOVE
+        REDUCE
     };
 
     inline const std::unordered_map<OpName, const std::string> opnames = {
@@ -73,6 +72,7 @@ namespace xv::core
         {OpName::SQ, "sq"},
         {OpName::SQRT, "sqrt"},
         {OpName::NEG, "neg"},
+        {OpName::ID, "id"},
         {OpName::EXP, "exp"},
         {OpName::LOG, "log"},
         {OpName::RECIP, "recip"},
@@ -83,8 +83,6 @@ namespace xv::core
         {OpName::PERMUTE, "permute"},
         {OpName::INTERPRET, "interpret"},
         {OpName::SLICE, "slice"},
-        {OpName::UNSLICE, "unslice"},
-        {OpName::COPY, "copy"},
         {OpName::SUM, "sum"},
         {OpName::MAX, "max"},
         {OpName::MIN, "min"}};
@@ -217,10 +215,12 @@ namespace xv::core
     {
     protected:
         ArrayPtr operand;
+        std::vector<usize> dims;
 
     public:
-        ReduceOp(OpName name, ArrayPtr operand) : Op(name, OpType::REDUCE), operand(operand) {}
+        ReduceOp(OpName name, ArrayPtr operand, const std::vector<usize> &dims) : Op(name, OpType::REDUCE), operand(operand), dims(dims) {}
         ArrayPtr get_operand() const { return operand; }
+        const std::vector<usize> &get_dims() { return dims; }
         const std::string str() const override;
     };
 
@@ -292,10 +292,17 @@ namespace xv::core
         GeqOp(ArrayPtr lhs, ArrayPtr rhs) : BinaryOp(OpName::GEQ, lhs, rhs, false) {}
     };
 
-    struct MatmulOp : public BinaryOp
+    struct MatmulOp : public Op
     {
+    private:
+        ArrayPtr lhs;
+        ArrayPtr rhs;
+
     public:
-        MatmulOp(ArrayPtr lhs, ArrayPtr rhs) : BinaryOp(OpName::MATMUL, lhs, rhs, false) {}
+        MatmulOp(ArrayPtr lhs, ArrayPtr rhs) : Op(OpName::MATMUL, OpType::MATMUL), lhs(lhs), rhs(rhs) {}
+        ArrayPtr get_lhs() const { return lhs; }
+        ArrayPtr get_rhs() const { return rhs; }
+        const std::string str() const override;
         void backward(ArrayPtr arr) const override;
     };
 
@@ -303,7 +310,6 @@ namespace xv::core
     {
     public:
         SqOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::SQ, operand, in_place) {}
-
         void backward(ArrayPtr arr) const override;
     };
 
@@ -311,7 +317,6 @@ namespace xv::core
     {
     public:
         SqrtOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::SQRT, operand, in_place) {}
-
         void backward(ArrayPtr arr) const override;
     };
 
@@ -319,7 +324,13 @@ namespace xv::core
     {
     public:
         NegOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::NEG, operand, in_place) {}
+        void backward(ArrayPtr arr) const override;
+    };
 
+    struct IdOp : public UnaryOp
+    {
+    public:
+        IdOp(ArrayPtr operand) : UnaryOp(OpName::ID, operand, false) {}
         void backward(ArrayPtr arr) const override;
     };
 
@@ -327,7 +338,6 @@ namespace xv::core
     {
     public:
         ExpOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::EXP, operand, in_place) {}
-
         void backward(ArrayPtr arr) const override;
     };
 
@@ -335,7 +345,6 @@ namespace xv::core
     {
     public:
         LogOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::LOG, operand, in_place) {}
-
         void backward(ArrayPtr arr) const override;
     };
 
@@ -343,7 +352,6 @@ namespace xv::core
     {
     public:
         RecipOp(ArrayPtr operand, bool in_place) : UnaryOp(OpName::RECIP, operand, in_place) {}
-
         void backward(ArrayPtr arr) const override;
     };
 
@@ -376,25 +384,6 @@ namespace xv::core
         void backward(ArrayPtr arr) const override;
     };
 
-    struct UnsliceOp : public TransformOp
-    {
-    private:
-        Shape orig_shape;
-        std::vector<Range> ranges;
-
-    public:
-        UnsliceOp(ArrayPtr operand, const Shape &orig_shape, const std::vector<Range> &ranges) : TransformOp(OpName::UNSLICE, operand), orig_shape(orig_shape), ranges(ranges) {}
-        const Shape &get_shape() { return orig_shape; }
-        const std::vector<Range> &get_ranges() { return ranges; }
-        const std::string str() const override
-        {
-            return TransformOp::str() + ", ranges:(" + vstr<Range>(ranges, [](Range range)
-                                                                   { return range.str(); }) +
-                   "), original shape: (" + orig_shape.str() + ")";
-        }
-        void backward(ArrayPtr arr) const override;
-    };
-
     struct PermuteOp : public TransformOp
     {
     private:
@@ -421,33 +410,22 @@ namespace xv::core
         }
     };
 
-    struct CopyOp : public Op
-    {
-    private:
-        ArrayPtr operand;
-
-    public:
-        CopyOp(ArrayPtr operand) : Op(OpName::COPY, OpType::MOVE), operand(operand) {}
-        ArrayPtr get_operand() const { return operand; }
-        const std::string str() const override;
-    };
-
     struct SumOp : public ReduceOp
     {
     public:
-        SumOp(ArrayPtr operand) : ReduceOp(OpName::SUM, operand) {}
+        SumOp(ArrayPtr operand, const std::vector<usize> &dims) : ReduceOp(OpName::SUM, operand, dims) {}
         void backward(ArrayPtr arr) const override;
     };
 
     struct MaxOp : public ReduceOp
     {
     public:
-        MaxOp(ArrayPtr operand) : ReduceOp(OpName::MAX, operand) {}
+        MaxOp(ArrayPtr operand, const std::vector<usize> &dims) : ReduceOp(OpName::MAX, operand, dims) {}
     };
 
     struct MinOp : public ReduceOp
     {
     public:
-        MinOp(ArrayPtr operand) : ReduceOp(OpName::MIN, operand) {}
+        MinOp(ArrayPtr operand, const std::vector<usize> &dims) : ReduceOp(OpName::MIN, operand, dims) {}
     };
 }

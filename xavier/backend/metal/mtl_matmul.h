@@ -9,5 +9,4 @@
 namespace xv::backend::metal
 {
     void matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTLContext &ctx);
-    void strided_matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTLContext &ctx);
 }

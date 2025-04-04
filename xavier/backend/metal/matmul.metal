@@ -1,7 +1,7 @@
 #include "utils.h"
 
 template <class T, class R>
-kernel void matmul(
+kernel void matmul_vv(
     constant const uint *offset [[buffer(0)]],
     constant const uint *lhs_shape [[buffer(1)]],
     constant const uint *rhs_shape [[buffer(2)]],
@@ -35,7 +35,7 @@ kernel void matmul(
 }
 
 template <class T, class R>
-kernel void strided_matmul(
+kernel void matmul_vs(
     constant const uint *ndim [[buffer(0)]],
     constant const uint *offset [[buffer(1)]],
     constant const uint *lhs_shape [[buffer(2)]],
@@ -71,7 +71,7 @@ kernel void strided_matmul(
     }
 }
 
-template [[host_name("matmul_f32")]] [[kernel]] decltype(matmul<float, float>) matmul<float, float>;
-template [[host_name("matmul_i32")]] [[kernel]] decltype(matmul<int, int>) matmul<int, int>;
-template [[host_name("strided_matmul_f32")]] [[kernel]] decltype(strided_matmul<float, float>) strided_matmul<float, float>;
-template [[host_name("strided_matmul_i32")]] [[kernel]] decltype(strided_matmul<int, int>) strided_matmul<int, int>;
+template [[host_name("matmul_vv_f32")]] [[kernel]] decltype(matmul_vv<float, float>) matmul_vv<float, float>;
+template [[host_name("matmul_vv_i32")]] [[kernel]] decltype(matmul_vv<int, int>) matmul_vv<int, int>;
+template [[host_name("matmul_vs_f32")]] [[kernel]] decltype(matmul_vs<float, float>) matmul_vs<float, float>;
+template [[host_name("matmul_vs_i32")]] [[kernel]] decltype(matmul_vs<int, int>) matmul_vs<int, int>;

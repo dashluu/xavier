@@ -59,7 +59,7 @@ namespace std
 namespace xv::core
 {
     inline const std::unordered_set<Dtype> all_dtypes = {b8, i32, f32};
-    inline const std::unordered_set<Dtype> num_dtypes = {i32, f32};
+    inline const std::unordered_set<Dtype> numeric_dtypes = {i32, f32};
     inline const std::unordered_set<Dtype> bool_dtypes = {b8};
     inline const std::unordered_set<Dtype> int_dtypes = {i32};
     inline const std::unordered_set<Dtype> float_dtypes = {f32};

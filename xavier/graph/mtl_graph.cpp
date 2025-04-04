@@ -37,14 +37,7 @@ namespace xv::graph
         {
             arr->alloc();
         }
-        if (operand->is_contiguous())
-        {
-            unary_ss(unary_op->get_name_str(), operand, arr, *ctx);
-        }
-        else
-        {
-            strided_unary_ss(unary_op->get_name_str(), operand, arr, *ctx);
-        }
+        unary_ss(unary_op->get_name_str(), operand, arr, *ctx);
     }
 
     void MTLGraph::call_binary(ArrayPtr arr)
@@ -55,14 +48,7 @@ namespace xv::graph
         if (binary_op->get_name() == OpName::MATMUL)
         {
             arr->alloc();
-            if (lhs->is_contiguous() && rhs->is_contiguous())
-            {
-                matmul(lhs, rhs, arr, *ctx);
-            }
-            else
-            {
-                strided_matmul(lhs, rhs, arr, *ctx);
-            }
+            matmul(lhs, rhs, arr, *ctx);
         }
         else
         {
@@ -75,14 +61,7 @@ namespace xv::graph
             {
                 arr->alloc();
             }
-            if (lhs->is_contiguous() && rhs->is_contiguous())
-            {
-                binary_ss(binary_op->get_name_str(), lhs, rhs, arr, *ctx);
-            }
-            else
-            {
-                strided_binary_ss(binary_op->get_name_str(), lhs, rhs, arr, *ctx);
-            }
+            binary_ss(binary_op->get_name_str(), lhs, rhs, arr, *ctx);
         }
     }
 
@@ -95,7 +74,7 @@ namespace xv::graph
         {
             auto reshape_op = std::static_pointer_cast<ReshapeOp>(op);
             auto operand = reshape_op->get_operand();
-            if (operand->is_contiguous())
+            if (!operand->copy_when_reshape())
             {
                 arr->alloc(*operand->get_buff());
             }
@@ -138,13 +117,24 @@ namespace xv::graph
         auto reduce_op = std::static_pointer_cast<ReduceOp>(op);
         auto operand = reduce_op->get_operand();
         arr->alloc();
-        if (operand->is_contiguous())
+        if (reduce_op->get_dims().size() == 0)
         {
-            reduce(reduce_op->get_name_str(), operand, arr, *ctx);
+            // Reduce to one item
+            if (operand->is_contiguous())
+            {
+                reduce_all(reduce_op->get_name_str(), operand, arr, *ctx);
+            }
+            else
+            {
+                strided_reduce_all(reduce_op->get_name_str(), operand, arr, *ctx);
+            }
         }
         else
         {
-            strided_reduce(reduce_op->get_name_str(), operand, arr, *ctx);
+            if (operand->is_contiguous())
+            {
+                reduce_col(reduce_op->get_name_str(), operand, arr, *ctx);
+            }
         }
     }
 
@@ -204,21 +194,15 @@ namespace xv::graph
             order.push_back(arr);
             break;
         }
-        case OpType::REDUCE:
+        default:
         {
+            // Reduce operation
             auto reduce_op = std::static_pointer_cast<ReduceOp>(arr->get_op());
             auto operand = reduce_op->get_operand();
             toposort(operand, order);
             order.push_back(arr);
             break;
         }
-        default:
-            // Move operations
-            auto move_op = std::static_pointer_cast<CopyOp>(arr->get_op());
-            auto operand = move_op->get_operand();
-            toposort(operand, order);
-            order.push_back(arr);
-            break;
         }
     }
 
@@ -280,9 +264,9 @@ namespace xv::graph
             for (auto &arr : std::views::reverse(fw_order))
             {
                 // grad is null when backward is not implemented for op
-                if (arr->get_grad() != nullptr)
+                if (arr->grad_root != nullptr)
                 {
-                    toposort(arr->get_grad(), bw_order);
+                    toposort(arr->grad_root, bw_order);
                 }
             }
         }

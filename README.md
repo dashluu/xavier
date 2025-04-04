@@ -10,7 +10,7 @@ A virtual environment(e.g., Conda) is recommended before installing Python packa
 - NumPy (>=2.0 but should work for any version)
 - Mypy >= 1.15 (type hints and docs)
 - Pybind11 >= 2.13.6 (C++ bindings)
-- Metal 3.2 (macOS)
+- Metal 3.2 and metal-cpp (macOS)
 - Pytest >= 8.3.4 (optional, mainly for testing)
 
 ## Installation
@@ -21,6 +21,9 @@ cd xavier
 ```
 
 2. Build the project
+* Do the following on macOS:
+  * Download `metal-cpp` using the link https://developer.apple.com/metal/cpp/.
+  * Move the metal-cpp into `xavier` directory.
 * Edit the system path to python and pybind11 in `xavier/CMakeLists.txt`.
 * Build the project and generate `.so` file using the following commands:
 ```bash

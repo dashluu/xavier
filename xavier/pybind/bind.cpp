@@ -81,7 +81,7 @@ void init_xv_module(py::module_ &m)
         .def("stride", &xc::Array::get_stride, "Returns the stride of the array.")
         .def("dtype", &xc::Array::get_dtype, "Returns the data type of the array.")
         .def("device", &xc::Array::get_device, "Returns the device that the array is allocated on.")
-        .def("grad", &xc::Array::get_grad, "Accesses the gradient of the array.")
+        .def_readonly("grad", &xc::Array::grad, "Accesses the gradient of the array.")
         .def("ptr", [](const xc::Array &arr)
              { return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(arr.get_ptr())); }, "Returns a pointer to the data of the array.")
         .def("strided_idx", &xc::Array::strided_idx, "Accesses the kth element in the array.", "k"_a)
@@ -95,7 +95,7 @@ void init_xv_module(py::module_ &m)
         .def("__len__", [](const xc::Array &arr)
              { return arr.get_shape()[0]; })
         .def("reshape", &xc::Array::reshape, "Reshapes the array to the given view in-place.", "view"_a)
-        .def("copy", &xc::Array::copy, "Copies data of the current array to a new array.")
+        .def("identity", &xc::Array::identity, "Copies data of the current array to a new array.")
         .def("broadcast", &xc::Array::broadcast, "Broadcasts the array based on the given view.", "view"_a)
         .def("broadcast_to", &xc::Array::broadcast_to, "Broadcasts the array to the given view.", "view"_a)
         .def("as_contiguous", &xc::Array::as_contiguous, "Creates a new contiguous array with the same as elements as the current array if the current array is not contiguous, otherwise, returns the current array.")
@@ -134,8 +134,8 @@ void init_xv_module(py::module_ &m)
         .def("permute", &xb::permute, "Permutes the dimensions of the array according to the given order.", "order"_a)
         .def("T", &xb::T, "Transposes the array.", "start_dim"_a = 0, "end_dim"_a = -1)
         .def("flatten", &xb::flatten, "Flattens the array.", "start_dim"_a = 0, "end_dim"_a = -1)
-        .def("sum", &xc::Array::sum, "Computes the sum of the array elements.")
-        .def("max", &xc::Array::max, "Computes the maximum of the array elements.")
+        .def("sum", &xb::sum, "Computes the sum of the array elements in given dimensions.", "dims"_a = std::vector<py::int_>())
+        .def("max", &xb::max, "Computes the maximum of the array elements in given dimensions.", "dims"_a = std::vector<py::int_>())
         .def_static("from_buffer", &xb::array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = xc::device0, "constant"_a = false)
         .def_static("from_numpy", &xb::array_from_numpy, "Creates an array from numpy array without copying.", "np_arr"_a, "device"_a = xc::device0, "constant"_a = false)
         .def("to_numpy", &xb::array_to_numpy, "Converts the array to a numpy array.");
@@ -178,6 +178,6 @@ void init_xv_module(py::module_ &m)
     m.def("permute", &xb::m_permute, "Permutes the dimensions of the array according to the given order.", "arr"_a, "order"_a);
     m.def("T", &xb::m_T, "Transposes the array.", "arr"_a, "start_dim"_a = 0, "end_dim"_a = -1);
     m.def("flatten", &xb::m_flatten, "Flattens the array.", "arr"_a, "start_dim"_a = 0, "end_dim"_a = -1);
-    m.def("sum", &xb::m_sum, "Computes the sum of the array elements.");
-    m.def("max", &xb::m_max, "Computes the maximum of the array elements.");
+    m.def("sum", &xb::m_sum, "Computes the sum of the array elements in given dimensions.", "arr"_a, "dims"_a = std::vector<py::int_>());
+    m.def("max", &xb::m_max, "Computes the maximum of the array elements in given dimensions.", "arr"_a, "dims"_a = std::vector<py::int_>());
 }

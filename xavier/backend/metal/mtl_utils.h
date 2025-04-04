@@ -35,6 +35,35 @@ namespace xv::backend::metal
         return offsets;
     }
 
+    inline void encode_buffer(NS::SharedPtr<MTL::Device> device, MTL::ComputeCommandEncoder *encoder, const void *buff, usize size, uint32_t &buff_idx)
+    {
+        MTL::Buffer *mtl_buff = device->newBuffer(buff, size, MTL::ResourceStorageModeShared, nullptr);
+        encoder->setBuffer(mtl_buff, 0, buff_idx++);
+    }
+
+    inline void encode_array(NS::SharedPtr<MTL::Device> device, MTL::ComputeCommandEncoder *encoder, ArrayPtr arr, uint32_t &buff_idx)
+    {
+        encode_buffer(device, encoder, arr->get_buff_ptr(), arr->get_buff_nbytes(), buff_idx);
+    }
+
+    inline void encode_offset(NS::SharedPtr<MTL::Device> device, MTL::ComputeCommandEncoder *encoder, const std::vector<ArrayPtr> &arrs, uint32_t &buff_idx)
+    {
+        auto offset = get_mtl_offsets(arrs);
+        encode_buffer(device, encoder, offset.data(), vsize(offset), buff_idx);
+    }
+
+    inline void encode_view(NS::SharedPtr<MTL::Device> device, MTL::ComputeCommandEncoder *encoder, ArrayPtr arr, uint32_t &buff_idx)
+    {
+        auto view = get_mtl_view(arr->get_view());
+        encode_buffer(device, encoder, view.data(), vsize(view), buff_idx);
+    }
+
+    inline void encode_stride(NS::SharedPtr<MTL::Device> device, MTL::ComputeCommandEncoder *encoder, ArrayPtr arr, uint32_t &buff_idx)
+    {
+        auto stride = get_mtl_stride(arr->get_stride());
+        encode_buffer(device, encoder, stride.data(), vsize(stride), buff_idx);
+    }
+
     inline void ss_dispatch(MTLContext &ctx, MTL::CommandBuffer *cmd_buff, MTL::ComputeCommandEncoder *encoder, const std::string &name, usize numel)
     {
         auto kernel = ctx.get_kernel(name);

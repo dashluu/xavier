@@ -21,7 +21,6 @@ namespace xv::core
         Device device;
         std::shared_ptr<Buffer> buff = nullptr;
         std::shared_ptr<Op> op = nullptr;
-        ArrayPtr grad = nullptr;
         bool constant;
 
         template <class I, class F>
@@ -158,11 +157,21 @@ namespace xv::core
         }
 
         template <class O>
-        ArrayPtr reduce()
+        ArrayPtr reduce(const std::vector<usize> &dims)
         {
-            // Reduce to one element for now
-            auto arr = std::make_shared<Array>(Shape({1}), dtype, device);
-            arr->op = std::make_shared<O>(shared_from_this());
+            ArrayPtr arr;
+            if (dims.size() == 0)
+            {
+                // Reduce to one element
+                arr = std::make_shared<Array>(Shape({1}), dtype, device);
+            }
+            else
+            {
+                // Assume 2D matrix for now
+                Shape reduced_shape({get_view()[0], 1});
+                arr = std::make_shared<Array>(reduced_shape, dtype, device);
+            }
+            arr->op = std::make_shared<O>(shared_from_this(), dims);
             return arr;
         }
 
@@ -172,6 +181,9 @@ namespace xv::core
         void check_dims(usize start_dim, usize end_dim) const;
 
     public:
+        ArrayPtr grad = nullptr;
+        ArrayPtr grad_root = nullptr;
+
         Array(uint8_t *ptr, usize nbytes, const Shape &shape, const Dtype &dtype = f32, const Device &device = device0, bool constant = false) : id(id_gen.generate()), shape(shape), dtype(dtype), device(device), constant(constant)
         {
             buff = std::make_shared<Buffer>(ptr, nbytes, false);
@@ -221,7 +233,11 @@ namespace xv::core
             }
         }
 
-        void update_grad(ArrayPtr grad, bool sub = false) { this->grad = sub ? this->grad->self_sub(grad) : this->grad->self_add(grad); }
+        void update_grad(ArrayPtr grad, bool sub = false)
+        {
+            this->grad = sub ? this->grad->self_sub(grad) : this->grad->self_add(grad);
+            this->grad_root = this->grad;
+        }
 
         Array(const Array &arr) : id(id_gen.generate()), shape(arr.shape), dtype(arr.dtype), device(arr.device), buff(arr.buff)
         {
@@ -254,8 +270,6 @@ namespace xv::core
         std::shared_ptr<Buffer> get_buff() const { return buff; }
 
         std::shared_ptr<Op> get_op() const { return op; }
-
-        std::shared_ptr<Array> get_grad() { return grad; }
 
         usize get_numel() const { return shape.get_numel(); }
 
@@ -339,9 +353,6 @@ namespace xv::core
          *                              or if any range specifies invalid indices.
          */
         ArrayPtr slice(const std::vector<Range> &ranges);
-
-        // Unslice operation yields constant array(for efficiency)
-        ArrayPtr unslice(const Shape &orig_shape, const std::vector<Range> &ranges);
 
         static ArrayPtr arange(const ShapeView &view, isize start, isize step, const Dtype &dtype = f32, const Device &device = device0, bool constant = false);
 
@@ -549,11 +560,13 @@ namespace xv::core
 
         ArrayPtr reshape(const ShapeView &view);
 
+        bool copy_when_reshape() { return !is_contiguous(); }
+
         ArrayPtr broadcast(const ShapeView &view);
 
         ArrayPtr broadcast_to(const ShapeView &view);
 
-        ArrayPtr copy();
+        ArrayPtr identity();
 
         ArrayPtr permute(const ShapeOrder &order);
 
@@ -597,13 +610,13 @@ namespace xv::core
          */
         ArrayPtr flatten(usize start_dim, usize end_dim);
 
-        ArrayPtr as_contiguous() { return is_contiguous() ? shared_from_this() : copy(); }
+        ArrayPtr as_contiguous() { return is_contiguous() ? shared_from_this() : identity(); }
 
-        ArrayPtr sum() { return reduce<SumOp>(); }
+        ArrayPtr sum(const std::vector<usize> &dims = {}) { return reduce<SumOp>(dims); }
 
-        ArrayPtr max() { return reduce<MaxOp>(); }
+        ArrayPtr max(const std::vector<usize> &dims = {}) { return reduce<MaxOp>(dims); }
 
-        ArrayPtr min() { return reduce<MinOp>(); }
+        ArrayPtr min(const std::vector<usize> &dims = {}) { return reduce<MinOp>(dims); }
     };
 
     inline IdGenerator Array::id_gen = IdGenerator();

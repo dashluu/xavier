@@ -54,7 +54,7 @@ struct AtomicMaxFloat
 };
 
 template <class Op, class AtomicOp, class T, class R>
-kernel void reduce_to_one(
+kernel void reduce_all_vv(
     constant const uint *offset [[buffer(0)]],
     const device T *input [[buffer(1)]],
     device metal::_atomic<R> *output [[buffer(2)]],
@@ -115,7 +115,7 @@ kernel void reduce_to_one(
 }
 
 template <class Op, class AtomicOp, class T, class R>
-kernel void strided_reduce_to_one(
+kernel void reduce_all_vs(
     constant const uint *ndim [[buffer(0)]],
     constant const uint *offset [[buffer(1)]],
     constant const uint *shape [[buffer(2)]],
@@ -153,11 +153,59 @@ kernel void strided_reduce_to_one(
     }
 }
 
-#define reduce_all(opname, op, atomic_op_float, atomic_op_int) \
-template [[host_name(#opname "_f32")]] [[kernel]] decltype(reduce_to_one<op, atomic_op_float, float, float>) reduce_to_one<op, atomic_op_float, float, float>;                              \
-template [[host_name(#opname "_i32")]] [[kernel]] decltype(reduce_to_one<op, atomic_op_int, int, int>) reduce_to_one<op, atomic_op_int, int, int>;                                          \
-template [[host_name("strided_" #opname "_f32")]] [[kernel]] decltype(strided_reduce_to_one<op, atomic_op_float, float, float>) strided_reduce_to_one<op, atomic_op_float, float, float>;   \
-template [[host_name("strided_" #opname "_i32")]] [[kernel]] decltype(strided_reduce_to_one<op, atomic_op_int, int, int>) strided_reduce_to_one<op, atomic_op_int, int, int>;
+template <class Op, class AtomicOp, class T, class R>
+kernel void reduce_col_vv(
+    constant const uint *offset [[buffer(0)]],
+    constant const uint *shape [[buffer(1)]],
+    const device T *input [[buffer(2)]],
+    device metal::_atomic<R> *output [[buffer(3)]],
+    threadgroup R *ldata [[threadgroup(0)]],
+    uint2 gid [[thread_position_in_grid]],
+    uint2 lid [[thread_position_in_threadgroup]],
+    uint2 lsize [[threads_per_threadgroup]],
+    uint simd_size [[threads_per_simdgroup]],
+    uint simd_lane_id [[thread_index_in_simdgroup]],
+    uint simd_group_id [[simdgroup_index_in_threadgroup]])
+{
+    const uint grow = gid.y;
+    const uint gcol = gid.x;
+    const uint lrow = lid.y;
+    const uint lcol = lid.x;
+    const uint lheight = lsize.y;
+    const uint lwidth = lsize.x;
+    const uint M = shape[0];
+    const uint N = shape[1];
+    R val = input[offset[0] + grow * N + gcol];
+    for (uint s = lwidth/simd_size; s > 1; s /= simd_size)
+    {
+        for (uint lanes = simd_size/2; lanes > 0; lanes /= 2) {
+            if (lanes < N) {
+                val = Op()(val, metal::simd_shuffle_down(val, lanes));
+            }
+        }
+        if (simd_lane_id == 0) {
+            ldata[lrow * lwidth + simd_group_id] = val;
+        }
+        threadgroup_barrier(metal::mem_flags::mem_threadgroup);
+        val = (lcol < s) ? ldata[lrow * lwidth + lcol] : 0;
+    }
+    for (uint lanes = simd_size/2; lanes > 0; lanes /= 2) {
+        if (lanes < N) {
+            val = Op()(val, metal::simd_shuffle_down(val, lanes));
+        }
+    }
+    if (lcol == 0) {
+        AtomicOp()(output + offset[1] + grow, val);
+    }
+}
 
-reduce_all(sum, Sum, AtomicSum, AtomicSum)
-reduce_all(max, Max, AtomicMaxFloat, AtomicMaxInt)
+#define reduce(opname, op, atomic_op_float, atomic_op_int) \
+template [[host_name(#opname "_all_vv_f32")]] [[kernel]] decltype(reduce_all_vv<op, atomic_op_float, float, float>) reduce_all_vv<op, atomic_op_float, float, float>;   \
+template [[host_name(#opname "_all_vv_i32")]] [[kernel]] decltype(reduce_all_vv<op, atomic_op_int, int, int>) reduce_all_vv<op, atomic_op_int, int, int>;               \
+template [[host_name(#opname "_all_vs_f32")]] [[kernel]] decltype(reduce_all_vs<op, atomic_op_float, float, float>) reduce_all_vs<op, atomic_op_float, float, float>;   \
+template [[host_name(#opname "_all_vs_i32")]] [[kernel]] decltype(reduce_all_vs<op, atomic_op_int, int, int>) reduce_all_vs<op, atomic_op_int, int, int>;               \
+template [[host_name(#opname "_col_vv_f32")]] [[kernel]] decltype(reduce_col_vv<op, atomic_op_float, float, float>) reduce_col_vv<op, atomic_op_float, float, float>;   \
+template [[host_name(#opname "_col_vv_i32")]] [[kernel]] decltype(reduce_col_vv<op, atomic_op_int, int, int>) reduce_col_vv<op, atomic_op_int, int, int>;
+
+reduce(sum, Sum, AtomicSum, AtomicSum)
+reduce(max, Max, AtomicMaxFloat, AtomicMaxInt)

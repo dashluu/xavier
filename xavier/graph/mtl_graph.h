@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../backend/metal/mtl_initializers.h"
-#include "../backend/metal/mtl_copy.h"
 #include "../backend/metal/mtl_unary.h"
 #include "../backend/metal/mtl_binary.h"
 #include "../backend/metal/mtl_matmul.h"

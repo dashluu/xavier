@@ -6,13 +6,21 @@ void xv::backend::metal::matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTL
     auto cmd_buff = cmd_queue->commandBuffer();
     auto encoder = cmd_buff->computeCommandEncoder();
     auto device = ctx.get_device();
+    uint32_t buff_idx = 0;
+    bool strided_input = !lhs->is_contiguous() || !rhs->is_contiguous();
 
-    // Offset
-    auto offset = get_mtl_offsets({lhs, rhs, output});
-    auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset.data(), vsize(offset), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(offset_buff.get(), 0, 0);
+    // Encode # dimensions if strided input
+    uint32_t ndim;
+    if (strided_input)
+    {
+        ndim = static_cast<uint32_t>(lhs->get_ndim());
+        encode_buffer(device, encoder, &ndim, sizeof(uint32_t), buff_idx);
+    }
 
-    // lhs, rhs view
+    // Encode offset
+    encode_offset(device, encoder, {lhs, rhs, output}, buff_idx);
+
+    // Encode lhs, rhs view
     auto lhs_view = lhs->get_view();
     auto rhs_view = rhs->get_view();
     const uint32_t B = lhs_view[0]; // Batch size
@@ -20,96 +28,37 @@ void xv::backend::metal::matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTL
     const uint32_t K = lhs_view[2]; // Inner dimension
     const uint32_t N = rhs_view[2]; // Number of columns
     uint32_t lhs_view32[] = {B, M, K};
-    auto lhs_view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs_view32, sizeof(lhs_view32), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(lhs_view_buff.get(), 0, 1);
+    encode_buffer(device, encoder, lhs_view32, sizeof(lhs_view32), buff_idx);
     uint32_t rhs_view32[] = {B, K, N};
-    auto rhs_view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs_view32, sizeof(rhs_view32), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(rhs_view_buff.get(), 0, 2);
+    encode_buffer(device, encoder, rhs_view32, sizeof(rhs_view32), buff_idx);
 
-    // lhs, rhs, output buffers
-    auto lhs_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs->get_buff_ptr(), lhs->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(lhs_buff.get(), 0, 3);
-    auto rhs_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs->get_buff_ptr(), rhs->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(rhs_buff.get(), 0, 4);
-    auto out_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(output->get_buff_ptr(), output->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(out_buff.get(), 0, 5);
-    auto kernel_name = "matmul_" + lhs->get_dtype().str();
-    auto kernel = ctx.get_kernel(kernel_name);
-    encoder->setComputePipelineState(kernel->get_state().get());
+    // Encode lhs and rhs stride if strided input
+    if (strided_input)
+    {
+        encode_stride(device, encoder, lhs, buff_idx);
+        encode_stride(device, encoder, rhs, buff_idx);
+    }
 
+    // Encode lhs, rhs, and output buffers
+    encode_array(device, encoder, lhs, buff_idx);
+    encode_array(device, encoder, rhs, buff_idx);
+    encode_array(device, encoder, output, buff_idx);
+
+    // Calculate sizes
     // Compute the number of thread groups
     // Even if matrix is smaller than one threadgroup, we still need at least 1 group
     uint64_t x_group_count = std::max(1ull, static_cast<uint64_t>((N + X_THREADS_PER_GROUP - 1) / X_THREADS_PER_GROUP));
     uint64_t y_group_count = std::max(1ull, static_cast<uint64_t>((M + Y_THREADS_PER_GROUP - 1) / Y_THREADS_PER_GROUP));
     uint64_t z_group_count = std::max(1ull, static_cast<uint64_t>((B + Z_THREADS_PER_GROUP - 1) / Z_THREADS_PER_GROUP));
     auto threadgroup_count = MTL::Size::Make(x_group_count, y_group_count, z_group_count);
-
     // Compute the number of threads per group
     auto threadgroup_size = MTL::Size::Make(X_THREADS_PER_GROUP, Y_THREADS_PER_GROUP, Z_THREADS_PER_GROUP);
-    encoder->dispatchThreadgroups(threadgroup_count, threadgroup_size);
-    encoder->endEncoding();
-    cmd_buff->commit();
-    cmd_buff->waitUntilCompleted();
-}
 
-void xv::backend::metal::strided_matmul(ArrayPtr lhs, ArrayPtr rhs, ArrayPtr output, MTLContext &ctx)
-{
-    auto cmd_queue = ctx.get_cmd_queue();
-    auto cmd_buff = cmd_queue->commandBuffer();
-    auto encoder = cmd_buff->computeCommandEncoder();
-    auto device = ctx.get_device();
-    // Shared dimensions
-    auto ndim = static_cast<uint32_t>(lhs->get_ndim());
-    auto ndim_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&ndim, sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(ndim_buff.get(), 0, 0);
-
-    // Offset
-    auto offset = get_mtl_offsets({lhs, rhs, output});
-    auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset.data(), vsize(offset), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(offset_buff.get(), 0, 1);
-
-    // lhs, rhs view
-    auto lhs_view = lhs->get_view();
-    auto rhs_view = rhs->get_view();
-    const uint32_t B = lhs_view[0]; // Batch size
-    const uint32_t M = lhs_view[1]; // Number of rows
-    const uint32_t K = lhs_view[2]; // Inner dimension
-    const uint32_t N = rhs_view[2]; // Number of columns
-    uint32_t lhs_view32[] = {B, M, K};
-    auto lhs_view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs_view32, sizeof(lhs_view32), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(lhs_view_buff.get(), 0, 2);
-    uint32_t rhs_view32[] = {B, K, N};
-    auto rhs_view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs_view32, sizeof(rhs_view32), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(rhs_view_buff.get(), 0, 3);
-
-    // lhs, rhs stride
-    std::vector<int32_t> lhs_stride = get_mtl_stride(lhs->get_stride());
-    auto lhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs_stride.data(), vsize(lhs_stride), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(lhs_stride_buff.get(), 0, 4);
-    std::vector<int32_t> rhs_stride = get_mtl_stride(rhs->get_stride());
-    auto rhs_stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs_stride.data(), vsize(rhs_stride), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(rhs_stride_buff.get(), 0, 5);
-
-    // lhs, rhs, output buffers
-    auto lhs_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(lhs->get_buff_ptr(), lhs->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(lhs_buff.get(), 0, 6);
-    auto rhs_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(rhs->get_buff_ptr(), rhs->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(rhs_buff.get(), 0, 7);
-    auto out_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(output->get_buff_ptr(), output->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-    encoder->setBuffer(out_buff.get(), 0, 8);
-    auto kernel_name = "strided_matmul_" + lhs->get_dtype().str();
+    // Dispatch kernel
+    std::string mode = {"v", strided_input ? "s" : "v"};
+    auto kernel_name = "matmul_" + mode + "_" + lhs->get_dtype().str();
     auto kernel = ctx.get_kernel(kernel_name);
     encoder->setComputePipelineState(kernel->get_state().get());
-
-    // Compute the number of thread groups
-    // Even if matrix is smaller than one threadgroup, we still need at least 1 group
-    uint64_t x_group_count = std::max(1ull, static_cast<uint64_t>((N + X_THREADS_PER_GROUP - 1) / X_THREADS_PER_GROUP));
-    uint64_t y_group_count = std::max(1ull, static_cast<uint64_t>((M + Y_THREADS_PER_GROUP - 1) / Y_THREADS_PER_GROUP));
-    uint64_t z_group_count = std::max(1ull, static_cast<uint64_t>((B + Z_THREADS_PER_GROUP - 1) / Z_THREADS_PER_GROUP));
-    auto threadgroup_count = MTL::Size::Make(x_group_count, y_group_count, z_group_count);
-
-    // Compute the number of threads per group
-    auto threadgroup_size = MTL::Size::Make(X_THREADS_PER_GROUP, Y_THREADS_PER_GROUP, Z_THREADS_PER_GROUP);
     encoder->dispatchThreadgroups(threadgroup_count, threadgroup_size);
     encoder->endEncoding();
     cmd_buff->commit();

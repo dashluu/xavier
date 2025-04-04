@@ -1,5 +1,14 @@
 #include "utils.h"
 
+struct Id
+{
+    template <typename T>
+    float operator()(T x) const
+    {
+        return x;
+    }
+}
+
 struct Exp
 {
     template <typename T>
@@ -56,7 +65,7 @@ struct Sq
 
 // Unary operations for scalar-scalar
 template <class Op, class T, class R>
-kernel void unary_ss(
+kernel void unary_ss_vv(
     constant const uint *offset [[buffer(0)]],
     device T *input [[buffer(1)]],
     device R *output [[buffer(2)]],
@@ -66,31 +75,70 @@ kernel void unary_ss(
 }
 
 template <class Op, class T, class R>
-kernel void strided_unary_ss(
+kernel void unary_ss_sv(
     constant const uint *ndim [[buffer(0)]],
     constant const uint *offset [[buffer(1)]],
     constant const uint *shape [[buffer(2)]],
-    constant const int *stride [[buffer(3)]],
+    constant const int *output_stride [[buffer(3)]],
     device T *input [[buffer(4)]],
     device R *output [[buffer(5)]],
     uint id [[thread_position_in_grid]])
 {
-    uint idx = strided_idx(id, ndim, shape, stride);
-    output[offset[1] + id] = Op()(input[offset[0] + idx]);
+    uint output_idx = strided_idx(id, ndim, shape, output_stride);
+    output[offset[1] + output_idx] = Op()(input[offset[0] + id]);
+}
+
+template <class Op, class T, class R>
+kernel void unary_ss_vs(
+    constant const uint *ndim [[buffer(0)]],
+    constant const uint *offset [[buffer(1)]],
+    constant const uint *shape [[buffer(2)]],
+    constant const int *input_stride [[buffer(3)]],
+    device T *input [[buffer(4)]],
+    device R *output [[buffer(5)]],
+    uint id [[thread_position_in_grid]])
+{
+    uint input_idx = strided_idx(id, ndim, shape, input_stride);
+    output[offset[1] + id] = Op()(input[offset[0] + input_idx]);
+}
+
+template <class Op, class T, class R>
+kernel void unary_ss_ss(
+    constant const uint *ndim [[buffer(0)]],
+    constant const uint *offset [[buffer(1)]],
+    constant const uint *shape [[buffer(2)]],
+    constant const int *input_stride [[buffer(3)]],
+    constant const int *output_stride [[buffer(4)]],
+    device T *input [[buffer(5)]],
+    device R *output [[buffer(6)]],
+    uint id [[thread_position_in_grid]])
+{
+    uint input_idx = strided_idx(id, ndim, shape, input_stride);
+    uint output_idx = strided_idx(id, ndim, shape, output_stride);
+    output[offset[1] + output_idx] = Op()(input[offset[0] + input_idx]);
 }
 
 #define unary_float(opname, op) \
-template [[host_name(#opname "_f32")]] [[kernel]] decltype(unary_ss<op, float, float>) unary_ss<op, float, float>;                              \
-template [[host_name(#opname "_i32")]] [[kernel]] decltype(unary_ss<op, int, float>) unary_ss<op, int, float>;                                  \
-template [[host_name("strided_" #opname "_f32")]] [[kernel]] decltype(strided_unary_ss<op, float, float>) strided_unary_ss<op, float, float>;   \
-template [[host_name("strided_" #opname "_i32")]] [[kernel]] decltype(strided_unary_ss<op, int, float>) strided_unary_ss<op, int, float>;
+template [[host_name(#opname "_vv_f32")]] [[kernel]] decltype(unary_ss_vv<op, float, float>) unary_ss_vv<op, float, float>; \
+template [[host_name(#opname "_vv_i32")]] [[kernel]] decltype(unary_ss_vv<op, int, float>) unary_ss_vv<op, int, float>;     \
+template [[host_name(#opname "_sv_f32")]] [[kernel]] decltype(unary_ss_sv<op, float, float>) unary_ss_sv<op, float, float>; \
+template [[host_name(#opname "_sv_i32")]] [[kernel]] decltype(unary_ss_sv<op, int, float>) unary_ss_sv<op, int, float>;     \
+template [[host_name(#opname "_vs_f32")]] [[kernel]] decltype(unary_ss_vs<op, float, float>) unary_ss_vs<op, float, float>; \
+template [[host_name(#opname "_vs_i32")]] [[kernel]] decltype(unary_ss_vs<op, int, float>) unary_ss_vs<op, int, float>;     \
+template [[host_name(#opname "_ss_f32")]] [[kernel]] decltype(unary_ss_ss<op, float, float>) unary_ss_ss<op, float, float>; \
+template [[host_name(#opname "_ss_i32")]] [[kernel]] decltype(unary_ss_ss<op, int, float>) unary_ss_ss<op, int, float>;
 
 #define unary_all(opname, op) \
-template [[host_name(#opname "_f32")]] [[kernel]] decltype(unary_ss<op, float, float>) unary_ss<op, float, float>;                              \
-template [[host_name(#opname "_i32")]] [[kernel]] decltype(unary_ss<op, int, int>) unary_ss<op, int, int>;                                      \
-template [[host_name("strided_" #opname "_f32")]] [[kernel]] decltype(strided_unary_ss<op, float, float>) strided_unary_ss<op, float, float>;   \
-template [[host_name("strided_" #opname "_i32")]] [[kernel]] decltype(strided_unary_ss<op, int, int>) strided_unary_ss<op, int, int>;
+template [[host_name(#opname "_vv_f32")]] [[kernel]] decltype(unary_ss_vv<op, float, float>) unary_ss_vv<op, float, float>; \
+template [[host_name(#opname "_vv_i32")]] [[kernel]] decltype(unary_ss_vv<op, int, int>) unary_ss_vv<op, int, int>;         \
+template [[host_name(#opname "_sv_f32")]] [[kernel]] decltype(unary_ss_sv<op, float, float>) unary_ss_sv<op, float, float>; \
+template [[host_name(#opname "_sv_i32")]] [[kernel]] decltype(unary_ss_sv<op, int, int>) unary_ss_sv<op, int, int>;         \
+template [[host_name(#opname "_vs_f32")]] [[kernel]] decltype(unary_ss_vs<op, float, float>) unary_ss_vs<op, float, float>; \
+template [[host_name(#opname "_vs_i32")]] [[kernel]] decltype(unary_ss_vs<op, int, int>) unary_ss_vs<op, int, int>;         \
+template [[host_name(#opname "_ss_f32")]] [[kernel]] decltype(unary_ss_ss<op, float, float>) unary_ss_ss<op, float, float>; \
+template [[host_name(#opname "_ss_i32")]] [[kernel]] decltype(unary_ss_ss<op, int, int>) unary_ss_ss<op, int, int>;
 
+unary_all(id, Id)
 unary_all(exp, Exp)
 unary_float(log, Log)
 unary_all(neg, Neg)

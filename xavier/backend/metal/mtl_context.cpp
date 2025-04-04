@@ -2,23 +2,24 @@
 
 namespace xv::backend::metal
 {
-    std::vector<std::string> MTLContext::num_unary_ops = {"exp", "log", "neg", "recip", "sq", "sqrt"};
-    std::vector<std::string> MTLContext::num_binary_ops = {"add", "sub", "mul", "div", "eq", "neq", "lt", "gt", "leq", "geq"};
-    std::vector<std::string> MTLContext::num_reduction_ops = {"sum", "max"};
+    std::vector<std::string> MTLContext::numeric_unary_ops = {"identity", "exp", "log", "neg", "recip", "sq", "sqrt"};
+    std::vector<std::string> MTLContext::numeric_binary_ops = {"add", "sub", "mul", "div", "lt", "gt", "leq", "geq"};
+    std::vector<std::string> MTLContext::cmp_ops = {"eq", "neq"};
+    std::vector<std::string> MTLContext::numeric_reduction_ops = {"sum", "max"};
 
-    void MTLContext::init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, bool strided)
+    void MTLContext::init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, const std::string &mode)
     {
         for (auto op : ops)
         {
-            init_kernels(op, dtypes, strided);
+            init_kernels(op, dtypes, mode);
         }
     }
 
-    void MTLContext::init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes, bool strided)
+    void MTLContext::init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes, const std::string &mode)
     {
         for (auto dtype : dtypes)
         {
-            auto name = (strided ? "strided_" : "") + op + "_" + dtype.get_name();
+            auto name = op + "_" + (mode.empty() ? "" : mode + "_") + dtype.get_name();
             auto tmp = NS::String::string(name.c_str(), NS::UTF8StringEncoding);
             auto f = NS::TransferPtr<MTL::Function>(lib->newFunction(tmp));
             // TODO: handle error
@@ -30,34 +31,40 @@ namespace xv::backend::metal
 
     void MTLContext::init_initializer_kernels()
     {
-        init_kernels("full", all_dtypes, false);
-        init_kernels("arange", num_dtypes, false);
+        init_kernels("full", all_dtypes);
+        init_kernels("arange", numeric_dtypes);
     }
 
     void MTLContext::init_unary_kernels()
     {
-        init_kernels(num_unary_ops, num_dtypes, false);
-        init_kernels(num_unary_ops, num_dtypes, true);
+        init_kernels(numeric_unary_ops, numeric_dtypes, "vv");
+        init_kernels(numeric_unary_ops, numeric_dtypes, "sv");
+        init_kernels(numeric_unary_ops, numeric_dtypes, "vs");
+        init_kernels(numeric_unary_ops, numeric_dtypes, "ss");
     }
 
     void MTLContext::init_binary_kernels()
     {
-        init_kernels(num_binary_ops, num_dtypes, false);
-        init_kernels(num_binary_ops, num_dtypes, true);
-        init_kernels("matmul", num_dtypes, false);
-        init_kernels("matmul", num_dtypes, true);
+        init_kernels(numeric_binary_ops, numeric_dtypes, "vv");
+        init_kernels(numeric_binary_ops, numeric_dtypes, "sv");
+        init_kernels(numeric_binary_ops, numeric_dtypes, "vs");
+        init_kernels(numeric_binary_ops, numeric_dtypes, "ss");
+        init_kernels(cmp_ops, all_dtypes, "vv");
+        init_kernels(cmp_ops, all_dtypes, "sv");
+        init_kernels(cmp_ops, all_dtypes, "vs");
+        init_kernels(cmp_ops, all_dtypes, "ss");
+        init_kernels("matmul", numeric_dtypes, "vv");
+        init_kernels("matmul", numeric_dtypes, "vs");
     }
 
     void MTLContext::init_reduction_kernels()
     {
-        init_kernels(num_reduction_ops, num_dtypes, false);
-        init_kernels(num_reduction_ops, num_dtypes, true);
-    }
-
-    void MTLContext::init_util_kernels()
-    {
-        init_kernels("copy", all_dtypes, false);
-        init_kernels("copy", all_dtypes, true);
+        for (auto op : numeric_reduction_ops)
+        {
+            init_kernels(op + "_all", numeric_dtypes, "vv");
+            init_kernels(op + "_all", numeric_dtypes, "vs");
+            init_kernels(op + "_col", numeric_dtypes, "vv");
+        }
     }
 
     MTLContext::MTLContext(const std::string &lib_path)
@@ -74,7 +81,6 @@ namespace xv::backend::metal
         init_initializer_kernels();
         init_unary_kernels();
         init_binary_kernels();
-        init_util_kernels();
         init_reduction_kernels();
     }
 

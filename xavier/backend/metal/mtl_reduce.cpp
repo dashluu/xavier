@@ -2,29 +2,45 @@
 
 namespace xv::backend::metal
 {
-    void reduce(const std::string &name, ArrayPtr input, ArrayPtr output, MTLContext &ctx)
+    void reduce_all(const std::string &name, ArrayPtr input, ArrayPtr output, MTLContext &ctx)
     {
+        NS::AutoreleasePool *pool = NS::AutoreleasePool::alloc()->init();
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto device = ctx.get_device();
+        uint32_t buff_idx = 0;
+        bool strided_input = !input->is_contiguous();
 
-        // Offset
-        auto offset = get_mtl_offsets({input, output});
-        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset.data(), vsize(offset), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(offset_buff.get(), 0, 0);
+        // Encode # dimensions if strided input
+        uint32_t ndim;
+        if (strided_input)
+        {
+            ndim = static_cast<uint32_t>(input->get_ndim());
+            encode_buffer(device, encoder, &ndim, sizeof(uint32_t), buff_idx);
+        }
 
-        // Input and output buffers
-        auto in_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(input->get_buff_ptr(), input->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(in_buff.get(), 0, 1);
-        auto out_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(output->get_buff_ptr(), output->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(out_buff.get(), 0, 2);
-        auto dtype = input->get_dtype();
-        auto kernel_name = name + "_" + dtype.str();
-        auto kernel = ctx.get_kernel(kernel_name);
-        encoder->setComputePipelineState(kernel->get_state().get());
+        // Encode offset
+        encode_offset(device, encoder, {input, output}, buff_idx);
+
+        // Encode input view and stride if strided input
+        if (strided_input)
+        {
+            encode_view(device, encoder, input, buff_idx);
+            encode_stride(device, encoder, input, buff_idx);
+        }
+
+        // Encode input and output buffers
+        encode_array(device, encoder, input, buff_idx);
+        encode_array(device, encoder, output, buff_idx);
 
         // Calculate sizes
+        // Get kernel
+        auto dtype = input->get_dtype();
+        std::string mode = {"v", strided_input ? "s" : "v"};
+        auto kernel_name = name + "_all_" + mode + "_" + dtype.str();
+        auto kernel = ctx.get_kernel(kernel_name);
+        encoder->setComputePipelineState(kernel->get_state().get());
         uint32_t threadgroup_size = kernel->get_state()->maxTotalThreadsPerThreadgroup();
         uint32_t simd_size = kernel->get_state()->threadExecutionWidth();
         // Ensure threadgroup size is multiple of SIMD size
@@ -36,63 +52,59 @@ namespace xv::backend::metal
         MTL::Size threads_per_grid = MTL::Size::Make(input->get_numel(), 1, 1);
         MTL::Size threads_per_threadgroup = MTL::Size::Make(threadgroup_size, 1, 1);
 
-        // Dispatch
+        // Dispatch kernel
         encoder->dispatchThreads(threads_per_grid, threads_per_threadgroup);
         encoder->endEncoding();
         cmd_buff->commit();
         cmd_buff->waitUntilCompleted();
+        pool->release();
     }
 
-    void strided_reduce(const std::string &name, ArrayPtr input, ArrayPtr output, MTLContext &ctx)
+    void reduce_col(const std::string &name, ArrayPtr input, ArrayPtr output, MTLContext &ctx)
     {
         auto cmd_queue = ctx.get_cmd_queue();
         auto cmd_buff = cmd_queue->commandBuffer();
         auto encoder = cmd_buff->computeCommandEncoder();
         auto device = ctx.get_device();
+        uint32_t buff_idx = 0;
 
-        // # dimensions
-        auto ndim = static_cast<uint32_t>(input->get_ndim());
-        auto ndim_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(&ndim, sizeof(uint32_t), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(ndim_buff.get(), 0, 0);
+        // Encode offset
+        encode_offset(device, encoder, {input, output}, buff_idx);
 
-        // Offset
-        auto offset = get_mtl_offsets({input, output});
-        auto offset_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(offset.data(), vsize(offset), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(offset_buff.get(), 0, 1);
+        // Encode input view
+        auto view = input->get_view();
+        const uint32_t M = view[0]; // Number of rows
+        const uint32_t N = view[1]; // Number of columns
+        uint32_t view32[] = {M, N};
+        encode_buffer(device, encoder, view32, sizeof(view32), buff_idx);
 
-        // View
-        std::vector<uint32_t> view = get_mtl_view(input->get_view());
-        auto view_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(view.data(), vsize(view), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(view_buff.get(), 0, 2);
-
-        // Stride
-        std::vector<int32_t> stride = get_mtl_stride(input->get_stride());
-        auto stride_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(stride.data(), vsize(stride), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(stride_buff.get(), 0, 3);
-
-        // Input and output buffers
-        auto in_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(input->get_buff_ptr(), input->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(in_buff.get(), 0, 4);
-        auto out_buff = NS::TransferPtr<MTL::Buffer>(device->newBuffer(output->get_buff_ptr(), output->get_buff_nbytes(), MTL::ResourceStorageModeShared, nullptr));
-        encoder->setBuffer(out_buff.get(), 0, 5);
-        auto dtype = input->get_dtype();
-        auto kernel_name = "strided_" + name + "_" + dtype.str();
-        auto kernel = ctx.get_kernel(kernel_name);
-        encoder->setComputePipelineState(kernel->get_state().get());
+        // Encode input and output buffers
+        encode_array(device, encoder, input, buff_idx);
+        encode_array(device, encoder, output, buff_idx);
 
         // Calculate sizes
-        uint32_t threadgroup_size = kernel->get_state()->maxTotalThreadsPerThreadgroup();
+        // Get kernel
+        auto dtype = input->get_dtype();
+        // TODO: handle the case 'vs'
+        std::string mode = "vv";
+        auto kernel_name = name + "_col_" + mode + "_" + dtype.str();
+        auto kernel = ctx.get_kernel(kernel_name);
+        encoder->setComputePipelineState(kernel->get_state().get());
+        // This threadgroup_size is applied to each row
+        uint32_t max_threads = kernel->get_state()->maxTotalThreadsPerThreadgroup();
         uint32_t simd_size = kernel->get_state()->threadExecutionWidth();
+        uint32_t row_threads = std::min(M, max_threads / simd_size);
+        uint32_t col_threads = max_threads / row_threads;
         // Ensure threadgroup size is multiple of SIMD size
-        threadgroup_size = (threadgroup_size / simd_size) * simd_size;
+        col_threads = (col_threads / simd_size) * simd_size;
         // Set threadgroup memory size
-        uint32_t threadgroup_nbytes = threadgroup_size * dtype.get_size();
+        uint32_t threadgroup_nbytes = col_threads * row_threads * dtype.get_size();
         encoder->setThreadgroupMemoryLength(threadgroup_nbytes, 0);
         // Calculate grid size
-        MTL::Size threads_per_grid = MTL::Size::Make(input->get_numel(), 1, 1);
-        MTL::Size threads_per_threadgroup = MTL::Size::Make(threadgroup_size, 1, 1);
+        MTL::Size threads_per_grid = MTL::Size::Make(N, M, 1);
+        MTL::Size threads_per_threadgroup = MTL::Size::Make(col_threads, row_threads, 1);
 
-        // Dispatch
+        // Dispatch kernel
         encoder->dispatchThreads(threads_per_grid, threads_per_threadgroup);
         encoder->endEncoding();
         cmd_buff->commit();
