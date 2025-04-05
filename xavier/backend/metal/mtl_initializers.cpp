@@ -2,34 +2,28 @@
 
 namespace xv::backend::metal
 {
-    void full(ArrayPtr arr, int c, usize size, MTLContext &ctx)
+    void full(ArrayPtr arr, int c, usize size, std::shared_ptr<MTLContext> ctx)
     {
         NS::AutoreleasePool *pool = NS::AutoreleasePool::alloc()->init();
-        auto cmd_queue = ctx.get_cmd_queue();
-        auto cmd_buff = cmd_queue->commandBuffer();
-        auto encoder = cmd_buff->computeCommandEncoder();
-        auto device = ctx.get_device();
-        uint32_t buff_idx = 0;
-        encode_buffer(device, encoder, &c, size, buff_idx);
-        encode_array(device, encoder, arr, buff_idx);
-        auto name = "full_" + arr->get_dtype().str();
-        ss_dispatch(ctx, cmd_buff, encoder, name, arr->get_numel());
+        CommandEncoder encoder(ctx);
+        encoder.encode_buffer(&c, size);
+        encoder.encode_array(arr);
+        const std::string kernel_name = "full_" + arr->get_dtype().str();
+        encoder.set_pipeline_state(kernel_name);
+        encoder.dispatch_threads(arr->get_numel());
         pool->release();
     }
 
-    void arange(ArrayPtr arr, int start, int step, MTLContext &ctx)
+    void arange(ArrayPtr arr, int start, int step, std::shared_ptr<MTLContext> ctx)
     {
         NS::AutoreleasePool *pool = NS::AutoreleasePool::alloc()->init();
-        auto cmd_queue = ctx.get_cmd_queue();
-        auto cmd_buff = cmd_queue->commandBuffer();
-        auto encoder = cmd_buff->computeCommandEncoder();
-        auto device = ctx.get_device();
-        uint32_t buff_idx = 0;
-        encode_buffer(device, encoder, &start, sizeof(start), buff_idx);
-        encode_buffer(device, encoder, &step, sizeof(step), buff_idx);
-        encode_array(device, encoder, arr, buff_idx);
-        auto name = "arange_" + arr->get_dtype().str();
-        ss_dispatch(ctx, cmd_buff, encoder, name, arr->get_numel());
+        CommandEncoder encoder(ctx);
+        encoder.encode_buffer(&start, sizeof(start));
+        encoder.encode_buffer(&step, sizeof(step));
+        encoder.encode_array(arr);
+        const std::string kernel_name = "arange_" + arr->get_dtype().str();
+        encoder.set_pipeline_state(kernel_name);
+        encoder.dispatch_threads(arr->get_numel());
         pool->release();
     }
 }

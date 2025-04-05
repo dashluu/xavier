@@ -560,7 +560,8 @@ namespace xv::core
 
         ArrayPtr reshape(const ShapeView &view);
 
-        bool copy_when_reshape() { return !is_contiguous(); }
+        // TODO: handle more cases to reduce copying?
+        bool copy_when_reshape(const ShapeView &view) { return !is_contiguous(); }
 
         ArrayPtr broadcast(const ShapeView &view);
 

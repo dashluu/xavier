@@ -29,11 +29,11 @@ namespace xv::graph
 
         void call_binary(ArrayPtr arr);
 
+        void call_matmul(ArrayPtr arr);
+
         void call_transform(ArrayPtr arr);
 
         void call_reduce(ArrayPtr arr);
-
-        void call_move(ArrayPtr arr);
 
     public:
         MTLGraph(ArrayPtr root, std::shared_ptr<MTLContext> ctx) : Graph(root), ctx(ctx) {}

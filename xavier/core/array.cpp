@@ -278,7 +278,7 @@ namespace xv::core
     ArrayPtr Array::identity()
     {
         auto arr = std::make_shared<Array>(Shape(get_view()), dtype, device);
-        arr->op = std::make_shared<IdOp>(shared_from_this());
+        arr->op = std::make_shared<IdentityOp>(shared_from_this());
         return arr;
     }
 

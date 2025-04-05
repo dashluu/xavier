@@ -82,7 +82,7 @@ class TestMatmul:
 
             # NumPy comparison
             np3 = np.matmul(np1, np2)
-            xv_result = arr3.to_numpy()
+            xv_result = arr3.numpy()
 
             # Verify shape and values
             assert tuple(arr3.view()) == np3.shape, f"Shape mismatch: got {arr3.view()}, expected {np3.shape}"

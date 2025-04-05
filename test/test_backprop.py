@@ -418,3 +418,141 @@ class TestBackprop:
         # Compare gradients
         compare_grads(arr1.grad, t1.grad, "complex chain x grad")
         compare_grads(arr2.grad, t2.grad, "complex chain y grad")
+
+    def test_slice_basic_backprop(self):
+        """Test basic slicing backpropagation"""
+        ctx = MTLContext(self.lib)
+        print("\nTesting basic slice backprop:")
+
+        x = torch.randn(4, 6, 8, dtype=torch.float32)
+
+        # Xavier implementation
+        arr1 = Array.from_numpy(x.numpy())
+        arr2 = arr1[1:3, ::2, ::-1]  # Basic slicing
+        arr3 = arr2.sum()
+        g = MTLGraph(arr3, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        t1 = x.requires_grad_(True)
+        t2 = t1[1:3, ::2, ::-1]
+        t2.sum().backward()
+
+        # Compare gradients
+        compare_grads(arr1.grad, t1.grad, "basic slice grad")
+
+    def test_slice_with_unary_backprop(self):
+        """Test slicing combined with unary operations"""
+        ctx = MTLContext(self.lib)
+        print("\nTesting slice with unary ops backprop:")
+
+        x = torch.randn(3, 4, 5, dtype=torch.float32)
+
+        # Xavier implementation
+        arr1 = Array.from_numpy(x.numpy())
+        arr2 = arr1[::2, 1:3]  # Slice first
+        arr3 = arr2.exp()  # Then unary op
+        arr4 = arr3.sum()
+        g = MTLGraph(arr4, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        t1 = x.requires_grad_(True)
+        t2 = t1[::2, 1:3]
+        t3 = torch.exp(t2)
+        t3.sum().backward()
+
+        # Compare gradients
+        compare_grads(arr1.grad, t1.grad, "slice+unary grad")
+
+    def test_slice_with_binary_backprop(self):
+        """Test slicing combined with binary operations"""
+        ctx = MTLContext(self.lib)
+        print("\nTesting slice with binary ops backprop:")
+
+        x = torch.randn(4, 6, 8, dtype=torch.float32)
+        y = torch.randn(2, 6, 8, dtype=torch.float32)
+
+        # Xavier implementation
+        arr1 = Array.from_numpy(x.numpy())
+        arr2 = Array.from_numpy(y.numpy())
+        arr3 = arr1[::2] * arr2  # Slice and multiply
+        arr4 = arr3.sum()
+        g = MTLGraph(arr4, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        t1 = x.requires_grad_(True)
+        t2 = y.requires_grad_(True)
+        t3 = t1[::2] * t2
+        t3.sum().backward()
+
+        # Compare gradients
+        compare_grads(arr1.grad, t1.grad, "slice+binary x grad")
+        compare_grads(arr2.grad, t2.grad, "slice+binary y grad")
+
+    def test_slice_chain_backprop(self):
+        """Test chain of slice operations"""
+        ctx = MTLContext(self.lib)
+        print("\nTesting slice chain backprop:")
+
+        x = torch.randn(5, 6, 7, dtype=torch.float32)
+
+        # Xavier implementation
+        arr1 = Array.from_numpy(x.numpy())
+        arr2 = arr1[1:4, ::2]  # First slice
+        arr3 = arr2[:, 1::2]  # Second slice
+        arr4 = arr3.sum()
+        g = MTLGraph(arr4, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        t1 = x.requires_grad_(True)
+        t2 = t1[1:4, ::2]
+        t3 = t2[:, 1::2]
+        t3.sum().backward()
+
+        # Compare gradients
+        compare_grads(arr1.grad, t1.grad, "slice chain grad")
+
+    def test_slice_complex_chain_backprop(self):
+        """Test complex chain with slicing, unary and binary operations"""
+        ctx = MTLContext(self.lib)
+        print("\nTesting complex slice chain backprop:")
+
+        x = torch.randn(4, 5, 6, dtype=torch.float32)
+        y = torch.randn(2, 5, 3, dtype=torch.float32)
+
+        # Xavier implementation
+        arr1 = Array.from_numpy(x.numpy())
+        arr2 = Array.from_numpy(y.numpy())
+        arr3 = arr1[::2, :, ::2]  # Initial slice
+        arr4 = arr3.exp()  # Unary op
+        arr5 = arr4 * arr2  # Binary op
+        arr6 = arr5[:, 1:4]  # Another slice
+        arr7 = arr6.sum()
+        g = MTLGraph(arr7, ctx)
+        g.compile()
+        g.forward()
+        g.backward()
+
+        # PyTorch implementation
+        t1 = x.requires_grad_(True)
+        t2 = y.requires_grad_(True)
+        t3 = t1[::2, :, ::2]
+        t4 = torch.exp(t3)
+        t5 = t4 * t2
+        t6 = t5[:, 1:4]
+        t6.sum().backward()
+
+        # Compare gradients
+        compare_grads(arr1.grad, t1.grad, "complex chain x grad")
+        compare_grads(arr2.grad, t2.grad, "complex chain y grad")

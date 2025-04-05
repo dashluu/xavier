@@ -26,7 +26,7 @@ namespace xv::core
         SQ,
         SQRT,
         NEG,
-        ID,
+        IDENTITY,
         EXP,
         LOG,
         RECIP,
@@ -72,7 +72,7 @@ namespace xv::core
         {OpName::SQ, "sq"},
         {OpName::SQRT, "sqrt"},
         {OpName::NEG, "neg"},
-        {OpName::ID, "id"},
+        {OpName::IDENTITY, "identity"},
         {OpName::EXP, "exp"},
         {OpName::LOG, "log"},
         {OpName::RECIP, "recip"},
@@ -327,10 +327,10 @@ namespace xv::core
         void backward(ArrayPtr arr) const override;
     };
 
-    struct IdOp : public UnaryOp
+    struct IdentityOp : public UnaryOp
     {
     public:
-        IdOp(ArrayPtr operand) : UnaryOp(OpName::ID, operand, false) {}
+        IdentityOp(ArrayPtr operand) : UnaryOp(OpName::IDENTITY, operand, false) {}
         void backward(ArrayPtr arr) const override;
     };
 

@@ -77,7 +77,7 @@ kernel void binary_ss_sv(
     constant const uint *ndim [[buffer(0)]],
     constant const uint *offset [[buffer(1)]],
     constant const uint *shape [[buffer(2)]],
-    onstant const int *output_stride [[buffer(3)]],
+    constant const int *output_stride [[buffer(3)]],
     device T *lhs [[buffer(4)]],
     device T *rhs [[buffer(5)]],
     device R *output [[buffer(6)]],

@@ -2,30 +2,44 @@
 
 namespace xv::backend::metal
 {
-    std::vector<std::string> MTLContext::numeric_unary_ops = {"identity", "exp", "log", "neg", "recip", "sq", "sqrt"};
-    std::vector<std::string> MTLContext::numeric_binary_ops = {"add", "sub", "mul", "div", "lt", "gt", "leq", "geq"};
-    std::vector<std::string> MTLContext::cmp_ops = {"eq", "neq"};
-    std::vector<std::string> MTLContext::numeric_reduction_ops = {"sum", "max"};
+    std::vector<std::string> MTLContext::numeric_unary = {"identity", "exp", "log", "neg", "recip", "sq", "sqrt"};
+    std::vector<std::string> MTLContext::numeric_binary = {"add", "sub", "mul", "div", "lt", "gt", "leq", "geq"};
+    std::vector<std::string> MTLContext::cmp_all = {"eq", "neq"};
+    std::vector<std::string> MTLContext::numeric_reduction = {"sum", "max"};
 
-    void MTLContext::init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, const std::string &mode)
+    void MTLContext::init_kernel(const std::string &name, const Dtype &dtype)
     {
-        for (auto op : ops)
+        auto kernel = std::make_shared<MTLKernel>(name, dtype);
+        kernel->init(device, lib);
+        kernels[name] = kernel;
+    }
+
+    void MTLContext::init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, const std::vector<std::string> &modes)
+    {
+        for (auto &op : ops)
         {
-            init_kernels(op, dtypes, mode);
+            init_kernels(op, dtypes, modes);
         }
     }
 
-    void MTLContext::init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes, const std::string &mode)
+    void MTLContext::init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes, const std::vector<std::string> &modes)
     {
-        for (auto dtype : dtypes)
+        for (auto &mode : modes)
         {
-            auto name = op + "_" + (mode.empty() ? "" : mode + "_") + dtype.get_name();
-            auto tmp = NS::String::string(name.c_str(), NS::UTF8StringEncoding);
-            auto f = NS::TransferPtr<MTL::Function>(lib->newFunction(tmp));
-            // TODO: handle error
-            NS::Error *error = nullptr;
-            auto state = NS::TransferPtr<MTL::ComputePipelineState>(device->newComputePipelineState(f.get(), &error));
-            kernels[name] = std::make_shared<MTLKernel>(state, dtype);
+            for (auto &dtype : dtypes)
+            {
+                auto name = op + "_" + mode + "_" + dtype.get_name();
+                init_kernel(name, dtype);
+            }
+        }
+    }
+
+    void MTLContext::init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes)
+    {
+        for (auto &dtype : dtypes)
+        {
+            auto name = op + "_" + dtype.get_name();
+            init_kernel(name, dtype);
         }
     }
 
@@ -37,39 +51,27 @@ namespace xv::backend::metal
 
     void MTLContext::init_unary_kernels()
     {
-        init_kernels(numeric_unary_ops, numeric_dtypes, "vv");
-        init_kernels(numeric_unary_ops, numeric_dtypes, "sv");
-        init_kernels(numeric_unary_ops, numeric_dtypes, "vs");
-        init_kernels(numeric_unary_ops, numeric_dtypes, "ss");
+        init_kernels(numeric_unary, numeric_dtypes, {"vv", "sv", "vs", "ss"});
     }
 
     void MTLContext::init_binary_kernels()
     {
-        init_kernels(numeric_binary_ops, numeric_dtypes, "vv");
-        init_kernels(numeric_binary_ops, numeric_dtypes, "sv");
-        init_kernels(numeric_binary_ops, numeric_dtypes, "vs");
-        init_kernels(numeric_binary_ops, numeric_dtypes, "ss");
-        init_kernels(cmp_ops, all_dtypes, "vv");
-        init_kernels(cmp_ops, all_dtypes, "sv");
-        init_kernels(cmp_ops, all_dtypes, "vs");
-        init_kernels(cmp_ops, all_dtypes, "ss");
-        init_kernels("matmul", numeric_dtypes, "vv");
-        init_kernels("matmul", numeric_dtypes, "vs");
+        init_kernels(numeric_binary, numeric_dtypes, {"vv", "sv", "vs", "ss"});
+        init_kernels(cmp_all, all_dtypes, {"vv", "sv", "vs", "ss"});
+        init_kernels("matmul", numeric_dtypes, {"vv", "vs"});
     }
 
     void MTLContext::init_reduction_kernels()
     {
-        for (auto op : numeric_reduction_ops)
+        for (auto &op : numeric_reduction)
         {
-            init_kernels(op + "_all", numeric_dtypes, "vv");
-            init_kernels(op + "_all", numeric_dtypes, "vs");
-            init_kernels(op + "_col", numeric_dtypes, "vv");
+            init_kernels(op + "_all", numeric_dtypes, {"vv", "vs"});
+            init_kernels(op + "_col", numeric_dtypes, {"vv"});
         }
     }
 
     MTLContext::MTLContext(const std::string &lib_path)
     {
-        pool = NS::TransferPtr<NS::AutoreleasePool>(NS::AutoreleasePool::alloc()->init());
         device = NS::TransferPtr<MTL::Device>(MTL::CreateSystemDefaultDevice());
         auto path = NS::String::string(lib_path.c_str(), NS::ASCIIStringEncoding);
         auto url = NS::URL::fileURLWithPath(path);

@@ -1,13 +1,13 @@
 #include "utils.h"
 
-struct Id
+struct Identity
 {
     template <typename T>
     float operator()(T x) const
     {
         return x;
     }
-}
+};
 
 struct Exp
 {
@@ -138,7 +138,7 @@ template [[host_name(#opname "_vs_i32")]] [[kernel]] decltype(unary_ss_vs<op, in
 template [[host_name(#opname "_ss_f32")]] [[kernel]] decltype(unary_ss_ss<op, float, float>) unary_ss_ss<op, float, float>; \
 template [[host_name(#opname "_ss_i32")]] [[kernel]] decltype(unary_ss_ss<op, int, int>) unary_ss_ss<op, int, int>;
 
-unary_all(id, Id)
+unary_all(identity, Identity)
 unary_all(exp, Exp)
 unary_float(log, Log)
 unary_all(neg, Neg)

@@ -129,7 +129,7 @@ namespace xv::core
         operand->update_grad(arr->grad, true);
     }
 
-    void IdOp::backward(ArrayPtr arr) const
+    void IdentityOp::backward(ArrayPtr arr) const
     {
         // z = x
         // dx += dz
@@ -150,24 +150,22 @@ namespace xv::core
     void ReshapeOp::backward(ArrayPtr arr) const
     {
         operand->init_grad();
+        const ShapeView &view = operand->get_view();
         // Copy must be done to ensure gradient independence
-        if (arr->grad->copy_when_reshape())
+        if (arr->grad->copy_when_reshape(view))
         {
-            operand->update_grad(arr->grad->reshape(operand->get_view()));
+            operand->update_grad(arr->grad->reshape(view));
         }
         else
         {
             // Copy first and then reshape because reshaping to incompatible shape might cause another copy
-            operand->update_grad(arr->grad->identity()->reshape(operand->get_view()));
+            operand->update_grad(arr->grad->identity()->reshape(view));
         }
     }
 
     void SliceOp::backward(ArrayPtr arr) const
     {
         operand->init_grad();
-        std::cout << vstr<Range>(ranges, [](Range range)
-                                 { return range.str(); })
-                  << std::endl;
         operand->grad_root = operand->grad->slice(ranges)->self_add(arr->grad);
     }
 

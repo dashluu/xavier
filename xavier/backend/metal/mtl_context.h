@@ -7,18 +7,19 @@ namespace xv::backend::metal
     class MTLContext : public std::enable_shared_from_this<MTLContext>
     {
     private:
-        static std::vector<std::string> numeric_unary_ops;
-        static std::vector<std::string> numeric_binary_ops;
-        static std::vector<std::string> cmp_ops;
-        static std::vector<std::string> numeric_reduction_ops;
-        NS::SharedPtr<NS::AutoreleasePool> pool;
+        static std::vector<std::string> numeric_unary;
+        static std::vector<std::string> numeric_binary;
+        static std::vector<std::string> cmp_all;
+        static std::vector<std::string> numeric_reduction;
         NS::SharedPtr<MTL::Device> device;
         NS::SharedPtr<MTL::Library> lib;
         NS::SharedPtr<MTL::CommandQueue> cmd_queue;
         std::unordered_map<std::string, std::shared_ptr<MTLKernel>> kernels;
 
-        void init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, const std::string &mode = "");
-        void init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes, const std::string &mode = "");
+        void init_kernel(const std::string &name, const Dtype &dtype);
+        void init_kernels(const std::vector<std::string> &ops, const std::unordered_set<Dtype> &dtypes, const std::vector<std::string> &modes);
+        void init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes, const std::vector<std::string> &modes);
+        void init_kernels(const std::string &op, const std::unordered_set<Dtype> &dtypes);
         void init_initializer_kernels();
         void init_unary_kernels();
         void init_binary_kernels();

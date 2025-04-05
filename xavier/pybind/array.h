@@ -202,37 +202,43 @@ namespace xv::bind
 					  { return lhs->geq(rhs); });
 	}
 
-	inline xc::ArrayPtr exp(const py::object &operand, bool in_place)
+	inline xc::ArrayPtr m_exp(const py::object &operand, bool in_place)
 	{
 		return unary(operand, [](xc::ArrayPtr arr, bool in_place)
 					 { return arr->exp(in_place); }, in_place);
 	}
 
-	inline xc::ArrayPtr log(const py::object &operand, bool in_place)
+	inline xc::ArrayPtr m_log(const py::object &operand, bool in_place)
 	{
 		return unary(operand, [](xc::ArrayPtr arr, bool in_place)
 					 { return arr->log(in_place); }, in_place);
 	}
 
-	inline xc::ArrayPtr neg(const py::object &operand, bool in_place)
+	inline xc::ArrayPtr m_neg(const py::object &operand, bool in_place)
 	{
 		return unary(operand, [](xc::ArrayPtr arr, bool in_place)
 					 { return arr->neg(in_place); }, in_place);
 	}
 
-	inline xc::ArrayPtr recip(const py::object &operand, bool in_place)
+	inline xc::ArrayPtr m_identity(const py::object &operand)
+	{
+		return unary(operand, [](xc::ArrayPtr arr, bool in_place)
+					 { return arr->identity(); }, false);
+	}
+
+	inline xc::ArrayPtr m_recip(const py::object &operand, bool in_place)
 	{
 		return unary(operand, [](xc::ArrayPtr arr, bool in_place)
 					 { return arr->recip(in_place); }, in_place);
 	}
 
-	inline xc::ArrayPtr sq(const py::object &operand, bool in_place)
+	inline xc::ArrayPtr m_sq(const py::object &operand, bool in_place)
 	{
 		return unary(operand, [](xc::ArrayPtr arr, bool in_place)
 					 { return arr->sq(in_place); }, in_place);
 	}
 
-	inline xc::ArrayPtr sqrt(const py::object &operand, bool in_place)
+	inline xc::ArrayPtr m_sqrt(const py::object &operand, bool in_place)
 	{
 		return unary(operand, [](xc::ArrayPtr arr, bool in_place)
 					 { return arr->sqrt(in_place); }, in_place);

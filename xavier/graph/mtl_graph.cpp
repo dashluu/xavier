@@ -11,13 +11,13 @@ namespace xv::graph
         case OpName::FULL:
         {
             auto full_op = std::static_pointer_cast<FullOp>(op);
-            full(arr, full_op->get_const(), arr->get_dtype().get_size(), *ctx);
+            full(arr, full_op->get_const(), arr->get_dtype().get_size(), ctx);
             break;
         }
         case OpName::ARANGE:
         {
             auto arange_op = std::static_pointer_cast<ArangeOp>(op);
-            arange(arr, arange_op->get_start(), arange_op->get_step(), *ctx);
+            arange(arr, arange_op->get_start(), arange_op->get_step(), ctx);
             break;
         }
         default:
@@ -37,7 +37,7 @@ namespace xv::graph
         {
             arr->alloc();
         }
-        unary_ss(unary_op->get_name_str(), operand, arr, *ctx);
+        unary_ss(unary_op->get_name_str(), operand, arr, ctx);
     }
 
     void MTLGraph::call_binary(ArrayPtr arr)
@@ -45,24 +45,25 @@ namespace xv::graph
         auto binary_op = std::static_pointer_cast<BinaryOp>(arr->get_op());
         auto lhs = binary_op->get_lhs();
         auto rhs = binary_op->get_rhs();
-        if (binary_op->get_name() == OpName::MATMUL)
+        if (binary_op->is_in_place())
         {
-            arr->alloc();
-            matmul(lhs, rhs, arr, *ctx);
+            // Share memory with lhs
+            arr->alloc(*lhs->get_buff());
         }
         else
         {
-            if (binary_op->is_in_place())
-            {
-                // Share memory with lhs
-                arr->alloc(*lhs->get_buff());
-            }
-            else
-            {
-                arr->alloc();
-            }
-            binary_ss(binary_op->get_name_str(), lhs, rhs, arr, *ctx);
+            arr->alloc();
         }
+        binary_ss(binary_op->get_name_str(), lhs, rhs, arr, ctx);
+    }
+
+    void MTLGraph::call_matmul(ArrayPtr arr)
+    {
+        auto matmul_op = std::static_pointer_cast<MatmulOp>(arr->get_op());
+        auto lhs = matmul_op->get_lhs();
+        auto rhs = matmul_op->get_rhs();
+        arr->alloc();
+        matmul(lhs, rhs, arr, ctx);
     }
 
     void MTLGraph::call_transform(ArrayPtr arr)
@@ -74,14 +75,15 @@ namespace xv::graph
         {
             auto reshape_op = std::static_pointer_cast<ReshapeOp>(op);
             auto operand = reshape_op->get_operand();
-            if (!operand->copy_when_reshape())
+            if (!operand->copy_when_reshape(reshape_op->get_view()))
             {
                 arr->alloc(*operand->get_buff());
             }
             else
             {
                 arr->alloc();
-                strided_copy(operand, arr, *ctx);
+                // Same as copy
+                unary_ss("identity", operand, arr, ctx);
             }
             break;
         }
@@ -120,36 +122,12 @@ namespace xv::graph
         if (reduce_op->get_dims().size() == 0)
         {
             // Reduce to one item
-            if (operand->is_contiguous())
-            {
-                reduce_all(reduce_op->get_name_str(), operand, arr, *ctx);
-            }
-            else
-            {
-                strided_reduce_all(reduce_op->get_name_str(), operand, arr, *ctx);
-            }
+            reduce_all(reduce_op->get_name_str(), operand, arr, ctx);
         }
         else
         {
-            if (operand->is_contiguous())
-            {
-                reduce_col(reduce_op->get_name_str(), operand, arr, *ctx);
-            }
-        }
-    }
-
-    void MTLGraph::call_move(ArrayPtr arr)
-    {
-        auto move_op = std::static_pointer_cast<TransformOp>(arr->get_op());
-        auto operand = move_op->get_operand();
-        arr->alloc();
-        if (arr->is_contiguous() && operand->is_contiguous())
-        {
-            copy(operand, arr, *ctx);
-        }
-        else
-        {
-            strided_copy(operand, arr, *ctx);
+            // Reduce multiple dimensions
+            reduce_col(reduce_op->get_name_str(), operand, arr, ctx);
         }
     }
 
@@ -181,6 +159,16 @@ namespace xv::graph
             auto binary_op = std::static_pointer_cast<BinaryOp>(arr->get_op());
             auto lhs = binary_op->get_lhs();
             auto rhs = binary_op->get_rhs();
+            toposort(lhs, order);
+            toposort(rhs, order);
+            order.push_back(arr);
+            break;
+        }
+        case OpType::MATMUL:
+        {
+            auto matmul_op = std::static_pointer_cast<MatmulOp>(arr->get_op());
+            auto lhs = matmul_op->get_lhs();
+            auto rhs = matmul_op->get_rhs();
             toposort(lhs, order);
             toposort(rhs, order);
             order.push_back(arr);
@@ -226,19 +214,19 @@ namespace xv::graph
             call_binary(arr);
             break;
         }
+        case OpType::MATMUL:
+        {
+            call_matmul(arr);
+            break;
+        }
         case OpType::TRANSFORM:
         {
             call_transform(arr);
             break;
         }
-        case OpType::REDUCE:
-        {
-            call_reduce(arr);
-            break;
-        }
         default:
         {
-            call_move(arr);
+            call_reduce(arr);
             break;
         }
         }

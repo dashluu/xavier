@@ -16,7 +16,7 @@ class TestTransform:
         g = MTLGraph(arr3, ctx)
         g.compile()
         g.forward()
-        np1 = arr2.to_numpy()
+        np1 = arr2.numpy()
         np2 = a[::, ::, ::]
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
@@ -31,7 +31,7 @@ class TestTransform:
         g = MTLGraph(arr3, ctx)
         g.compile()
         g.forward()
-        np1 = arr2.to_numpy()
+        np1 = arr2.numpy()
         np2 = a[1::4, :3:2, 2::3]
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
@@ -46,7 +46,7 @@ class TestTransform:
         g = MTLGraph(arr3, ctx)
         g.compile()
         g.forward()
-        np1 = arr2.to_numpy()
+        np1 = arr2.numpy()
         np2 = a[1::, ::2, 3:0:-2]
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
@@ -61,7 +61,7 @@ class TestTransform:
         g = MTLGraph(arr3, ctx)
         g.compile()
         g.forward()
-        np1 = arr2.to_numpy()
+        np1 = arr2.numpy()
         np2 = a[1:0:-4, 9:3:-2, 2::3]
         assert np.allclose(np1, np2, atol=1e-3, rtol=0)
 
@@ -77,7 +77,7 @@ class TestTransform:
         g = MTLGraph(arr3, ctx)
         g.compile()
         g.forward()
-        np1 = arr2.to_numpy()
+        np1 = arr2.numpy()
         # NumPy transpose - create same permutation as Xavier
         order = list(range(len(s)))  # [0,1,2,3]
         # Reverse order from start_dim to end_dim
@@ -97,7 +97,7 @@ class TestTransform:
         g = MTLGraph(arr3, ctx)
         g.compile()
         g.forward()
-        np1 = arr2.to_numpy()
+        np1 = arr2.numpy()
         # NumPy transpose - create same permutation as Xavier
         order = list(range(len(s)))  # [0,1,2,3]
         # Reverse order from start_dim to end_dim
@@ -117,7 +117,7 @@ class TestTransform:
         g = MTLGraph(arr3, ctx)
         g.compile()
         g.forward()
-        np1 = arr2.to_numpy()
+        np1 = arr2.numpy()
         # NumPy transpose - create same permutation as Xavier
         order = list(range(len(s)))  # [0,1,2,3]
         # Reverse order from start_dim to end_dim
@@ -154,7 +154,7 @@ class TestTransform:
             g = MTLGraph(arr3, ctx)
             g.compile()
             g.forward()
-            xv_result = arr2.to_numpy()
+            xv_result = arr2.numpy()
 
             # NumPy permute
             np_result = np.transpose(a, perm)
@@ -197,7 +197,7 @@ class TestTransform:
             g = MTLGraph(arr3, ctx)
             g.compile()
             g.forward()
-            xv_result = arr2.to_numpy()
+            xv_result = arr2.numpy()
 
             # NumPy flatten - reshape to match expected shape
             np_result = a.reshape(expected)

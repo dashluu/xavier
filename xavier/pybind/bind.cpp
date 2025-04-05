@@ -95,7 +95,6 @@ void init_xv_module(py::module_ &m)
         .def("__len__", [](const xc::Array &arr)
              { return arr.get_shape()[0]; })
         .def("reshape", &xc::Array::reshape, "Reshapes the array to the given view in-place.", "view"_a)
-        .def("identity", &xc::Array::identity, "Copies data of the current array to a new array.")
         .def("broadcast", &xc::Array::broadcast, "Broadcasts the array based on the given view.", "view"_a)
         .def("broadcast_to", &xc::Array::broadcast_to, "Broadcasts the array to the given view.", "view"_a)
         .def("as_contiguous", &xc::Array::as_contiguous, "Creates a new contiguous array with the same as elements as the current array if the current array is not contiguous, otherwise, returns the current array.")
@@ -128,6 +127,7 @@ void init_xv_module(py::module_ &m)
         .def("log", &xc::Array::log, "Element-wise natural logarithm function.", "in_place"_a = false)
         .def("__neg__", &xc::Array::neg)
         .def("neg", &xc::Array::neg, "Element-wise negation.", "in_place"_a = false)
+        .def("identity", &xc::Array::identity, "Copies data of the current array to a new array.")
         .def("recip", &xc::Array::recip, "Element-wise reciprocal.", "in_place"_a = false)
         .def("sq", &xc::Array::sq, "Element-wise square.", "in_place"_a = false)
         .def("sqrt", &xc::Array::sqrt, "Element-wise square root.", "in_place"_a = false)
@@ -138,7 +138,7 @@ void init_xv_module(py::module_ &m)
         .def("max", &xb::max, "Computes the maximum of the array elements in given dimensions.", "dims"_a = std::vector<py::int_>())
         .def_static("from_buffer", &xb::array_from_buffer, "Creates a 1D array from buffer without copying.", "buff"_a, "device"_a = xc::device0, "constant"_a = false)
         .def_static("from_numpy", &xb::array_from_numpy, "Creates an array from numpy array without copying.", "np_arr"_a, "device"_a = xc::device0, "constant"_a = false)
-        .def("to_numpy", &xb::array_to_numpy, "Converts the array to a numpy array.");
+        .def("numpy", &xb::array_to_numpy, "Converts the array to a numpy array.");
 
     py::class_<xg::Graph, std::unique_ptr<xg::Graph, py::nodelete>>(m, "Graph")
         .def("root", &xg::Graph::get_root)
@@ -169,12 +169,13 @@ void init_xv_module(py::module_ &m)
     m.def("gt", &xb::m_gt, "Element-wise greater than.", "lhs"_a, "rhs"_a);
     m.def("leq", &xb::m_leq, "Element-wise less than or equal to.", "lhs"_a, "rhs"_a);
     m.def("geq", &xb::m_geq, "Element-wise greater than or equal to.", "lhs"_a, "rhs"_a);
-    m.def("exp", &xb::exp, "Element-wise exponential function.", "arr"_a, "in_place"_a = false);
-    m.def("log", &xb::log, "Element-wise natural logarithm function.", "arr"_a, "in_place"_a = false);
-    m.def("neg", &xb::neg, "Element-wise negation.", "arr"_a, "in_place"_a = false);
-    m.def("recip", &xb::recip, "Element-wise reciprocal.", "arr"_a, "in_place"_a = false);
-    m.def("sq", &xb::sq, "Element-wise square.", "arr"_a, "in_place"_a = false);
-    m.def("sqrt", &xb::sqrt, "Element-wise square root.", "arr"_a, "in_place"_a = false);
+    m.def("exp", &xb::m_exp, "Element-wise exponential function.", "arr"_a, "in_place"_a = false);
+    m.def("log", &xb::m_log, "Element-wise natural logarithm function.", "arr"_a, "in_place"_a = false);
+    m.def("neg", &xb::m_neg, "Element-wise negation.", "arr"_a, "in_place"_a = false);
+    m.def("identity", &xb::m_identity, "Copies data of the current array to a new array.");
+    m.def("recip", &xb::m_recip, "Element-wise reciprocal.", "arr"_a, "in_place"_a = false);
+    m.def("sq", &xb::m_sq, "Element-wise square.", "arr"_a, "in_place"_a = false);
+    m.def("sqrt", &xb::m_sqrt, "Element-wise square root.", "arr"_a, "in_place"_a = false);
     m.def("permute", &xb::m_permute, "Permutes the dimensions of the array according to the given order.", "arr"_a, "order"_a);
     m.def("T", &xb::m_T, "Transposes the array.", "arr"_a, "start_dim"_a = 0, "end_dim"_a = -1);
     m.def("flatten", &xb::m_flatten, "Flattens the array.", "arr"_a, "start_dim"_a = 0, "end_dim"_a = -1);

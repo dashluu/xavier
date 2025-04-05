@@ -34,9 +34,8 @@ if(APPLE)
         backend/metal/metal.h
         backend/metal/mtl_context.h
         backend/metal/mtl_kernel.h
-        backend/metal/mtl_utils.h
+        backend/metal/mtl_command_encoder.h
         backend/metal/mtl_initializers.h
-        backend/metal/mtl_copy.h
         backend/metal/mtl_unary.h
         backend/metal/mtl_binary.h
         backend/metal/mtl_matmul.h
@@ -46,7 +45,6 @@ if(APPLE)
         graph/mtl_graph.cpp
         backend/metal/mtl_context.cpp
         backend/metal/mtl_initializers.cpp
-        backend/metal/mtl_copy.cpp
         backend/metal/mtl_unary.cpp
         backend/metal/mtl_binary.cpp
         backend/metal/mtl_matmul.cpp

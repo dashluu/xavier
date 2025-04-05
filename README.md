@@ -73,7 +73,7 @@ g.backward()
 - Automatic differentiation
 - Full computational graph forward and backward propagation
 - Well supported operations:
-  - Initialization operations: full, arange, ones, zeros, from_numpy, to_numpy, from_buffer
+  - Initialization operations: full, arange, ones, zeros, from_numpy, numpy, from_buffer
   - Common tensor operations: reshape, permute, matmul, slice, transpose
   - Element-wise operations: add, sub, mul, div, exp, log, neg(negation), recip(reciprocal), sqrt, sq(square)
 - NumPy integration
