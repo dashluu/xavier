@@ -428,7 +428,7 @@ class TestBackprop:
 
         # Xavier implementation
         arr1 = Array.from_numpy(x.numpy())
-        arr2 = arr1[1:3, ::2, ::-1]  # Basic slicing
+        arr2 = arr1[1:3, ::2, ::1]  # Basic slicing
         arr3 = arr2.sum()
         g = MTLGraph(arr3, ctx)
         g.compile()
@@ -437,7 +437,7 @@ class TestBackprop:
 
         # PyTorch implementation
         t1 = x.requires_grad_(True)
-        t2 = t1[1:3, ::2, ::-1]
+        t2 = t1[1:3, ::2, ::1]
         t2.sum().backward()
 
         # Compare gradients

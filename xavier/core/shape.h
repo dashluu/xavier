@@ -26,13 +26,13 @@ namespace xv::core
             for (int i = 0; i < ranges.size(); i++)
             {
                 auto &range = ranges[i];
-                if (range.start >= view[i])
+                if (range.start < 0 || range.start >= static_cast<isize>(view[i]))
                 {
-                    throw std::invalid_argument("Invalid starting point for range: " + std::to_string(range.start));
+                    throw std::invalid_argument("Start is not in the range [0, " + std::to_string(view[i]) + "): " + std::to_string(range.start) + ".");
                 }
-                if (range.stop > view[i])
+                if (range.stop < -1 || range.stop > static_cast<isize>(view[i]))
                 {
-                    throw std::invalid_argument("Invalid stopping point for range: " + std::to_string(range.stop));
+                    throw std::invalid_argument("Stop is not in the range [-1, " + std::to_string(view[i]) + "]: " + std::to_string(range.stop) + ".");
                 }
                 if (range.step == 0)
                 {
@@ -40,11 +40,11 @@ namespace xv::core
                 }
                 if (range.start < range.stop && range.step < 0)
                 {
-                    throw std::invalid_argument("Step must be positive if start < stop: " + std::to_string(range.start) + " < " + std::to_string(range.stop));
+                    throw std::invalid_argument("Step is not positive when start " + std::to_string(range.start) + " < stop " + std::to_string(range.stop) + ": " + std::to_string(range.step) + ".");
                 }
                 if (range.start > range.stop && range.step > 0)
                 {
-                    throw std::invalid_argument("Step must be negative if start > stop: " + std::to_string(range.start) + " > " + std::to_string(range.stop));
+                    throw std::invalid_argument("Step is not negative when start " + std::to_string(range.start) + " > stop " + std::to_string(range.stop) + ": " + std::to_string(range.step) + ".");
                 }
             }
         }
@@ -360,8 +360,8 @@ namespace xv::core
             for (int i = 0; i < ranges.size(); i++)
             {
                 auto &range = ranges[i];
-                auto d = range.start <= range.stop ? range.stop - range.start : range.start - range.stop;
-                v[i] = static_cast<usize>(ceil(static_cast<double>(d) / std::abs(range.step)));
+                auto diff = std::abs(range.stop - range.start);
+                v[i] = static_cast<usize>(ceil((static_cast<double>(diff)) / std::abs(range.step)));
                 s[i] = stride[i] * range.step;
             }
             return Shape(o, v, s);

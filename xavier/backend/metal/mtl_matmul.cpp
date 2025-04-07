@@ -30,14 +30,14 @@ namespace xv::backend::metal
 
         auto lhs_view = lhs->get_view();
         auto rhs_view = rhs->get_view();
-        const uint32_t B = lhs_view[0]; // Batch size
-        const uint32_t M = lhs_view[1]; // Number of rows
-        const uint32_t K = lhs_view[2]; // Inner dimension
-        const uint32_t N = rhs_view[2]; // Number of columns
+        const usize B = lhs_view[0]; // Batch size
+        const usize M = lhs_view[1]; // Number of rows
+        const usize K = lhs_view[2]; // Inner dimension
+        const usize N = rhs_view[2]; // Number of columns
         // Even if matrix is smaller than one threadgroup, we still need at least 1 group
-        uint64_t x_group_count = std::max(1ull, static_cast<uint64_t>((N + X_THREADS_PER_GROUP - 1) / X_THREADS_PER_GROUP));
-        uint64_t y_group_count = std::max(1ull, static_cast<uint64_t>((M + Y_THREADS_PER_GROUP - 1) / Y_THREADS_PER_GROUP));
-        uint64_t z_group_count = std::max(1ull, static_cast<uint64_t>((B + Z_THREADS_PER_GROUP - 1) / Z_THREADS_PER_GROUP));
+        const usize x_group_count = std::max(1ull, (N + X_THREADS_PER_GROUP - 1) / X_THREADS_PER_GROUP);
+        const usize y_group_count = std::max(1ull, (M + Y_THREADS_PER_GROUP - 1) / Y_THREADS_PER_GROUP);
+        const usize z_group_count = std::max(1ull, (B + Z_THREADS_PER_GROUP - 1) / Z_THREADS_PER_GROUP);
         // Compute # threadgroups and threadgroup size
         auto threadgroup_count = MTL::Size::Make(x_group_count, y_group_count, z_group_count);
         auto threadgroup_size = MTL::Size::Make(X_THREADS_PER_GROUP, Y_THREADS_PER_GROUP, Z_THREADS_PER_GROUP);

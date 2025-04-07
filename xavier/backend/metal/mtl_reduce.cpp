@@ -26,16 +26,16 @@ namespace xv::backend::metal
         const std::string kernel_name = name + "_all_" + mode + "_" + dtype.str();
         encoder.set_pipeline_state(kernel_name);
 
-        uint32_t max_threadgroup_size = encoder.get_kernel()->get_state()->maxTotalThreadsPerThreadgroup();
-        uint32_t simd_size = encoder.get_kernel()->get_state()->threadExecutionWidth();
-        // Ensure threadgroup size is multiple of SIMD size
-        max_threadgroup_size = (max_threadgroup_size / simd_size) * simd_size;
+        const usize max_threadgroup_size = encoder.get_kernel()->get_state()->maxTotalThreadsPerThreadgroup();
+        const usize simd_size = encoder.get_kernel()->get_state()->threadExecutionWidth();
+        const usize numel = input->get_numel();
+        const usize threadgroup_size = std::min(numel, max_threadgroup_size);
         // Set threadgroup memory size
-        uint32_t threadgroup_nbytes = max_threadgroup_size * dtype.get_size();
+        const usize threadgroup_nbytes = threadgroup_size * dtype.get_size();
         encoder.get_internal_encoder()->setThreadgroupMemoryLength(threadgroup_nbytes, 0);
 
         // Dispatch kernel
-        encoder.dispatch_threads(input->get_numel());
+        encoder.dispatch_threads(numel);
         pool->release();
     }
 
@@ -51,9 +51,9 @@ namespace xv::backend::metal
             encoder.encode_ndim(input);
         }
         encoder.encode_offset({input, output});
+        encoder.encode_view(input);
         if (strided_input)
         {
-            encoder.encode_view(input);
             encoder.encode_stride(input);
         }
         encoder.encode_array(input);
@@ -64,21 +64,24 @@ namespace xv::backend::metal
         encoder.set_pipeline_state(kernel_name);
 
         auto &view = input->get_view();
-        uint32_t nrows = view[0];
-        uint32_t ncols = view[1];
-        // This threadgroup_size is applied to each row
-        uint32_t max_threadgroup_size = encoder.get_kernel()->get_state()->maxTotalThreadsPerThreadgroup();
-        uint32_t simd_size = encoder.get_kernel()->get_state()->threadExecutionWidth();
-        uint32_t row_threadgroup_size = std::min(nrows, max_threadgroup_size / simd_size);
-        uint32_t col_threadgroup_size = max_threadgroup_size / row_threadgroup_size;
-        // Ensure threadgroup size is multiple of SIMD size
-        col_threadgroup_size = (col_threadgroup_size / simd_size) * simd_size;
+        const usize nrows = view[0];
+        const usize ncols = view[1];
+        const usize max_threadgroup_size = encoder.get_kernel()->get_state()->maxTotalThreadsPerThreadgroup();
+        const usize simd_size = encoder.get_kernel()->get_state()->threadExecutionWidth();
+        // Ensure column threadgroup and grid size is multiple of SIMD size
+        const usize row_grid_size = nrows;
+        const usize col_grid_size = ((ncols + simd_size - 1) / simd_size) * simd_size;
+        const usize col_threadgroup_size = std::min(col_grid_size, max_threadgroup_size);
+        const usize row_threadgroup_size = std::min(row_grid_size, max_threadgroup_size / col_threadgroup_size);
         // Set threadgroup memory size
-        uint32_t threadgroup_nbytes = col_threadgroup_size * row_threadgroup_size * dtype.get_size();
+        const usize threadgroup_nbytes = col_threadgroup_size * row_threadgroup_size * dtype.get_size();
         encoder.get_internal_encoder()->setThreadgroupMemoryLength(threadgroup_nbytes, 0);
         // Compute grid and threadgroup size
-        MTL::Size grid_size = MTL::Size::Make(ncols, nrows, 1);
+        MTL::Size grid_size = MTL::Size::Make(col_grid_size, row_grid_size, 1);
         MTL::Size threadgroup_size = MTL::Size::Make(col_threadgroup_size, row_threadgroup_size, 1);
+        std::cout << ctx->get_device()->maxThreadsPerThreadgroup().width << std::endl;
+        std::cout << row_grid_size << " " << col_grid_size << std::endl;
+        std::cout << row_threadgroup_size << " " << col_threadgroup_size << std::endl;
 
         // Dispatch kernel
         encoder.dispatch_threads(grid_size, threadgroup_size);

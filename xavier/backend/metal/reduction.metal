@@ -70,7 +70,7 @@ kernel void reduce_all_vv(
     // Read from device memory, write to threadgroup memory.
     // val is stored in thread's register
     R val = input[offset[0] + gid];
-    for (uint s = lsize/simd_size; s > 1; s /= simd_size)
+    for (uint s = (lsize + simd_size - 1) / simd_size; s > 1; s /= simd_size)
     {
         // Perform per-SIMD partial reduction -> shuffling within SIMD group.
         // Each thread gets the value from another thread offset lanes above it.
@@ -134,7 +134,7 @@ kernel void reduce_all_vs(
     // elements are accessed non-contiguously
     uint idx = strided_idx(gid, ndim, shape, stride);
     R val = input[offset[0] + idx];
-    for (uint s = lsize/simd_size; s > 1; s /= simd_size)
+    for (uint s = (lsize + simd_size - 1) / simd_size; s > 1; s /= simd_size)
     {
         for (uint lanes = simd_size/2; lanes > 0; lanes /= 2) {
             val = Op()(val, metal::simd_shuffle_down(val, lanes));
@@ -175,27 +175,35 @@ kernel void reduce_col_vv(
     const uint lwidth = lsize.x;
     const uint M = shape[0];
     const uint N = shape[1];
+    const uint simd_groups_per_threadgroup = lwidth / simd_size;
+    if (gcol >= N) {
+        return;
+    }
     R val = input[offset[0] + grow * N + gcol];
-    for (uint s = lwidth/simd_size; s > 1; s /= simd_size)
+    for (uint s = simd_groups_per_threadgroup; s > 1; s /= simd_size)
     {
         for (uint lanes = simd_size/2; lanes > 0; lanes /= 2) {
-            if (lanes < N) {
+            if (gcol + lanes < N) {
                 val = Op()(val, metal::simd_shuffle_down(val, lanes));
             }
         }
         if (simd_lane_id == 0) {
-            ldata[lrow * lwidth + simd_group_id] = val;
+            ldata[lrow * simd_groups_per_threadgroup + simd_group_id] = val;
         }
         threadgroup_barrier(metal::mem_flags::mem_threadgroup);
-        val = (lcol < s) ? ldata[lrow * lwidth + lcol] : 0;
+        val = (lcol < s) ? ldata[lrow * simd_groups_per_threadgroup + lcol] : 0;
     }
     for (uint lanes = simd_size/2; lanes > 0; lanes /= 2) {
-        if (lanes < N) {
+        if (gcol + lanes < N) {
             val = Op()(val, metal::simd_shuffle_down(val, lanes));
         }
     }
     if (lcol == 0) {
+        if (val == 0.0) {
+            AtomicOp()(output + offset[1] + grow, float(grow));
+        } else {
         AtomicOp()(output + offset[1] + grow, val);
+        }
     }
 }
 

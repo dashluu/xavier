@@ -6,11 +6,12 @@ namespace xv::core
 {
     struct Range
     {
-        usize start;
-        usize stop;
+        isize start;
+        // Stop is exclusive
+        isize stop;
         isize step;
 
-        Range(usize start, usize stop, isize step = 1) : start(start), stop(stop), step(step) {}
+        Range(isize start, isize stop, isize step = 1) : start(start), stop(stop), step(step) {}
 
         Range(const Range &range) : Range(range.start, range.stop, range.step) {}
 

@@ -174,9 +174,27 @@ namespace xv::bind
 			throw xc::PybindInvalidArgumentType(get_pyclass(obj), "slice");
 		}
 		auto slice = obj.cast<py::slice>();
-		auto start = slice.attr("start").is_none() ? 0 : map_idx(len, slice.attr("start").cast<xc::isize>());
-		auto stop = slice.attr("stop").is_none() ? len : map_idx(len, slice.attr("stop").cast<xc::isize>());
-		auto step = slice.attr("step").is_none() ? 1 : slice.attr("step").cast<xc::isize>();
+		bool start_none = slice.attr("start").is_none();
+		bool stop_none = slice.attr("stop").is_none();
+		bool step_none = slice.attr("step").is_none();
+		xc::isize start, stop, step;
+		if (step_none)
+		{
+			start = start_none ? 0 : map_idx(len, slice.attr("start").cast<xc::isize>());
+			stop = stop_none ? len : map_idx(len, slice.attr("stop").cast<xc::isize>());
+			return xc::Range(start, stop, 1);
+		}
+		step = slice.attr("step").cast<xc::isize>();
+		if (step >= 0)
+		{
+			start = start_none ? 0 : map_idx(len, slice.attr("start").cast<xc::isize>());
+			stop = stop_none ? len : map_idx(len, slice.attr("stop").cast<xc::isize>());
+		}
+		else
+		{
+			start = start_none ? len - 1 : map_idx(len, slice.attr("start").cast<xc::isize>());
+			stop = stop_none ? -1 : map_idx(len, slice.attr("stop").cast<xc::isize>());
+		}
 		return xc::Range(start, stop, step);
 	}
 
