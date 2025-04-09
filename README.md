@@ -10,7 +10,7 @@ A virtual environment(e.g., Conda) is recommended before installing Python packa
 - NumPy (>=2.0 but should work for any version)
 - Mypy >= 1.15 (type hints and docs)
 - Pybind11 >= 2.13.6 (C++ bindings)
-- Metal 3.2 and metal-cpp (macOS)
+- Metal 3.2 and metal-cpp for macOS 15.2 and iOS 18.2
 - Pytest >= 8.3.4 (optional, mainly for testing)
 
 ## Installation
@@ -57,7 +57,8 @@ x3 = Array.full(shape, 2.0, dtype=f32)
 3. Define computations and run:
 ```python
 # Define computation graph
-out = ((x1 + x2) * x3).exp()
+# Make sure the value is a single element before passing to the graph
+out = ((x1 + x2) * x3).exp().sum()
 
 # Create and compile graph
 g = MTLGraph(out, ctx)

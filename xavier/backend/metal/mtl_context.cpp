@@ -63,11 +63,10 @@ namespace xv::backend::metal
 
     void MTLContext::init_reduction_kernels()
     {
-        init_kernels("reduce_col_copy", numeric_dtypes, {"vv"});
         for (auto &op : numeric_reduction)
         {
             init_kernels(op + "_all", numeric_dtypes, {"vv", "vs"});
-            init_kernels(op + "_col", numeric_dtypes);
+            init_kernels(op + "_col", numeric_dtypes, {"vv"});
         }
     }
 

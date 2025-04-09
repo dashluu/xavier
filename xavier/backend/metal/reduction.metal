@@ -153,27 +153,8 @@ kernel void reduce_all_vs(
     }
 }
 
-// Used to copy data to a temporary buffer
-// Eliminate this in the future?
-template <class T>
-kernel void reduce_col_copy_vv(
-    constant const uint *offset [[buffer(0)]],
-    constant const uint *input_shape [[buffer(1)]],
-    constant const uint *output_shape [[buffer(2)]],
-    const device T *input [[buffer(3)]],
-    device T *output [[buffer(4)]],
-    uint2 gid [[thread_position_in_grid]])
-{
-    const uint grow = gid.y;
-    const uint gcol = gid.x;
-    const uint N1 = input_shape[1];
-    const uint N2 = output_shape[1];
-    // We do not need offset for output(temporary buffer)
-    output[grow * N2 + gcol] = gcol < N1 ? input[offset[0] + grow * N1 + gcol] : 0;
-}
-
 template <class Op, class AtomicOp, class T, class R>
-kernel void reduce_col(
+kernel void reduce_col_vv(
     constant const uint *offset [[buffer(0)]],
     constant const uint *shape [[buffer(1)]],
     const device T *input [[buffer(2)]],
@@ -183,8 +164,7 @@ kernel void reduce_col(
     uint2 lid [[thread_position_in_threadgroup]],
     uint2 lsize [[threads_per_threadgroup]],
     uint simd_size [[threads_per_simdgroup]],
-    uint simd_lane_id [[thread_index_in_simdgroup]],
-    uint simd_group_id [[simdgroup_index_in_threadgroup]])
+    uint simd_lane_id [[thread_index_in_simdgroup]])
 {
     const uint grow = gid.y;
     const uint gcol = gid.x;
@@ -192,7 +172,7 @@ kernel void reduce_col(
     const uint lcol = lid.x;
     const uint lwidth = lsize.x;
     const uint N = shape[1];
-    R val = input[grow * N + gcol];
+    R val = gcol < N ? input[offset[0] + grow * N + gcol] : 0;
     for (uint s = (lwidth + simd_size - 1) / simd_size; s > 1; s /= simd_size)
     {
         for (uint lanes = simd_size/2; lanes > 0; lanes /= 2) {
@@ -208,20 +188,17 @@ kernel void reduce_col(
         val = Op()(val, metal::simd_shuffle_down(val, lanes));
     }
     if (lcol == 0) {
-        AtomicOp()(output + offset[0] + grow, val);
+        AtomicOp()(output + offset[1] + grow, val);
     }
 }
-
-template [[host_name("reduce_col_copy_vv_f32")]] [[kernel]] decltype(reduce_col_copy_vv<float>) reduce_col_copy_vv<float>;
-template [[host_name("reduce_col_copy_vv_i32")]] [[kernel]] decltype(reduce_col_copy_vv<int>) reduce_col_copy_vv<int>;
 
 #define reduce(opname, op, atomic_op_float, atomic_op_int) \
 template [[host_name(#opname "_all_vv_f32")]] [[kernel]] decltype(reduce_all_vv<op, atomic_op_float, float, float>) reduce_all_vv<op, atomic_op_float, float, float>;   \
 template [[host_name(#opname "_all_vv_i32")]] [[kernel]] decltype(reduce_all_vv<op, atomic_op_int, int, int>) reduce_all_vv<op, atomic_op_int, int, int>;               \
 template [[host_name(#opname "_all_vs_f32")]] [[kernel]] decltype(reduce_all_vs<op, atomic_op_float, float, float>) reduce_all_vs<op, atomic_op_float, float, float>;   \
 template [[host_name(#opname "_all_vs_i32")]] [[kernel]] decltype(reduce_all_vs<op, atomic_op_int, int, int>) reduce_all_vs<op, atomic_op_int, int, int>;               \
-template [[host_name(#opname "_col_f32")]] [[kernel]] decltype(reduce_col<op, atomic_op_float, float, float>) reduce_col<op, atomic_op_float, float, float>;            \
-template [[host_name(#opname "_col_i32")]] [[kernel]] decltype(reduce_col<op, atomic_op_int, int, int>) reduce_col<op, atomic_op_int, int, int>;
+template [[host_name(#opname "_col_vv_f32")]] [[kernel]] decltype(reduce_col_vv<op, atomic_op_float, float, float>) reduce_col_vv<op, atomic_op_float, float, float>;   \
+template [[host_name(#opname "_col_vv_i32")]] [[kernel]] decltype(reduce_col_vv<op, atomic_op_int, int, int>) reduce_col_vv<op, atomic_op_int, int, int>;
 
 reduce(sum, Sum, AtomicSum, AtomicSum)
 reduce(max, Max, AtomicMaxFloat, AtomicMaxInt)

@@ -12,7 +12,7 @@ class TestReduction:
         print("\nTesting basic sum reduction:")
 
         # Create test data
-        test_cases = [[2, 3, 4], [3, 4, 5], [31, 67, 18, 17], [1027, 64, 32], [3000, 2000], [1, 1]]
+        test_cases = [[2, 3, 4], [3, 4, 5], [31, 67, 18, 17], [1027, 64, 32], [5674, 3289], [1, 1]]
 
         for shape in test_cases:
             x = torch.randn(shape, dtype=torch.float32)
@@ -26,17 +26,18 @@ class TestReduction:
 
             # PyTorch comparison
             expected = np.array([x.sum()])
+            # Use relative error here to measure the difference
             err = np.abs(arr2.numpy() - expected) / max(np.abs(arr2.numpy()), np.abs(expected))
             assert err <= 1e-3
 
-    def test_sum_reduction_with_dims(self):
-        """Test sum reduction along specific dimensions"""
-        print("\nTesting sum reduction with dimensions:")
+    def test_col_sum_reduction(self):
+        """Test sum reduction along the column dimension"""
+        print("\nTesting sum reduction along the column dimension:")
 
         # Test cases with different dimensions
         # shapes = [(2, 3, 4), (4, 5), (3, 4, 5, 6)]
         # dims_list = [[0], [1], [0, 2], [], [0, 1, 2]]
-        shapes = [(2, 3), (19, 29), (37, 32), (47, 7), (297, 101)]
+        shapes = [(2, 3), (19, 29), (37, 32), (47, 7), (297, 101), (5674, 3289), (256, 1), (1, 1), (1, 997)]
         dims_list = [[1], [1], [1], [1]]
 
         for shape in shapes:
@@ -64,7 +65,7 @@ class TestReduction:
                 print(shape)
                 print(arr2.numpy().flatten())
                 print(expected.flatten())
-                assert np.allclose(arr2.numpy(), expected.numpy(), atol=1e-2, rtol=0)
+                assert np.allclose(arr2.numpy(), expected.numpy(), atol=1e-3, rtol=0)
 
     def test_max_reduction(self):
         """Test max reduction with various scenarios"""
