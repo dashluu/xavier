@@ -51,14 +51,14 @@ namespace xv::backend::metal
         {
             T *scalar_buff = new T[1];
             scalar_buff[0] = scalar;
-            encode_buffer(scalar_buff, sizeof(T));
+            encode_buffer(scalar_buff, sizeof(T), true);
         }
 
-        void encode_buffer(void *buff, usize size, bool tracked = true)
+        void encode_buffer(void *buff, usize size, bool mem_tracked)
         {
             MTL::Buffer *mtl_buff = ctx->get_device()->newBuffer(buff, size, MTL::ResourceStorageModeShared, nullptr);
             encoder->setBuffer(mtl_buff, 0, buff_idx++);
-            if (tracked)
+            if (mem_tracked)
             {
                 buffs.push_back(static_cast<uint8_t *>(buff));
             }
@@ -77,19 +77,19 @@ namespace xv::backend::metal
             {
                 offset[i] = static_cast<mtl_usize>(arrs[i]->get_offset());
             }
-            encode_buffer(offset, sizeof(mtl_usize) * arrs.size());
+            encode_buffer(offset, sizeof(mtl_usize) * arrs.size(), true);
         }
 
         void encode_view(ArrayPtr arr)
         {
             mtl_usize *view = vcast<usize, mtl_usize>(arr->get_view());
-            encode_buffer(view, sizeof(mtl_usize) * arr->get_ndim());
+            encode_buffer(view, sizeof(mtl_usize) * arr->get_ndim(), true);
         }
 
         void encode_stride(ArrayPtr arr)
         {
             mtl_isize *stride = vcast<isize, mtl_isize>(arr->get_stride());
-            encode_buffer(stride, sizeof(mtl_isize) * arr->get_ndim());
+            encode_buffer(stride, sizeof(mtl_isize) * arr->get_ndim(), true);
         }
 
         void encode_array(ArrayPtr arr)

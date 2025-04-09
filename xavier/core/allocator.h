@@ -26,6 +26,7 @@ namespace xv::core
         {
             allocated += nbytes;
             auto ptr = new uint8_t[nbytes];
+            std::memset(ptr, 0, nbytes);
             return std::make_shared<Buffer>(ptr, nbytes, true);
         }
 

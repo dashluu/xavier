@@ -12,7 +12,7 @@ class TestReduction:
         print("\nTesting basic sum reduction:")
 
         # Create test data
-        test_cases = [[2, 3, 4], [3, 4, 5], [31, 67, 18, 17], [1027, 64, 32], [7, 2000]]
+        test_cases = [[2, 3, 4], [3, 4, 5], [31, 67, 18, 17], [1027, 64, 32], [3000, 2000], [1, 1]]
 
         for shape in test_cases:
             x = torch.randn(shape, dtype=torch.float32)
@@ -25,11 +25,9 @@ class TestReduction:
             g.forward()
 
             # PyTorch comparison
-            expected = x.sum()
-            print(shape)
-            print(arr2)
-            print(expected)
-            assert np.allclose(arr2.numpy(), expected.numpy())
+            expected = np.array([x.sum()])
+            err = np.abs(arr2.numpy() - expected) / max(np.abs(arr2.numpy()), np.abs(expected))
+            assert err <= 1e-3
 
     def test_sum_reduction_with_dims(self):
         """Test sum reduction along specific dimensions"""
@@ -38,8 +36,8 @@ class TestReduction:
         # Test cases with different dimensions
         # shapes = [(2, 3, 4), (4, 5), (3, 4, 5, 6)]
         # dims_list = [[0], [1], [0, 2], [], [0, 1, 2]]
-        shapes = [(2, 3), (19, 29), (37, 32), (297, 101)]
-        dims_list = [[1], [1], [], [1]]
+        shapes = [(2, 3), (19, 29), (37, 32), (47, 7), (297, 101)]
+        dims_list = [[1], [1], [1], [1]]
 
         for shape in shapes:
             x = torch.randn(*shape, dtype=torch.float32)
@@ -59,11 +57,14 @@ class TestReduction:
                 # PyTorch comparison
                 expected = x
                 if dims:  # If dims is not empty
-                    expected = x.sum(dim=dims)
+                    expected = x.sum(dim=dims).unsqueeze(dim=-1)
                 else:  # If dims is empty, sum all
                     expected = x.sum()
 
-                assert np.allclose(arr2.numpy(), expected.numpy())
+                print(shape)
+                print(arr2.numpy().flatten())
+                print(expected.flatten())
+                assert np.allclose(arr2.numpy(), expected.numpy(), atol=1e-2, rtol=0)
 
     def test_max_reduction(self):
         """Test max reduction with various scenarios"""

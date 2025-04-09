@@ -6,7 +6,7 @@ namespace xv::backend::metal
     {
         NS::AutoreleasePool *pool = NS::AutoreleasePool::alloc()->init();
         CommandEncoder encoder(ctx);
-        encoder.encode_buffer(&c, size);
+        encoder.encode_buffer(&c, size, false);
         encoder.encode_array(arr);
         const std::string kernel_name = "full_" + arr->get_dtype().str();
         encoder.set_pipeline_state(kernel_name);
@@ -18,8 +18,8 @@ namespace xv::backend::metal
     {
         NS::AutoreleasePool *pool = NS::AutoreleasePool::alloc()->init();
         CommandEncoder encoder(ctx);
-        encoder.encode_buffer(&start, sizeof(start));
-        encoder.encode_buffer(&step, sizeof(step));
+        encoder.encode_buffer(&start, sizeof(start), false);
+        encoder.encode_buffer(&step, sizeof(step), false);
         encoder.encode_array(arr);
         const std::string kernel_name = "arange_" + arr->get_dtype().str();
         encoder.set_pipeline_state(kernel_name);
